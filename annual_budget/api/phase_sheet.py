@@ -2,7 +2,7 @@ from annual_budget.utils import guest_api, get_allowed_units, require_unit_acces
 import frappe
 import re
 from decimal import Decimal
-from annual_budget.api.actual_format import get_filtered_actuals, sum_of_actuals_by_sequence
+from annual_budget.api.actual_format import get_filtered_actuals, sum_of_actuals_by_sequence, get_gl_breakup_for_item
 from annual_budget.api.response_crypto import is_direct_http_call
 
 
@@ -733,6 +733,36 @@ def get_combined_actuals(
                 item["total_posted_amt"] = to_float(item["total_posted_amt"])
 
     return structure
+
+
+@guest_api
+def get_actual_gl_breakup(
+    financial_year=None,
+    month=None,
+    sequence_id=None,
+    unit=None,
+    cost_center=None,
+    location_code=None,
+    erp_loc_value=None,
+    erp_cost_center_value=None,
+):
+    """GL-code-level breakdown of a single item's actuals (identified by its
+    sequence_id in the Expenses master), for the Budget vs Actual item-row
+    drill-down - get_combined_actuals only exposes one totalled
+    total_posted_amt per item, this is the same underlying data one level
+    less collapsed."""
+    if not sequence_id:
+        frappe.throw("sequence_id is required")
+
+    result = get_gl_breakup_for_item(
+        month=month,
+        financial_year=financial_year,
+        sequence_id=sequence_id,
+        unit=unit,
+        cost_center=erp_cost_center_value,
+        location_code=erp_loc_value,
+    )
+    return result.get("data", [])
 
 
 @guest_api
