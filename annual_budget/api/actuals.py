@@ -19,6 +19,13 @@ import requests
 
 from annual_budget.utils import guest_api, get_peoplesoft_prod_credentials
 
+# How long a single (fiscal_year, accounting_period) PeopleSoft response is
+# reused for - long enough that one page load's several downstream calls
+# (budget vs actual's own totals plus a GL-code drill-down click right
+# after) share one fetch, short enough that a same-day ERP correction still
+# shows up well within the same working session.
+ACTUALS_CACHE_TTL = 15 * 60
+
 # ! =======================================================  Actuals API Testing server  ================================================================================
 def get_financial_year(year):
     year = int(year)
@@ -105,7 +112,24 @@ def convert_year(year):
     return f"{year}-{str(int(year) + 1)[-2:]}"
 @guest_api
 def get_actuals_from_erp_month_wise(fiscal_year, accounting_period):
+    """Cached for ACTUALS_CACHE_TTL: this is the one live PeopleSoft HTTP
+    call every actuals path in the app ultimately funnels through (see
+    module docstring), so a single page load - e.g. Budget vs Actual's
+    initial get_combined_actuals plus a follow-up GL-code drill-down click
+    on one of its items - would otherwise re-issue the same ~30-120s ERP
+    request twice for the exact same (fiscal_year, accounting_period)."""
+    cache_key = f"annual_budget:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached
 
+    result = _fetch_actuals_from_erp_month_wise(fiscal_year, accounting_period)
+    if result.get("status") == "success":
+        frappe.cache().set_value(cache_key, result, expires_in_sec=ACTUALS_CACHE_TTL)
+    return result
+
+
+def _fetch_actuals_from_erp_month_wise(fiscal_year, accounting_period):
     try:
         username, password = get_peoplesoft_prod_credentials()
 

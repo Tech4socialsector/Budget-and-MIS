@@ -1,0 +1,231 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [
+   {
+    "doctype_name": "Master Settings",
+    "icon": "settings",
+    "item_type": "DocType",
+    "label": "Master Settings",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "ERP Credentials",
+    "icon": "key",
+    "item_type": "DocType",
+    "label": "ERP Credentials",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "App Module Setting",
+    "icon": "sliders",
+    "item_type": "DocType",
+    "label": "App Module Settings",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Cost Center",
+    "icon": "map-pin",
+    "item_type": "DocType",
+    "label": "Cost Center",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Unit",
+    "icon": "grid",
+    "item_type": "DocType",
+    "label": "Unit",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "GL code",
+    "icon": "hash",
+    "item_type": "DocType",
+    "label": "GL Code",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Location Code",
+    "icon": "map",
+    "item_type": "DocType",
+    "label": "Location Code",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "State",
+    "icon": "flag",
+    "item_type": "DocType",
+    "label": "State",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Expenses",
+    "icon": "credit-card",
+    "item_type": "DocType",
+    "label": "Expenses",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Expenses Line Items",
+    "icon": "list",
+    "item_type": "DocType",
+    "label": "Expenses Line Items",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Financial Year List",
+    "icon": "clock",
+    "item_type": "DocType",
+    "label": "Financial Year List",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Months List",
+    "icon": "layers",
+    "item_type": "DocType",
+    "label": "Months List",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Operating Units",
+    "icon": "shuffle",
+    "item_type": "DocType",
+    "label": "Operating Units",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Grant Division Details",
+    "icon": "pie-chart",
+    "item_type": "DocType",
+    "label": "Grant Division Details",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Import Templates",
+    "icon": "upload",
+    "item_type": "DocType",
+    "label": "Import Templates",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Finance user access",
+    "icon": "user-check",
+    "item_type": "DocType",
+    "label": "Finance User Access",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "AI Assistant Guide",
+    "icon": "message-circle",
+    "item_type": "DocType",
+    "label": "AI Assistant Guide",
+    "page_route": null,
+    "route": null
+   },
+   {
+    "doctype_name": "Overview number cards settings",
+    "icon": "layout",
+    "item_type": "DocType",
+    "label": "Overview Number Cards Settings",
+    "page_route": null,
+    "route": null
+   }
+  ],
+  "enabled": 1,
+  "icon": "database",
+  "label": "Settings & Master Data",
+  "modified": "2026-09-02 12:49:24.258231",
+  "module_name": "budget_master",
+  "name": "budget_master",
+  "restrict_by_role": 0,
+  "roles": [],
+  "sort_order": 1
+ },
+ {
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [
+   {
+    "doctype_name": null,
+    "icon": "bar-chart-2",
+    "item_type": "SPA Page",
+    "label": "Budget Summary",
+    "page_route": "BudgetSummary",
+    "route": null
+   },
+   {
+    "doctype_name": null,
+    "icon": "trending-up",
+    "item_type": "SPA Page",
+    "label": "Budget vs Actual",
+    "page_route": "BudgetVsActual",
+    "route": null
+   },
+   {
+    "doctype_name": null,
+    "icon": "file-text",
+    "item_type": "SPA Page",
+    "label": "Foundation - Consolidated Budget",
+    "page_route": "FoundationConsolidated",
+    "route": null
+   },
+   {
+    "doctype_name": null,
+    "icon": "database",
+    "item_type": "SPA Page",
+    "label": "ERP Actuals",
+    "page_route": "ErpActuals",
+    "route": null
+   }
+  ],
+  "enabled": 1,
+  "icon": "bar-chart-2",
+  "label": "Budget Reports",
+  "modified": "2026-09-02 12:10:11.108128",
+  "module_name": "budget_reports",
+  "name": "budget_reports",
+  "restrict_by_role": 0,
+  "roles": [],
+  "sort_order": 2
+ },
+ {
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [
+   {
+    "doctype_name": null,
+    "icon": "calendar",
+    "item_type": "SPA Page",
+    "label": "Monthly MIS",
+    "page_route": "MonthlyMis",
+    "route": null
+   }
+  ],
+  "enabled": 1,
+  "icon": "file-text",
+  "label": "MIS Report",
+  "modified": "2026-09-02 12:10:11.118549",
+  "module_name": "mis_reports",
+  "name": "mis_reports",
+  "restrict_by_role": 0,
+  "roles": [],
+  "sort_order": 3
+ }
+]

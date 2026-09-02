@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full flex-shrink-0">
+  <div class="app-sidebar-root flex h-full flex-shrink-0" :style="sidebarThemeVars">
     <Sidebar v-model:collapsed="collapsed" :header="header" :sections="sections" :disableCollapse="disableCollapse">
       <template #sidebar-item="{ item }">
         <SidebarItem
@@ -14,7 +14,7 @@
         <AppTooltip :text="`Ask ${assistantBotName}`" :disabled="!isCollapsed">
           <button
             v-if="assistantConfigResource.data?.enabled"
-            class="assistant-card relative flex w-full items-center gap-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-left hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800/70"
+            class="assistant-card relative flex w-full items-center gap-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-left hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-800 dark:hover:bg-gray-800/70"
             :class="{ 'justify-center': isCollapsed }"
             @click="toggleAssistant"
           >
@@ -57,6 +57,16 @@
 </template>
 
 <style scoped>
+/* --sticky-label-bg / --sidebar-text-color are set via :style on the root
+element in <script setup> (sidebarThemeVars), not a :global(.dark) CSS
+selector - empirically, Vite's Vue SFC compiler was found to silently
+mis-compile :global(...) combined with anything else in this file's
+<style scoped> block (verified directly in its own build output: the
+.dark prefix got dropped, leaving a bare, disconnected `.dark{...}` rule
+with no connection to the actual target). Binding them reactively from
+the component's own theme state sidesteps the compiler bug entirely. The
+:deep() rules further down just read these two variables via var(). */
+
 /* frappe-ui's Sidebar hard-codes its own width (w-60 expanded / w-12
 collapsed) with no width prop of its own - :deep() widens the expanded
 state a bit for more breathing room around longer nav labels; the
@@ -94,11 +104,133 @@ targets sections 2 and 3 (1-indexed) specifically. */
 :deep(.flex.flex-col.mt-2:nth-of-type(3)) {
   margin-top: 0.75rem;
   border-top: 1px solid theme('colors.gray.200');
-  padding-top: 0.5rem;
 }
 :global(.dark) :deep(.flex.flex-col.mt-2:nth-of-type(2)),
 :global(.dark) :deep(.flex.flex-col.mt-2:nth-of-type(3)) {
   border-top-color: theme('colors.gray.800');
+}
+/* Section 2 (Home/Dashboard, not a scroll container) still wants the
+gap the removed padding-top used to give it - restated as margin-top on
+its own label/first item instead. Section 3 (the module section) does NOT
+get this: it's the sticky-label scroll container below, where that same
+gap becomes the padding.top-in-a-scroll-container plumbing bug this
+splits it out to avoid (see next rule's comment). */
+:deep(.flex.flex-col.mt-2:nth-of-type(2) > *:first-child) {
+  margin-top: 0.5rem;
+}
+
+/* Sidebar.vue's own root scrolls the ENTIRE sidebar as one unit
+(overflow-y-auto on the outermost div) - fine for the two small pinned
+sections (utility actions, Home/Dashboard), but a module section can carry
+many items (e.g. Settings & Master Data's 18 doctypes), which pushed the
+whole sidebar - including those pinned sections and the profile/assistant
+footer - into scrolling together. Disabling the root's own scroll and
+instead making just the module section (:nth-of-type(3), the same one
+targeted above) scroll within its own bounded height keeps the pinned
+sections and footer always visible, with only the module's item list
+scrolling on its own. flex-shrink:0 on the footer (Sidebar.vue's own
+`.mt-auto` block, holding the assistant card + profile + collapse) stops
+it from being squeezed/overlapped by the module section above it - without
+it, a tall item list could shrink flex:1 1 auto's sibling further than its
+own content needs, since flex items shrink by default.
+
+margin-top:auto on that same footer block is Sidebar.vue's own mechanism
+for pinning it to the bottom of the sidebar by default (e.g. on Home,
+where there's no module section at all) - kept as-is; only flex-shrink is
+added here so a tall module item list can't squeeze the footer smaller
+than its own content needs. */
+:deep(.overflow-y-auto.overflow-x-hidden) {
+  overflow-y: hidden;
+}
+:deep(.mt-auto.flex.flex-col) {
+  flex-shrink: 0;
+}
+:deep(.flex.flex-col.mt-2:nth-of-type(3)) {
+  /* flex-grow:0 (not 1) - this section should only take the height its own
+  items actually need, up to whatever room is left above the footer, NOT
+  stretch to fill all remaining space when the item list is short enough
+  to fit without scrolling. flex-grow:1 pushed the footer to the very
+  bottom of the viewport with a large dead gap above it whenever a module
+  had few enough items to fit on screen (e.g. Budget Reports' 4 items) -
+  flex-shrink:1 + min-height:0 is what actually matters for the "scroll
+  instead of overflowing past the footer" behavior on a LONG list. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Same thin-scrollbar treatment as .fc-scroll-wrapper (index.css) - the
+  browser default scrollbar reads as oversized in a narrow 17rem sidebar
+  column. scrollbar-width is Firefox's own property; the
+  ::-webkit-scrollbar-* rules below cover Chromium/Safari. */
+  scrollbar-width: thin;
+}
+:deep(.flex.flex-col.mt-2:nth-of-type(3))::-webkit-scrollbar {
+  width: 10px;
+}
+:deep(.flex.flex-col.mt-2:nth-of-type(3))::-webkit-scrollbar-track {
+  background: transparent;
+}
+:deep(.flex.flex-col.mt-2:nth-of-type(3))::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+:global(.dark) :deep(.flex.flex-col.mt-2:nth-of-type(3))::-webkit-scrollbar-thumb {
+  background-color: rgb(107 114 128);
+}
+
+/* The module section's own label (e.g. "Settings & Master Data") sits
+inside that same scrolling box (SidebarSection.vue renders label + item
+list as one flex column, no separate scroll region for each) - pin it to
+the top of the scroll area so it stays visible as a heading while the item
+list underneath it scrolls past. Needs its own opaque background (matching
+the sidebar's own bg-surface-menu-bar) so scrolled-past items don't show
+through underneath it.
+
+top:0 here needs the scroll CONTAINER (:nth-of-type(3) above) to have zero
+padding-top of its own - a sticky child's top:0 anchors to the padding
+edge of its nearest scrolling ancestor, not its border edge, so any
+padding-top on that ancestor opens a gap between the container's actual
+scroll boundary and where the sticky element starts covering content -
+a scrolled-past item can render fully visible in that gap, appearing to
+poke out above the sticky label even though the label itself has a solid,
+fully opaque background. That's why the divider rule above no longer
+gives this container its own padding-top: it's given to THIS element
+instead, as padding-top (not margin-top - a margin sits outside this
+element's own border box, so the sticky background painted on that box
+still wouldn't cover it and the same gap would just move one level down;
+padding is inside the box the background paints, so it's covered). */
+:deep(.flex.flex-col.mt-2:nth-of-type(3) > div:first-child) {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  padding-top: 8px;
+  margin-top: -8px;
+  background-color: var(--sticky-label-bg);
+}
+/* The label text itself (SidebarSection.vue's own <h3>, inside the sticky
+wrapper above) - a bit of extra margin-top gives "Settings & Master Data"
+some breathing room below the divider line instead of sitting flush
+against it. */
+:deep(.flex.flex-col.mt-2:nth-of-type(3) h3) {
+  margin-top: 10px;
+}
+
+/* SidebarSection.vue wraps its <nav> item list in a <transition> meant to
+animate a COLLAPSIBLE section open/closed (enter-to-class/leave-from-class
+both cap it at max-h-[200px] while the collapse animation plays) - our
+module section is never collapsible, but Vue's transition system still
+applies that class (and can leave a stray inline max-height behind from
+the last time it measured the element) since the <nav> unmounts/remounts
+whenever the section's items change. Capped at 200px, the nav rendered a
+second, visually duplicated copy of the sticky label's own text peeking
+out beneath it once real content overflowed that cap - overriding it back
+to none lets the nav grow to its natural height so our own container
+(.mt-2:nth-of-type(3) above) is the only thing that ever bounds/scrolls
+it. */
+:deep(.flex.flex-col.mt-2:nth-of-type(3) nav) {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .assistant-card {
@@ -187,6 +319,29 @@ targets sections 2 and 3 (1-indexed) specifically. */
     animation: none;
   }
 }
+
+/* Nav item labels (Home, Dashboard, every module item) and the module
+section heading (e.g. "Settings & Master Data") use frappe-ui's own
+ink-gray-* tokens by default, which resolve to a mid-brightness gray in
+dark mode (e.g. ink-gray-5 -> gray-300, the section heading; the item
+Button's own ghost-variant ink token for item labels) rather than pure
+white - legible, but noticeably dimmer than the rest of this app's
+dark-mode text. Scoped to just nav's own item-label span and the section
+h3 - NOT every button/span in the sidebar - so the assistant card's own
+two-tone bot-name/"AI assistant" hierarchy and the profile dropdown are
+left alone; neither was part of this.
+
+Uses the --sidebar-text-color variable (set on .app-sidebar-root above)
+rather than a :global(.dark) :deep(...) compound selector - empirically,
+Vite's Vue SFC compiler was found to sometimes silently mis-compile that
+combination for other rules in this file (see the sticky-label background
+rule above), so the variable indirection is used everywhere in this
+component now rather than trusting case-by-case which shapes happen to
+compile correctly. */
+:deep(h3),
+:deep(nav button span) {
+  color: var(--sidebar-text-color);
+}
 </style>
 
 <script setup>
@@ -204,6 +359,7 @@ import { brandingResource, defaultAppIcon } from '@/data/branding'
 import { appConfigResource } from '@/data/appConfig'
 import { activeModule } from '@/data/activeModule'
 import { clearFrontendCache } from '@/data/clearCache'
+import { currentTheme } from '@/data/theme'
 
 defineProps({
   // Forced open (never icon-collapsed) when rendered inside the mobile
@@ -213,6 +369,20 @@ defineProps({
 })
 
 const assistantBotName = computed(() => assistantConfigResource.data?.bot_name || 'Assistant')
+
+// Bound via :style on the root element rather than a :global(.dark) CSS
+// selector - empirically, Vite's Vue SFC compiler was found to silently
+// mis-compile :global(...) combined with anything else in this file's
+// <style scoped> block (verified directly in its own build output: the
+// .dark prefix got dropped, leaving a bare, disconnected `.dark{...}`
+// rule). Deriving the values here and binding them as inline custom
+// properties sidesteps the compiler entirely - reactive, and immune to
+// that bug since no :global() selector is involved at all.
+const sidebarThemeVars = computed(() => (
+  currentTheme.value === 'dark'
+    ? { '--sticky-label-bg': '#171717', '--sidebar-text-color': '#f3f4f6' }
+    : { '--sticky-label-bg': '#f8f8f8', '--sidebar-text-color': 'inherit' }
+))
 
 const route = useRoute()
 const collapsed = ref(false)

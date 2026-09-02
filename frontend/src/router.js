@@ -91,11 +91,22 @@ let router = createRouter({
 const REVALIDATE_INTERVAL_MS = 60_000
 let lastCheckedAt = 0
 
-async function recheckAuthIfStale() {
+function recheckAuthIfStale() {
   const now = Date.now()
   if (now - lastCheckedAt < REVALIDATE_INTERVAL_MS) return
   lastCheckedAt = now
-  await userResource.fetch().catch(() => {})
+  // Deliberately NOT awaited by its caller (the beforeEach guard) - this
+  // check exists purely to catch a session that died server-side while
+  // session.user is still stale-truthy in memory (see the comment above),
+  // not to gate the navigation the user is already trying to make. Router
+  // guards fully await an async function before proceeding, so an earlier
+  // version of this that awaited userResource.fetch() here silently froze
+  // every navigation past the 60s mark on a live network round-trip - with
+  // no loading indicator, since nothing renders until the guard resolves.
+  // If the session really is dead, userResource's own onError sets
+  // session.user = null, and the NEXT navigation's synchronous
+  // `!session.user` check below sends it to /login as normal.
+  userResource.fetch().catch(() => {})
 }
 
 if (typeof document !== 'undefined') {
@@ -129,7 +140,7 @@ router.beforeEach(async (to, from, next) => {
     // session to /login.
     await initialUserCheck.catch(() => {})
   } else {
-    await recheckAuthIfStale()
+    recheckAuthIfStale()
   }
 
   if (to.name !== 'Login' && !session.user) {

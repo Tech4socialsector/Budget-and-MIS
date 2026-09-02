@@ -262,7 +262,7 @@ function toOptions(list) {
 }
 
 function tickColor() {
-  return isDarkMode() ? '#9ca3af' : '#6b7280'
+  return isDarkMode() ? '#f9fafb' : '#6b7280'
 }
 
 // --- Financial Year -------------------------------------------------------
@@ -533,7 +533,7 @@ function renderCharts() {
     const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeBudget) > 0)
     budgetPieChart = new Chart(budgetPieRef.value, {
       type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -551,7 +551,7 @@ function renderCharts() {
     const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeActual) > 0)
     actualPieChart = new Chart(actualPieRef.value, {
       type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,

@@ -118,6 +118,20 @@ const metaResource = useMeta(props.doctype)
 const columns = useListFields(metaResource)
 const filterFields = useFilterFields(metaResource)
 
+// A Single doctype (e.g. Master Settings, ERP Credentials) has exactly one
+// record, named after the doctype itself, and no real list to page through
+// - frappe.client.get_list throws a ProgrammingError against it. Skip the
+// list view entirely and go straight to its one record's form.
+watch(
+  () => metaResource.data?.issingle,
+  (isSingle) => {
+    if (isSingle) {
+      router.replace({ name: 'DoctypeForm', params: { doctypeRoute: route.params.doctypeRoute, name: props.doctype } })
+    }
+  },
+  { immediate: true },
+)
+
 // A doctype whose only real data is its own `name` (e.g. GL code, which
 // has no fields beyond a layout Section Break) has zero display columns -
 // without a fallback, both the header row and every row's cells render as

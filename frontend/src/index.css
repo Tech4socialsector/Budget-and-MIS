@@ -256,6 +256,28 @@ sidebar's assistant card. */
   width: 240px;
 }
 
+/* Below the sm breakpoint, every data table in the app should scroll
+   purely vertically with the page - no sticky header/footer/first-column,
+   which on a narrow phone viewport clips too much of the row label/value
+   to be usable and fights the page's own scroll instead of the table's.
+   This covers both the shared .fc-table family (used by ~10 components -
+   Monthly MIS, Foundation Consolidated, Budget vs Actual, ERP Actuals) and
+   BudgetSummaryTable.vue's own hand-rolled sticky utility classes (it
+   predates .fc-table and never migrated to it) - so one rule here reaches
+   every table in the app instead of needing a per-component change. */
+@media (max-width: 639px) {
+  .fc-table thead,
+  .fc-row-grand,
+  .fc-sticky-col,
+  table thead.sticky,
+  table tfoot tr,
+  table td.sticky,
+  table th.sticky {
+    position: static !important;
+    box-shadow: none !important;
+  }
+}
+
 .fc-xl-btn {
   background-color: #1a1a1a !important;
   border-color: #1a1a1a !important;

@@ -38,7 +38,19 @@ export const userResource = createResource({
 // router's navigation guard runs synchronously before that - without
 // awaiting this promise it would treat "not yet known" the same as
 // "logged out" and bounce a genuinely logged-in user to /login.
-export const initialUserCheck = userResource.fetch()
+//
+// This fetch runs on EVERY page load, including before login (when there's
+// legitimately no session yet), which makes the server reply with a
+// PermissionError - that's expected and already handled above via
+// onError(). But createResource's fetch() always rejects its returned
+// promise on failure regardless of onError, and this module-level
+// assignment runs long before router.js gets a chance to await/catch it
+// (only its own later .catch(() => {}) on this same promise does) - so an
+// unawaited rejection here surfaces as an "Uncaught (in promise)" console
+// error on every not-yet-authenticated load. Catching it here keeps the
+// export usable as a promise for router.js to await while ensuring it can
+// never reject unhandled.
+export const initialUserCheck = userResource.fetch().catch(() => {})
 
 export const userLanguageResource = createResource({
   url: 'frappe.client.get_value',

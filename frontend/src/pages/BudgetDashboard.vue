@@ -114,6 +114,27 @@
             </div>
           </div>
 
+          <!-- Budget Share + Quarterly Allocation Trend: same row -->
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <!-- Doughnut: Budget Share -->
+            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Share</div>
+              <div class="mt-3 h-64">
+                <canvas ref="shareCanvasRef" />
+              </div>
+            </div>
+
+            <!-- Bar: Quarterly Allocation Trend -->
+            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Quarterly Allocation Trend</div>
+              <div v-if="quarterlyTrendLoading" class="flex h-64 items-center justify-center text-xs text-gray-400">Loading trend...</div>
+              <div v-else-if="!quarterlyTrendHeads.length" class="flex h-64 items-center justify-center text-xs text-gray-400">No quarterly data available.</div>
+              <div v-else class="h-64">
+                <canvas ref="quarterlyTrendRef" />
+              </div>
+            </div>
+          </div>
+
           <!-- Bar: Month-wise Budget by Unit (replaces the old flat "Budget
           by Unit" bar list - same drill-down-per-unit intent, but broken
           out across the year so a unit's own seasonality is visible too,
@@ -135,27 +156,6 @@
               <canvas ref="monthlyBudgetRef" />
             </div>
           </div>
-
-          <!-- Budget Share + Quarterly Allocation Trend: same row -->
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <!-- Doughnut: Budget Share -->
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Share</div>
-              <div class="mt-3 h-64">
-                <canvas ref="shareCanvasRef" />
-              </div>
-            </div>
-
-            <!-- Bar: Quarterly Allocation Trend -->
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Quarterly Allocation Trend</div>
-              <div v-if="quarterlyTrendLoading" class="flex h-64 items-center justify-center text-xs text-gray-400">Loading trend...</div>
-              <div v-else-if="!quarterlyTrendHeads.length" class="flex h-64 items-center justify-center text-xs text-gray-400">No quarterly data available.</div>
-              <div v-else class="h-64">
-                <canvas ref="quarterlyTrendRef" />
-              </div>
-            </div>
-          </div>
         </template>
       </template>
 
@@ -170,8 +170,8 @@
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
 
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2 lg:grid-rows-3">
+          <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2">
               <AppTooltip text="Click to drill down">
                 <button
                   class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
@@ -612,7 +612,7 @@ const dashboardInsights = computed(() => {
 const shareCanvasRef = ref(null)
 let shareChart = null
 function tickColor() {
-  return isDarkMode() ? '#9ca3af' : '#6b7280'
+  return isDarkMode() ? '#f9fafb' : '#6b7280'
 }
 
 // --- Quarterly Allocation Trend (Tab 1) ----------------------------------
@@ -985,7 +985,19 @@ function renderShareChart() {
     type: 'doughnut',
     data: {
       labels: units.map((u) => u.label),
-      datasets: [{ data: units.map((u) => unitTotal(u)), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }],
+      datasets: [{
+        data: units.map((u) => unitTotal(u)),
+        backgroundColor: units.map((_, i) => accentColor(i)),
+        // A visible gap between adjacent slices (rather than borderWidth:0,
+        // which lets them touch directly) - without it, a very small slice
+        // (e.g. a 2% share) reads as a stray seam/rendering glitch between
+        // its two neighbors instead of an intentional thin segment, since
+        // there's nothing marking where one color's boundary actually is.
+        // The border color matches the card's own surface (not the slice
+        // colors) so it reads as a gap, not a colored ring.
+        borderWidth: 2,
+        borderColor: isDarkMode() ? '#111827' : '#ffffff',
+      }],
     },
     plugins: [percentLabelsPlugin],
     options: {
@@ -1128,7 +1140,7 @@ function renderWorkPlanCharts() {
     ].filter((s) => s.value > 0)
     workplanPieChart = new Chart(workplanPieRef.value, {
       type: 'pie',
-      data: { labels: segments.map((s) => s.label), datasets: [{ data: segments.map((s) => s.value), backgroundColor: segments.map((s) => s.color), borderWidth: 0 }] },
+      data: { labels: segments.map((s) => s.label), datasets: [{ data: segments.map((s) => s.value), backgroundColor: segments.map((s) => s.color), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1154,7 +1166,7 @@ function renderWorkPlanCharts() {
       .filter((u) => u.value > 0)
     directWorkUnitChart = new Chart(directWorkUnitRef.value, {
       type: 'doughnut',
-      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1179,7 +1191,7 @@ function renderWorkPlanCharts() {
       .filter((u) => u.value > 0)
     grantsUnitChart = new Chart(grantsUnitRef.value, {
       type: 'doughnut',
-      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1322,7 +1334,7 @@ function renderActualsCharts() {
     const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeBudget) > 0)
     baBudgetPieChart = new Chart(baBudgetPieRef.value, {
       type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1340,7 +1352,7 @@ function renderActualsCharts() {
     const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeActual) > 0)
     baActualPieChart = new Chart(baActualPieRef.value, {
       type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
