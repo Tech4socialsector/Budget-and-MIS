@@ -75,6 +75,15 @@ app_include_js = "/assets/annual_budget/js/response_decrypt.bundle.js"
 # www/annual_budget.html shell; vue-router then handles the sub-path in the
 # browser.
 
+# The sidebar/Home-tile module config (Settings & Master Data / Budget
+# Reports / MIS Report and their items) - built up this session via direct
+# bench console scripts, so it only ever existed in this site's database.
+# Exporting it as a fixture writes it to
+# annual_budget/fixtures/app_module_setting.json, so it ships with the app
+# itself (git-tracked, applied automatically by `bench migrate` on any
+# other site) instead of needing to be recreated by hand everywhere.
+fixtures = ["App Module Setting"]
+
 website_route_rules = [
 	{"from_route": "/annual_budget/<path:app_path>", "to_route": "annual_budget"},
 ]
