@@ -61,7 +61,7 @@
         <!-- Summary cards + pie -->
         <div v-if="expenseHeads.length" class="flex flex-shrink-0 flex-col gap-2">
           <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Budget Summary</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Summary</div>
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
           <BudgetSummaryCards :heads="expenseHeads" :financial-year="filters.financialYear" :show-full-numbers="showFullNumbers" />

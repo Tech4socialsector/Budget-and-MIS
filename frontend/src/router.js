@@ -45,6 +45,11 @@ const routes = [
     component: () => import('@/pages/ErpActuals.vue'),
   },
   {
+    path: '/budget-vs-actual',
+    name: 'BudgetVsActual',
+    component: () => import('@/pages/BudgetVsActual.vue'),
+  },
+  {
     path: '/:doctypeRoute',
     name: 'DoctypeList',
     component: () => import('@/pages/DoctypeList.vue'),

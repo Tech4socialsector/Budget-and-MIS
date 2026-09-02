@@ -42,7 +42,7 @@
    "in_list_view": 1,
    "label": "Page",
    "mandatory_depends_on": "eval:doc.item_type == 'SPA Page'",
-   "options": "BudgetSummary\nBudgetDashboard\nFoundationConsolidated\nMonthlyMis\nErpActuals"
+   "options": "BudgetSummary\nBudgetDashboard\nFoundationConsolidated\nMonthlyMis\nErpActuals\nBudgetVsActual"
   },
   {
    "fieldname": "column_break_label",

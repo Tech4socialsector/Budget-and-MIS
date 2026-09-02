@@ -247,6 +247,64 @@ import frappe
 from collections import defaultdict
 
 @guest_api
+def get_actuals_by_gl_code(fiscal_year, accounting_period):
+    """Same YTD-through-accounting_period rows as get_grouped_actuals, but
+    keeping `account` (raw ERP GL code) in the grouping key instead of
+    collapsing it away - lets a caller drill a single sequence_id/
+    type_of_expense down into its GL-code-level breakdown."""
+    month_wise = get_grouped_actuals_month_wise(fiscal_year, accounting_period)
+
+    if month_wise.get("status") != "success":
+        return {"status": month_wise.get("status", "failed"), "fiscal_year": fiscal_year, "data": []}
+
+    grouped = defaultdict(float)
+
+    for record in month_wise.get("data", []):
+        key = (
+            record.get("business_unit"),
+            record.get("deptid"),
+            record.get("operating_unit"),
+            record.get("head_of_expense"),
+            record.get("sub_head_of_expense"),
+            record.get("type_of_expense"),
+            record.get("sequence_id"),
+            record.get("account"),
+        )
+        grouped[key] += float(record.get("total_posted_amt") or 0)
+
+    final_output = []
+    for (
+        business_unit,
+        deptid,
+        operating_unit,
+        head_of_expense,
+        sub_head_of_expense,
+        type_of_expense,
+        sequence_id,
+        account,
+    ), total_sum in grouped.items():
+        final_output.append({
+            "sequence_id": sequence_id,
+            "business_unit": business_unit,
+            "deptid": deptid,
+            "operating_unit": operating_unit,
+            "head_of_expense": head_of_expense,
+            "sub_head_of_expense": sub_head_of_expense,
+            "type_of_expense": type_of_expense,
+            "gl_code": account,
+            "total_posted_amt": round(total_sum, 2)
+        })
+
+    final_output.sort(key=lambda x: (x.get("sequence_id") or 0, x.get("gl_code") or ""))
+
+    return {
+        "status": "success",
+        "fiscal_year": fiscal_year,
+        "data": final_output
+    }
+
+
+@guest_api
 def get_grouped_actuals(fiscal_year, accounting_period):
     """YTD-through-accounting_period actuals grouped by
     (business_unit, deptid, operating_unit, head_of_expense,
