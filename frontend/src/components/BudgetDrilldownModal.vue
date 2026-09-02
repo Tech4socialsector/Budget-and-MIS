@@ -6,11 +6,19 @@
         <div class="border-b px-5 py-4 dark:border-gray-800">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-start gap-3">
-              <span class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-fc-blue-light text-fc-blue-mid dark:bg-fc-blue-mid/20 dark:text-fc-blue-light">
+              <button
+                v-if="history.length > 1"
+                class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="Back"
+                @click="drillBack"
+              >
+                <FeatherIcon name="arrow-left" class="h-4.5 w-4.5" />
+              </button>
+              <span v-else class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-fc-blue-light text-fc-blue-mid dark:bg-fc-blue-mid/20 dark:text-fc-blue-light">
                 <FeatherIcon :name="levelIcon" class="h-4.5 w-4.5" />
               </span>
               <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Drill Down</div>
+                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Drill Down</div>
                 <h2 class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ current?.name }}</h2>
               </div>
             </div>
@@ -50,32 +58,32 @@
             <div class="flex flex-wrap items-center justify-between gap-4">
               <div v-if="!showActuals" class="flex items-center gap-6">
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Total</div>
                   <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(total(current)) }}</div>
                 </div>
                 <div v-if="children.length">
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ childLabel }}</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">{{ childLabel }}</div>
                   <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ children.length }}</div>
                 </div>
               </div>
               <div v-else class="flex flex-wrap items-center gap-6">
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Budget</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget</div>
                   <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(total(current)) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Actual</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Actual</div>
                   <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(actualTotal(current)) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Variance</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Variance</div>
                   <div class="mt-1 text-xl font-semibold" :style="{ color: varianceColor(current) }">
                     {{ formatAmount(Math.abs(total(current) - actualTotal(current))) }}
                     <span class="text-xs font-normal">{{ total(current) - actualTotal(current) >= 0 ? 'under' : 'over' }}</span>
                   </div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Utilization</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Utilization</div>
                   <div class="mt-1 flex items-center gap-2">
                     <span class="text-xl font-semibold" :style="{ color: utilizationColor(utilizationPct(current)) }">
                       {{ utilizationPct(current) }}%
@@ -109,7 +117,7 @@
 
           <template v-if="children.length">
             <div class="mb-2 flex items-center justify-between">
-              <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                 <FeatherIcon :name="childIcon" class="h-3.5 w-3.5" />
                 {{ childLabel }}
               </div>
@@ -304,5 +312,9 @@ function drillInto(child) {
 
 function jumpTo(index) {
   history.value = history.value.slice(0, index + 1)
+}
+
+function drillBack() {
+  if (history.value.length > 1) history.value = history.value.slice(0, -1)
 }
 </script>

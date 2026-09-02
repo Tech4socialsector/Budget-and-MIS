@@ -8,7 +8,7 @@
             class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
             @click="openDrilldown({ name: 'Grand Total', items: nonZeroHeads, sub_heads: [], q1: [], q2: [], q3: [], q4: [] })"
           >
-            <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Grand Total Budget</div>
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grand Total Budget</div>
             <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(grandTotal) }}</div>
             <div class="mt-1.5 flex items-center gap-2 text-xs text-gray-400">
               <span>{{ nonZeroHeads.length }} Expense Head{{ nonZeroHeads.length !== 1 ? 's' : '' }}</span>
@@ -25,7 +25,7 @@
             :style="{ borderColor: accentColor(headIndex(head)) }"
             @click="openDrilldown(head)"
           >
-            <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" :title="head.name">
+            <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="head.name">
               {{ head.name }}
             </div>
             <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(headTotal(head)) }}</div>
@@ -42,13 +42,11 @@
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <AppTooltip v-for="sub in nonZeroSubHeads(head)" :key="sub.name" text="Click to drill down">
             <button
-              class="w-full overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+              class="w-full rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
               @click="openDrilldown(sub)"
             >
-              <div class="p-3">
-                <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" :title="sub.name">{{ sub.name }}</div>
-                <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(rowTotal(sub)) }}</div>
-              </div>
+              <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="sub.name">{{ sub.name }}</div>
+              <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(rowTotal(sub)) }}</div>
             </button>
           </AppTooltip>
         </div>
@@ -57,7 +55,7 @@
 
     <!-- Direct Work vs Grants & Donations -->
     <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-      <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+      <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
         FY {{ financialYear }} — Grants &amp; Donations and Direct Work
       </div>
       <div class="relative mt-4 flex items-center justify-center">
