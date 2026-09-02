@@ -7,28 +7,6 @@
       </div>
 
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <component
-          :is="tile.onClick ? 'button' : 'div'"
-          v-for="tile in staticTiles"
-          :key="'static-' + tile.label"
-          class="group flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-          :class="tile.onClick ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-          @click="tile.onClick?.()"
-        >
-          <span
-            class="flex h-12 w-12 items-center justify-center rounded-xl text-white transition group-hover:scale-105"
-            :style="{ backgroundColor: tile.color }"
-          >
-            <FeatherIcon :name="tile.icon" class="h-6 w-6" />
-          </span>
-          <div>
-            <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ tile.label }}</div>
-            <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {{ tile.count ? `${tile.count} item${tile.count !== 1 ? 's' : ''}` : 'Coming soon' }}
-            </div>
-          </div>
-        </component>
-
         <!-- Loading skeleton for backend-driven modules (App Module Setting) -->
         <template v-if="modulesResource.loading && !modulesResource.data">
           <div v-for="i in 3" :key="'skel-' + i" class="flex flex-col items-center gap-3 rounded-lg border border-gray-200 p-5 dark:border-gray-800">
@@ -77,19 +55,6 @@ onMounted(() => {
 })
 
 const router = useRouter()
-
-// Same fixed-order categorical palette used across the app's charts/cards
-// (BudgetSummaryCards.vue, BudgetSummaryTable.vue), so a module tile's
-// accent color reads as part of the same visual language.
-const TILE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4']
-
-// "Settings & Master Data" isn't a real module yet (no App Module Setting
-// record targets it) - kept as its own non-clickable "Coming soon" tile.
-// Budget Reports / MIS Reports are now real App Module Setting records
-// (backend-driven, same as Budget Master) - see dynamicModules below.
-const staticTiles = computed(() => [
-  { label: 'Settings & Master Data', icon: 'user-check', color: TILE_COLORS[0], count: 0, onClick: null },
-])
 
 // Backend-driven modules (App Module Setting), same pattern as the chw
 // reference app: a tile per module, click sets it as the active sidebar
