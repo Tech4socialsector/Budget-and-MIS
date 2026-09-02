@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "format:AJMT-{financial_year}-{month}-{##}",
+ "creation": "2026-03-06 12:37:21.937179",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "financial_year",
+  "column_break_okvw",
+  "month",
+  "section_break_fspx",
+  "adjustment_line_items"
+ ],
+ "fields": [
+  {
+   "fieldname": "financial_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Financial year",
+   "options": "Financial Year List"
+  },
+  {
+   "fieldname": "month",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Month",
+   "options": "Months List"
+  },
+  {
+   "fieldname": "adjustment_line_items",
+   "fieldtype": "Table",
+   "label": "Adjustment Line Items",
+   "options": "Adjustment Items"
+  },
+  {
+   "fieldname": "column_break_okvw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_fspx",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-07 15:38:37.730232",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "Monthly Adjustment",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

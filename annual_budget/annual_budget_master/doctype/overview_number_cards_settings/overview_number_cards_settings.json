@@ -1,0 +1,110 @@
+{
+ "actions": [],
+ "autoname": "autoincrement",
+ "creation": "2026-02-04 13:02:17.420331",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "number_card_title",
+  "set_group_id",
+  "column_break_gsnh",
+  "description_for_this_settings",
+  "section_break_tngy",
+  "combination_table_settings",
+  "section_break_pazy",
+  "select_units",
+  "select_cost_centers",
+  "select_location_codes"
+ ],
+ "fields": [
+  {
+   "fieldname": "number_card_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Number card title"
+  },
+  {
+   "default": "0",
+   "fieldname": "set_group_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Set Group ID"
+  },
+  {
+   "fieldname": "select_units",
+   "fieldtype": "Table",
+   "label": "Select Units",
+   "options": "Unit Link"
+  },
+  {
+   "fieldname": "select_cost_centers",
+   "fieldtype": "Table",
+   "label": "Select Cost centers",
+   "options": "Cost center Link"
+  },
+  {
+   "fieldname": "select_location_codes",
+   "fieldtype": "Table",
+   "label": "Select Location Codes",
+   "options": "Location code Link"
+  },
+  {
+   "default": "0",
+   "fieldname": "combination_table_settings",
+   "fieldtype": "Table",
+   "label": "Combination of unit  Table settings",
+   "options": "Combination of unit settings"
+  },
+  {
+   "fieldname": "description_for_this_settings",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Description for this settings"
+  },
+  {
+   "fieldname": "column_break_gsnh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_tngy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_pazy",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-27 14:16:40.295158",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Master",
+ "name": "Overview number cards settings",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "number_card_title",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "number_card_title"
+}

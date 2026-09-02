@@ -1,0 +1,92 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "IMPTI-.#####",
+ "creation": "2026-02-26 20:58:47.367472",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "import_template_items_section",
+  "type_of_expense_id",
+  "sequence_id",
+  "type_of_expense",
+  "sub_head_of_expense",
+  "head_of_expense",
+  "actuals_type_of_expenses"
+ ],
+ "fields": [
+  {
+   "fieldname": "import_template_items_section",
+   "fieldtype": "Section Break",
+   "label": "Import Template Items"
+  },
+  {
+   "fieldname": "type_of_expense_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type of expense ID",
+   "options": "Expenses"
+  },
+  {
+   "fetch_from": "type_of_expense_id.sequence_id",
+   "fieldname": "sequence_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sequence ID",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.type_of_expense",
+   "fieldname": "type_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type of expense",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.sub_head_of_expense",
+   "fieldname": "sub_head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sub head of expense",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.head_of_expense",
+   "fieldname": "head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Head of expense",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.actuals_type_of_expenses",
+   "fieldname": "actuals_type_of_expenses",
+   "fieldtype": "Data",
+   "label": "Actuals Type of Expenses",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-13 21:50:25.004560",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Child",
+ "name": "Import Template Items",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
