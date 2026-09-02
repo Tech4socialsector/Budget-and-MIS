@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "autoname": "GLM-.####",
+ "creation": "2026-02-12 12:51:08.644129",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "gl_code_map",
+  "type_of_expense"
+ ],
+ "fields": [
+  {
+   "fetch_from": "gl_code_map.type_of_expense",
+   "fieldname": "type_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type of expense",
+   "options": "Expenses Line Items",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_code_map",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "GL code",
+   "options": "Expenses Line Items"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-13 21:40:55.327612",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Child",
+ "name": "GL code Mapping",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,215 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "EXLI-.#####",
+ "creation": "2025-09-26 10:49:01.969330",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "type_of_expense_id",
+  "type_of_expense",
+  "sub_head_of_expense",
+  "head_of_expense",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "column_break_snxq",
+  "november",
+  "december",
+  "january",
+  "february",
+  "march",
+  "quarter_1",
+  "quarter_2",
+  "quarter_3",
+  "quarter_4",
+  "year",
+  "support_documents"
+ ],
+ "fields": [
+  {
+   "fetch_from": "type_of_expense_id.type_of_expense",
+   "fieldname": "type_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type of expense",
+   "options": "Expenses",
+   "read_only": 1,
+   "sticky": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.sub_head_of_expense",
+   "fieldname": "sub_head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Sub head of expense",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "type_of_expense_id.head_of_expense",
+   "fieldname": "head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Head of expense",
+   "read_only": 1
+  },
+  {
+   "fieldname": "april",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "April",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "may",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "May",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "june",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "June",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "july",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "July",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "august",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "August",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "september",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "September",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "october",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "October",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "november",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "November",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "december",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "December",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "january",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "January",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "february",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "February",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "march",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "March",
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "quarter_1",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Quarter 1 Total Amount",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "quarter_2",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Quarter 2 Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quarter_3",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Quarter 3 Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quarter_4",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Quarter 4 Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "year",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Year Total Amount"
+  },
+  {
+   "fieldname": "column_break_snxq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "support_documents",
+   "fieldtype": "Attach",
+   "label": "Ledger item Support Documents "
+  },
+  {
+   "fieldname": "type_of_expense_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Type of expense ID",
+   "options": "Expenses"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-13 21:41:53.880896",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Child",
+ "name": "Finance Budget Amounts",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

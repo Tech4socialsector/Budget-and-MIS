@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "USP-.#####",
+ "creation": "2025-10-14 09:31:38.430745",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "import_template_id",
+  "allow_edit_template",
+  "column_break_ydif",
+  "user_name",
+  "import_template_name",
+  "section_break_bxeo",
+  "mapping",
+  "use_template_item_list"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User"
+  },
+  {
+   "fieldname": "mapping",
+   "fieldtype": "Table",
+   "label": "Mapping",
+   "options": "User mapping"
+  },
+  {
+   "fieldname": "column_break_ydif",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_bxeo",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "import_template_id.template_name",
+   "fieldname": "import_template_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Import Template Name",
+   "options": "Import Templates",
+   "read_only": 1
+  },
+  {
+   "fieldname": "use_template_item_list",
+   "fieldtype": "Table",
+   "label": "Import Template Item list",
+   "options": "Import Template Items",
+   "read_only": 1
+  },
+  {
+   "fieldname": "import_template_id",
+   "fieldtype": "Link",
+   "label": "Import Template ID",
+   "options": "Import Templates"
+  },
+  {
+   "fetch_from": "user.full_name",
+   "fieldname": "user_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User Name",
+   "options": "User"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_edit_template",
+   "fieldtype": "Check",
+   "label": "Allow Edit Template "
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-18 16:36:52.323488",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Master",
+ "name": "Finance user access",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

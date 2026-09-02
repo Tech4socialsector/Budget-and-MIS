@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* frappe-ui's Dialog overlay/content ship with no z-index of their own,
+so they sit in the auto/0 stacking bucket of the root stacking context.
+Any in-page element with an explicit positive z-index and nothing
+isolating it (e.g. a sticky table header) has nothing to be beaten by
+and paints over a "modal" dialog. Pin every dialog above any such
+in-page content page authors might add.
+
+The z-index alone isn't enough, though: a `position: sticky` element
+(e.g. that same table header) gets promoted to its own compositor layer
+by the browser for scroll performance, and a plain (non-promoted)
+element elsewhere can still paint underneath that layer even with a
+higher z-index once compositing - not just stacking-context math - is
+involved. Force the overlay onto its own layer too so it composites,
+not just stacks, above sticky content. */
+.dialog-overlay {
+  z-index: 100;
+  transform: translateZ(0);
+}
+
+/* Same root-stacking-context gap as .dialog-overlay above, but for
+frappe-ui's Dropdown/Tooltip popovers (also teleported to <body> with no
+z-index of their own) - without this a popover can render visually behind
+in-page content that happens to declare its own z-index, like the
+sidebar's assistant card. */
+.dropdown-content {
+  z-index: 100;
+  transform: translateZ(0);
+}
+
+/* =========================================================================
+   Foundation Consolidated Budget page (src/pages/FoundationConsolidated.vue
+   and src/components/foundationConsolidated/*) - shared table primitives
+   replicating the Desk "Foundation - Consolidated Budget" page's two-tier
+   blue/orange header, head/sub-head/grand-total row shading, and sticky
+   header/footer/first-column behavior. Kept global (not scoped per
+   component) since every tab component's table needs the exact same
+   primitives and duplicating them per-component would risk drift.
+   ========================================================================= */
+
+.fc-scroll-wrapper {
+  border: 1px solid #d5dbe1;
+  border-radius: 6px;
+  max-height: 72vh;
+  overflow: auto;
+  isolation: isolate;
+  margin-bottom: 20px;
+  /* Thinner scrollbar (both axes - this wrapper scrolls horizontally and
+     vertically) than the browser default, which otherwise eats a
+     noticeable strip of an already-tight table area. scrollbar-width is
+     Firefox's own property; the ::-webkit-scrollbar-* rules below cover
+     Chromium/Safari, which don't support scrollbar-width at all. */
+  scrollbar-width: thin;
+}
+.fc-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.fc-scroll-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fc-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: #c1c9d2;
+  border-radius: 4px;
+}
+:root:not([data-theme='light']) .fc-scroll-wrapper::-webkit-scrollbar-thumb,
+[data-theme='dark'] .fc-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: rgb(75 85 99);
+}
+:root:not([data-theme='light']) .fc-scroll-wrapper,
+[data-theme='dark'] .fc-scroll-wrapper {
+  border-color: rgb(55 65 81);
+}
+
+.fc-table {
+  border-collapse: collapse;
+}
+
+/* Sticky vertically on scroll within .fc-scroll-wrapper - matches
+   BudgetSummaryTable.vue's own approach exactly: `<thead class="sticky
+   top-0 z-20 isolate">`, i.e. sticky positioning lives on the <thead> as a
+   single unit, not on each <th> individually with a manually-guessed pixel
+   offset for the second row. Targets the plain `<thead>` element directly
+   (every .fc-table's thead already exists solely to hold .fc-thead-main /
+   .fc-thead-sub rows) so no markup changes are needed across the ~10
+   component files using this table family.
+
+   Sticking the whole <thead> instead of each row separately is what
+   Budget Summary does to avoid two classes of bug that plagued the old
+   per-<th> approach: (1) a rowspan="2" cell needing its rendered height to
+   exactly match two independently-positioned sticky rows next to it
+   (any mismatch showed as a seam), and (2) a hardcoded --fc-th-h pixel
+   offset for the second row's `top` needing to exactly equal the first
+   row's real height (any mismatch left a gap showing the page background
+   through). With one sticky box for both rows, neither can happen - the
+   rows move as a single glued-together unit, whatever their real heights
+   are.
+
+   Header cells still carry only a left border (no top/bottom), matching
+   BudgetSummaryTable.vue's header cells - simpler now that sticky isn't
+   depending on it, but kept for the visual column-separator look. */
+.fc-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  isolation: isolate;
+}
+.fc-th {
+  background-color: #1e5fa8;
+  color: #fff;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-left: 1px solid #1a5493;
+  white-space: nowrap;
+}
+.fc-th-sub {
+  background-color: #e8792a;
+  color: #fff;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-left: 1px solid #c46620;
+  text-align: right;
+  white-space: nowrap;
+}
+/* Third header row (only the Cost-per-Employee table) - stacks below both
+   the main header and the orange sub-header rows. */
+.fc-th-sub-row3 {
+  background-color: #e8792a;
+  color: #fff;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-left: 1px solid #c46620;
+  text-align: right;
+  white-space: nowrap;
+}
+.fc-td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e6ea;
+  border-left: 1px solid #e2e6ea;
+  white-space: nowrap;
+  /* No background-color here on purpose: plain data rows must stay
+     transparent so a tinted ancestor (.fc-row-head/.fc-row-sub on the
+     <tr>) shows through the cell rather than being painted over. The
+     table's own surface color (below) is what a plain row actually shows -
+     without it, a plain <td> falls through to whatever background happens
+     to be behind .fc-scroll-wrapper (e.g. the page's dark surface), while
+     its text color was never set either - in a dark host that's
+     unstyled-dark-text on an inherited-dark background, unreadable. */
+  color: #1f2937;
+}
+:root:not([data-theme='light']) .fc-td,
+[data-theme='dark'] .fc-td {
+  border-color: rgb(55 65 81);
+  color: rgb(229 231 235);
+}
+.fc-table {
+  background-color: #fff;
+}
+:root:not([data-theme='light']) .fc-table,
+[data-theme='dark'] .fc-table {
+  background-color: rgb(17 24 39);
+}
+
+/* Head-level rows: light blue background - matches BudgetSummaryTable's
+   bg-head-row exactly. */
+.fc-row-head {
+  background-color: #eaf1fb;
+  font-weight: 600;
+  cursor: pointer;
+}
+:root:not([data-theme='light']) .fc-row-head,
+[data-theme='dark'] .fc-row-head {
+  background-color: rgb(37 60 92 / 0.4);
+}
+.fc-row-head:hover {
+  filter: brightness(0.97);
+}
+
+/* Sub-head-level rows: near-white blue tint - matches BudgetSummaryTable's
+   bg-subhead-row (deliberately blue, not orange, in that design). */
+.fc-row-sub {
+  background-color: #f5f8fd;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root:not([data-theme='light']) .fc-row-sub,
+[data-theme='dark'] .fc-row-sub {
+  background-color: rgb(31 41 55 / 0.5);
+}
+.fc-row-sub:hover {
+  filter: brightness(0.97);
+}
+
+/* Grand-total rows: same blue as the main header, white text, pinned to
+   the bottom of the scroll area - matches BudgetSummaryTable's tfoot row,
+   just also sticky (BudgetSummaryTable's tfoot has no scroll area to pin
+   within). */
+.fc-row-grand {
+  background-color: #1e5fa8;
+  color: #fff;
+  font-weight: 700;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+}
+.fc-row-grand .fc-td {
+  border-color: #1a5493;
+  /* .fc-td sets its own `color` for plain data rows (needed for dark-mode
+     contrast), which otherwise wins over the `color: #fff` inherited from
+     this row's .fc-row-grand ancestor - a same-element declaration always
+     beats an inherited one, regardless of selector specificity. Restate
+     white explicitly here so Total/Grand Total row text stays readable. */
+  color: #fff;
+}
+
+/* Non-grand total/subtotal rows (ppt-total-row / sinr-total-row /
+   cpe-total-row): lighter blue than fc-row-head, blue-dark text - matches
+   BudgetSummaryTable's bg-total-row / text-total-text. Same same-element-
+   beats-inherited issue as .fc-row-grand above: .fc-td's own `color` rule
+   would otherwise win over this row's inherited color, so restate it on
+   the child .fc-td explicitly rather than relying on inheritance. */
+.ppt-total-row,
+.fc-subtotal-row {
+  background-color: #dceafd;
+  color: #1e5fa8;
+}
+.ppt-total-row .fc-td,
+.fc-subtotal-row .fc-td {
+  color: #1e5fa8;
+}
+:root:not([data-theme='light']) .ppt-total-row,
+[data-theme='dark'] .ppt-total-row,
+:root:not([data-theme='light']) .fc-subtotal-row,
+[data-theme='dark'] .fc-subtotal-row {
+  background-color: rgb(37 60 92 / 0.65);
+  color: #86b6ef;
+}
+:root:not([data-theme='light']) .ppt-total-row .fc-td,
+[data-theme='dark'] .ppt-total-row .fc-td,
+:root:not([data-theme='light']) .fc-subtotal-row .fc-td,
+[data-theme='dark'] .fc-subtotal-row .fc-td {
+  color: #86b6ef;
+}
+
+.fc-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.12);
+}
+
+.fc-search-input {
+  width: 240px;
+}
+
+.fc-xl-btn {
+  background-color: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #fff !important;
+}
+.fc-xl-btn:hover {
+  background-color: #333 !important;
+}

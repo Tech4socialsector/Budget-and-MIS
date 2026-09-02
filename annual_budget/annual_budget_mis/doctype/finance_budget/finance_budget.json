@@ -1,0 +1,178 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "format:{set_id}{financial_year}{##}",
+ "creation": "2025-09-26 11:34:26.596454",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "set_id",
+  "entity__unit_decription",
+  "cost_center",
+  "cost_center_erp",
+  "cc_descr",
+  "uploaded_by",
+  "column_break_yvds",
+  "location_code",
+  "location_code_erp",
+  "description",
+  "state",
+  "financial_year",
+  "supporting_document",
+  "section_break_gcjw",
+  "budget_amounts",
+  "total_budget"
+ ],
+ "fields": [
+  {
+   "fetch_from": "created_by.unit__entity",
+   "fieldname": "set_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity / Unit",
+   "options": "Unit"
+  },
+  {
+   "fetch_from": "created_by.cost_center",
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fetch_from": "location_code.decription",
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Function / Sub Unit / Division",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_yvds",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "location_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Location code",
+   "options": "Location Code"
+  },
+  {
+   "fieldname": "financial_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Financial year",
+   "options": "Financial Year List"
+  },
+  {
+   "fieldname": "section_break_gcjw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "budget_amounts",
+   "fieldtype": "Table",
+   "label": "Budget Amounts",
+   "options": "Finance Budget Amounts"
+  },
+  {
+   "fieldname": "total_budget",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Total Budget",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "cost_center.cc_descr",
+   "fetch_if_empty": 1,
+   "fieldname": "cc_descr",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Cost Center Description",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "set_id.unit_decription",
+   "fieldname": "entity__unit_decription",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity / Unit Description",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "location_code.state",
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "State",
+   "read_only": 1
+  },
+  {
+   "fieldname": "supporting_document",
+   "fieldtype": "Attach",
+   "label": "Budget Supporting Document"
+  },
+  {
+   "fetch_from": "cost_center.cost_center",
+   "fieldname": "cost_center_erp",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Cost Center(Original)"
+  },
+  {
+   "fieldname": "uploaded_by",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Uploaded By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "location_code.location_code",
+   "fieldname": "location_code_erp",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Location code(Original)"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-25 19:10:43.397558",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "Finance Budget",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

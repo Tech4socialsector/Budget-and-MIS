@@ -1,0 +1,132 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "EXS-.####",
+ "creation": "2026-02-16 21:49:41.940160",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "custom":1,
+ "field_order": [
+  "budget_lineitems_section",
+  "head_of_expense",
+  "sub_head_of_expense",
+  "sequence_id",
+  "column_break_zshy",
+  "type_of_expense",
+  "gl_code",
+  "gl_id",
+  "actuals_lineitems_dec_section",
+  "column_break_frgc",
+  "actuals_type_of_expenses",
+  "sub_gl_mapping_section",
+  "sub_gl"
+ ],
+ "fields": [
+  {
+   "fieldname": "head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Head of expense"
+  },
+  {
+   "fieldname": "sub_head_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sub head of expense"
+  },
+  {
+   "fieldname": "type_of_expense",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type of expense"
+  },
+  {
+   "fieldname": "gl_code",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "GL code"
+  },
+  {
+   "fieldname": "column_break_zshy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sequence_id",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sequence ID"
+  },
+  {
+   "fieldname": "sub_gl_mapping_section",
+   "fieldtype": "Section Break",
+   "label": "Sub GL Mapping"
+  },
+  {
+   "fieldname": "sub_gl",
+   "fieldtype": "Table",
+   "label": "Sub GL",
+   "options": "GL code Mapping"
+  },
+  {
+   "fieldname": "actuals_lineitems_dec_section",
+   "fieldtype": "Section Break",
+   "label": "Actuals Lineitems & Dec"
+  },
+  {
+   "fieldname": "gl_id",
+   "fieldtype": "Data",
+   "label": "GL ID",
+   "options": "Expenses Line Items"
+  },
+  {
+   "fieldname": "column_break_frgc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "actuals_gl_code.type_of_expense",
+   "fieldname": "actuals_type_of_expenses",
+   "fieldtype": "Data",
+   "label": "Actuals Type of Expenses"
+  },
+  {
+   "fieldname": "budget_lineitems_section",
+   "fieldtype": "Section Break",
+   "label": "Budget Lineitems & Dec"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-18 12:31:35.605418",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Master",
+ "name": "Expenses",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "type_of_expense",
+ "track_changes": 1
+}

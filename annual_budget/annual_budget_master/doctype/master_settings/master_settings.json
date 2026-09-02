@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-10-13 16:14:41.996911",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_branding",
+  "app_title",
+  "column_break_branding",
+  "app_logo",
+  "fincial_year_details_section",
+  "current_financial_year",
+  "current_month",
+  "section_break_help",
+  "helpdesk_url",
+  "section_break_ai",
+  "ai_assistant_enabled",
+  "ai_bot_name",
+  "ai_daily_message_limit",
+  "column_break_ai",
+  "ai_provider",
+  "ai_api_base_url",
+  "ai_model",
+  "ai_api_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_branding",
+   "fieldtype": "Section Break",
+   "label": "Branding"
+  },
+  {
+   "default": "Annual Budget MIS",
+   "description": "Shown on the login page and browser tab.",
+   "fieldname": "app_title",
+   "fieldtype": "Data",
+   "label": "App Title"
+  },
+  {
+   "fieldname": "column_break_branding",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Shown on the login page and browser tab favicon. Square image recommended.",
+   "fieldname": "app_logo",
+   "fieldtype": "Attach Image",
+   "label": "App Logo"
+  },
+  {
+   "fieldname": "fincial_year_details_section",
+   "fieldtype": "Section Break",
+   "label": "Fincial Year Details"
+  },
+  {
+   "fieldname": "current_financial_year",
+   "fieldtype": "Link",
+   "label": "Current Fincial Year",
+   "options": "Financial Year List"
+  },
+  {
+   "fieldname": "current_month",
+   "fieldtype": "Link",
+   "label": "Current Month",
+   "options": "Months List"
+  },
+  {
+   "fieldname": "section_break_help",
+   "fieldtype": "Section Break",
+   "label": "Help & Support"
+  },
+  {
+   "description": "Shown as a 'Help & Support' link in the app sidebar. Leave blank to hide it.",
+   "fieldname": "helpdesk_url",
+   "fieldtype": "Data",
+   "label": "Helpdesk URL"
+  },
+  {
+   "fieldname": "section_break_ai",
+   "fieldtype": "Section Break",
+   "label": "AI Assistant"
+  },
+  {
+   "default": "0",
+   "description": "Turns the AI assistant on or off for every user of the app.",
+   "fieldname": "ai_assistant_enabled",
+   "fieldtype": "Check",
+   "label": "Enable AI Assistant"
+  },
+  {
+   "default": "Assistant",
+   "description": "Shown as the chat panel's title and greeting.",
+   "fieldname": "ai_bot_name",
+   "fieldtype": "Data",
+   "label": "Assistant Name"
+  },
+  {
+   "default": "50",
+   "description": "Maximum number of assistant messages a single user can send per day. Protects against unexpected API costs.",
+   "fieldname": "ai_daily_message_limit",
+   "fieldtype": "Int",
+   "label": "Daily Message Limit Per User",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_ai",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Custom",
+   "description": "Convenience label only - the actual request always uses the Base URL below, so any OpenAI-compatible endpoint works.",
+   "fieldname": "ai_provider",
+   "fieldtype": "Select",
+   "label": "Provider Preset",
+   "options": "Custom\nOpenAI\nGemini\nGroq\nOpenRouter\nOllama (self-hosted)"
+  },
+  {
+   "description": "OpenAI-compatible chat completions endpoint, e.g. https://api.groq.com/openai/v1",
+   "fieldname": "ai_api_base_url",
+   "fieldtype": "Data",
+   "label": "API Base URL",
+   "mandatory_depends_on": "eval:doc.ai_assistant_enabled"
+  },
+  {
+   "description": "Model name as expected by the provider, e.g. llama-3.1-8b-instant, gemini-flash-latest, gpt-4o-mini. Check the provider's docs for their current model names.",
+   "fieldname": "ai_model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "mandatory_depends_on": "eval:doc.ai_assistant_enabled"
+  },
+  {
+   "description": "Stored encrypted, never sent to the browser. Leave blank for providers that don't require a key (e.g. local Ollama).",
+   "fieldname": "ai_api_key",
+   "fieldtype": "Password",
+   "label": "API Key"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-30 04:17:36.135925",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Master",
+ "name": "Master Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,87 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "LCL-.####",
+ "creation": "2025-10-30 17:18:31.153935",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "location_code",
+  "reference_for",
+  "location_code_description",
+  "location_code_erp",
+  "unit",
+  "state"
+ ],
+ "fields": [
+  {
+   "fieldname": "location_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "location code",
+   "options": "Location Code"
+  },
+  {
+   "fetch_from": "location_code.unit",
+   "fieldname": "unit",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Unit",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "location_code.decription",
+   "fieldname": "location_code_description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "location code Description",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "location_code.location_code",
+   "fieldname": "location_code_erp",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Location Code ERP",
+   "read_only": 1
+  },
+  {
+   "default": "Both",
+   "fieldname": "reference_for",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Reference For",
+   "options": "\nBudget\nActual\nBoth"
+  },
+  {
+   "fetch_from": "location_code.state",
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "State"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-29 12:33:49.551481",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Child",
+ "name": "Location code Link",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

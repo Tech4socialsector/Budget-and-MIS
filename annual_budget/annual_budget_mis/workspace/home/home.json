@@ -1,0 +1,77 @@
+{
+ "app": "annual_budget",
+ "charts": [],
+ "content": "[{\"id\": \"FAytx_193h\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Home</span>\", \"col\": 12}}, {\"id\": \"AB1cdWebAp\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Annual Budget MIS App\", \"col\": 3}}, {\"id\": \"SJGRECD3lH\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Budget List\", \"col\": 3}}, {\"id\": \"X7DBNJUVbg\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Budget Face Sheet\", \"col\": 3}}, {\"id\": \"2xdK9DCEAs\", \"type\": \"paragraph\", \"data\": {\"text\": \"Budget Import\", \"col\": 12}}, {\"id\": \"W2f35NYM8m\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Budget Import Template\", \"col\": 4}}, {\"id\": \"rJBJloRenc\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Budget Data Import\", \"col\": 4}}, {\"id\": \"XesUALzJys\", \"type\": \"paragraph\", \"data\": {\"text\": \"User Guide - SOP\", \"col\": 12}}, {\"id\": \"vYP0hiv84D\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"User SOP\", \"col\": 3}}]",
+ "creation": "2026-02-09 10:47:37.145579",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "home",
+ "idx": 2,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Home",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-08-30 20:43:07.615493",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "Home",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 28.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Data Import",
+   "link_to": "Data Import",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Face Sheet",
+   "link_to": "budget-phase-sheet",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "User SOP",
+   "type": "URL",
+   "url": "https://tfssprojects.m.frappe.cloud/budget-mis-intro"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget List",
+   "link_to": "Finance Budget",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Import Template",
+   "link_to": "import-template",
+   "type": "Page"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Annual Budget MIS App",
+   "type": "URL",
+   "url": "/annual_budget"
+  }
+ ],
+ "title": "Home",
+ "type": "Workspace"
+}
