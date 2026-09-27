@@ -7,6 +7,7 @@
  "field_order": [
   "number_card_title",
   "set_group_id",
+  "is_special_case",
   "column_break_gsnh",
   "description_for_this_settings",
   "section_break_tngy",
@@ -14,7 +15,8 @@
   "section_break_pazy",
   "select_units",
   "select_cost_centers",
-  "select_location_codes"
+  "select_location_codes",
+  "special_case_table"
  ],
  "fields": [
   {
@@ -33,22 +35,40 @@
    "label": "Set Group ID"
   },
   {
+   "default": "0",
+   "fieldname": "is_special_case",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Special Case"
+  },
+  {
+   "depends_on": "eval:!doc.is_special_case",
    "fieldname": "select_units",
    "fieldtype": "Table",
    "label": "Select Units",
    "options": "Unit Link"
   },
   {
+   "depends_on": "eval:!doc.is_special_case",
    "fieldname": "select_cost_centers",
    "fieldtype": "Table",
    "label": "Select Cost centers",
    "options": "Cost center Link"
   },
   {
+   "depends_on": "eval:!doc.is_special_case",
    "fieldname": "select_location_codes",
    "fieldtype": "Table",
    "label": "Select Location Codes",
    "options": "Location code Link"
+  },
+  {
+   "depends_on": "eval:doc.is_special_case",
+   "fieldname": "special_case_table",
+   "fieldtype": "Table",
+   "label": "Special Case",
+   "options": "Special Case Link"
   },
   {
    "default": "0",
