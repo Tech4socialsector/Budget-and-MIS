@@ -1065,7 +1065,7 @@ def get_combination_table_settings_test(table_name_filter=None):
     return results
 
 @guest_api
-def get_unit_wise_plan(financial_year, month, table_name_filter=None,is_previous=None):
+def get_unit_wise_plan(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None):
 
     def safe_join(arr):
         return ",".join([str(x).strip() for x in (arr or []) if x])
@@ -1210,10 +1210,13 @@ def get_unit_wise_plan(financial_year, month, table_name_filter=None,is_previous
 
     formatted = get_accounting_period_from_month(month, financial_year)
 
-    grouped_actuals_data = get_grouped_actuals(
-        fiscal_year=formatted.get("fiscal_year"),
-        accounting_period=formatted.get("accounting_period")
-    ).get("data", [])
+    if _grouped_actuals_data is not None:
+        grouped_actuals_data = _grouped_actuals_data
+    else:
+        grouped_actuals_data = get_grouped_actuals(
+            fiscal_year=formatted.get("fiscal_year"),
+            accounting_period=formatted.get("accounting_period")
+        ).get("data", [])
 
     final_results = []
 
@@ -1992,7 +1995,7 @@ def get_reports_table_settings():
     return results
 
 @guest_api
-def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_previous=None):
+def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None):
 
     def safe_join(arr):
         return ",".join([str(x).strip() for x in (arr or []) if x])
@@ -2107,12 +2110,15 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
     #   { table_name, sequence_id, is_this_sub_item }
     raw_settings = get_combination_table_settings_test(table_name_filter)
 
-    # ── Call get_grouped_actuals() ONCE ───────────────────────────────────────
+    # ── Call get_grouped_actuals() ONCE (unless the caller already has it) ────
     formatted = get_accounting_period_from_month(month, financial_year)
-    grouped_actuals_data = get_grouped_actuals(
-        fiscal_year=formatted.get("fiscal_year"),
-        accounting_period=formatted.get("accounting_period")
-    ).get("data", [])
+    if _grouped_actuals_data is not None:
+        grouped_actuals_data = _grouped_actuals_data
+    else:
+        grouped_actuals_data = get_grouped_actuals(
+            fiscal_year=formatted.get("fiscal_year"),
+            accounting_period=formatted.get("accounting_period")
+        ).get("data", [])
 
     # ── Build result dict grouped by table_name (mirrors input structure) ─────
     # Output: { "Unit Wise Plan": [ entry, ... ], "Opex Capex": [ entry, ... ] }

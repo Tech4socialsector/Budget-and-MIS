@@ -6274,7 +6274,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 				fieldtype: 'Select',
 				fieldname: 'fmt',
 				label: 'Format',
-				options: 'Excel\nPDF',
+				options: 'Excel\nPDF\nPowerPoint',
 				default: 'Excel',
 				reqd: 1
 			}],
@@ -6284,12 +6284,16 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 				var fmt = (vals.fmt || 'Excel').toLowerCase();
 				if (fmt === 'pdf') {
 					frappe.show_alert({message:'Generating PDF…', indicator:'blue'}, 5);
+				} else if (fmt === 'powerpoint') {
+					fmt = 'pptx';
+					frappe.show_alert({message:'Generating PowerPoint…', indicator:'blue'}, 5);
 				}
 				var url = frappe.urllib.get_full_url(
 					'/api/method/annual_budget.api.monthly_mis.export_monthly_mis'
 					+ '?financial_year=' + encodeURIComponent(fy)
 					+ '&month='          + encodeURIComponent(month)
 					+ '&export_format='  + fmt
+					+ '&show_full_numbers=' + (misShowFullNumbers ? '1' : '0')
 				);
 				window.open(url, '_blank');
 			}
@@ -6847,8 +6851,18 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 		if(!r.total_b&&!r.total_a){r.total_b=r.opex_b+r.capex_b+r.covid_b;r.total_a=r.opex_a+r.capex_a+r.covid_a;}
 		return r;
 	}
+	/* Row-ordering comparator: sequence_id 0/unset means "not assigned a
+	   position" (not "position zero"), so those rows sort to the bottom
+	   instead of the top; everything else sorts ascending as usual. */
+	function bySeqId(a,b){
+		var sa=a.sequence_id||0, sb=b.sequence_id||0;
+		if(sa===0&&sb===0)return 0;
+		if(sa===0)return 1;
+		if(sb===0)return -1;
+		return sa-sb;
+	}
 	function buildMap(data){
-		var sorted=(data||[]).slice().sort(function(a,b){return(a.sequence_id||0)-(b.sequence_id||0);});
+		var sorted=(data||[]).slice().sort(bySeqId);
 		var rows={},subFlags={},order=[],grand=null;
 		sorted.forEach(function(e){
 			var tbl=(e.table_name||'').toUpperCase();
@@ -6979,11 +6993,13 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 		cm.order.forEach(function(l){allLabels.push(l);});
 		pm.order.forEach(function(l){if(allLabels.indexOf(l)===-1)allLabels.push(l);});
 		function cr(v){return(parseFloat(v)||0)/10000000;}
-		var html='',cTot={b:0,a:0},pTot={b:0,a:0};
+		function isCovidLbl(lbl){return (lbl||'').toUpperCase().indexOf('COVID')!==-1;}
+		var html='',cTot={b:0,a:0},pTot={b:0,a:0},covidRow=null;
 		allLabels.forEach(function(lbl){
 			var isSub=cm.subFlags[lbl]||pm.subFlags[lbl];
 			var cv=cm.rows[lbl]||zero(),pv=pm.rows[lbl]||zero();
 			var cb=cr(cv.total_b),ca=cr(cv.total_a),pb=cr(pv.total_b),pa=cr(pv.total_a);
+			if(isCovidLbl(lbl)){covidRow={label:lbl,cb:cb,ca:ca,pb:pb,pa:pa};return;}
 			if(!isSub){cTot.b+=cb;cTot.a+=ca;pTot.b+=pb;pTot.a+=pa;}
 			var cls=isSub?'cr-sub-item':'',lS=isSub?'padding-left:28px;':'';
 			html+='<tr class="'+cls+'"><td class="col-lbl" style="'+lS+'">'+lbl+'</td>'+
@@ -6993,6 +7009,17 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 		html+='<tr class="cr-total"><td class="col-lbl">Total</td>'+
 			mkTdCr(cTot.b,'',  'Total','Cur Budget')+mkTdCr(cTot.a,'con-act','Total','Cur Actuals')+'<td class="con-pct">'+fmtPct(cTot.a,cTot.b)+'</td>'+
 			mkTdCr(pTot.b,'sep-yr','Total','Prev Budget')+mkTdCr(pTot.a,'con-act','Total','Prev Actuals')+'<td class="con-pct">'+fmtPct(pTot.a,pTot.b)+'</td></tr>';
+
+		var cvCB=covidRow?covidRow.cb:0, cvCA=covidRow?covidRow.ca:0,
+			cvPB=covidRow?covidRow.pb:0, cvPA=covidRow?covidRow.pa:0;
+		html+='<tr><td class="col-lbl">'+(covidRow?covidRow.label:'Covid-19')+'</td>'+
+			mkTdCr(cvCB,'','Covid-19','Cur Budget')+mkTdCr(cvCA,'con-act','Covid-19','Cur Actuals')+'<td class="con-pct">'+fmtPct(cvCA,cvCB)+'</td>'+
+			mkTdCr(cvPB,'sep-yr','Covid-19','Prev Budget')+mkTdCr(cvPA,'con-act','Covid-19','Prev Actuals')+'<td class="con-pct">'+fmtPct(cvPA,cvPB)+'</td></tr>';
+
+		var gCB=cTot.b+cvCB, gCA=cTot.a+cvCA, gPB=pTot.b+cvPB, gPA=pTot.a+cvPA;
+		html+='<tr class="cr-total"><td class="col-lbl">Grand Total</td>'+
+			mkTdCr(gCB,'',  'Grand Total','Cur Budget')+mkTdCr(gCA,'con-act','Grand Total','Cur Actuals')+'<td class="con-pct">'+fmtPct(gCA,gCB)+'</td>'+
+			mkTdCr(gPB,'sep-yr','Grand Total','Prev Budget')+mkTdCr(gPA,'con-act','Grand Total','Prev Actuals')+'<td class="con-pct">'+fmtPct(gPA,gPB)+'</td></tr>';
 		$('#con-tbl tbody').empty().html(html);
 		setStickyTops('#con-tbl');
 	}
@@ -7021,7 +7048,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 	}
 	function buildExpRows(curData,prevData,names){
 		function idx(data){
-			var sorted=(data||[]).slice().sort(function(a,b){return(a.sequence_id||0)-(b.sequence_id||0);});
+			var sorted=(data||[]).slice().sort(bySeqId);
 			var map={},subFlags={};
 			sorted.forEach(function(e){
 				var tbl=(e.table_name||'').toUpperCase();
@@ -7033,7 +7060,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 			return{map:map,subFlags:subFlags};
 		}
 		var cm=idx(curData),pm=idx(prevData),rows=[],seen={};
-		var curSorted=(curData||[]).slice().sort(function(a,b){return(a.sequence_id||0)-(b.sequence_id||0);});
+		var curSorted=(curData||[]).slice().sort(bySeqId);
 		curSorted.forEach(function(e){
 			var tbl=(e.table_name||'').toUpperCase();
 			if(e.sequence_id===9999||tbl==='CONSOLIDATED')return;
@@ -7041,7 +7068,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 			seen[lbl]=true;
 			rows.push({label:lbl,isSub:cm.subFlags[lbl]||false,cur:cm.map[lbl]||{ob:0,cb:0,vb:0,tb:0,oa:0,ca:0,va:0,ta:0},prev:pm.map[lbl]||{ob:0,cb:0,vb:0,tb:0,oa:0,ca:0,va:0,ta:0}});
 		});
-		var prevSorted=(prevData||[]).slice().sort(function(a,b){return(a.sequence_id||0)-(b.sequence_id||0);});
+		var prevSorted=(prevData||[]).slice().sort(bySeqId);
 		prevSorted.forEach(function(e){
 			var tbl=(e.table_name||'').toUpperCase();
 			if(e.sequence_id===9999||tbl==='CONSOLIDATED')return;
@@ -7070,10 +7097,13 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 			'</tr>'
 		);
 
-		var tCB=0,tCA=0,tPB=0,tPA=0,html='';
+		function isCovidLbl(lbl){return (lbl||'').toUpperCase().indexOf('COVID')!==-1;}
+
+		var tCB=0,tCA=0,tPB=0,tPA=0,html='',covidRow=null;
 		rows.forEach(function(r){
 			/* cur.tb = budget total for section; prev.ta = actual total for prev year */
 			var cb=r.cur.tb||0, ca=r.cur.ta||0, pb=r.prev.tb||0, pa=r.prev.ta||0;
+			if(isCovidLbl(r.label)){covidRow={label:r.label,cb:cb,ca:ca,pb:pb,pa:pa};return;}
 			if(!r.isSub){tCB+=cb;tCA+=ca;tPB+=pb;tPA+=pa;}
 			var cls=r.isSub?'r-sub-item':'';
 			var lS=r.isSub?'padding-left:26px;':'';
@@ -7095,6 +7125,29 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 			mkTdCr(tPB,'sep-yr','Total','Prev Budget')+
 			mkTdCr(tPA,'ex-act','Total','Prev Actuals')+
 			'<td class="ex-pct">'+fmtPct(tPA,tPB)+'</td>'+
+			'</tr>';
+
+		var cvCB=covidRow?covidRow.cb:0, cvCA=covidRow?covidRow.ca:0,
+			cvPB=covidRow?covidRow.pb:0, cvPA=covidRow?covidRow.pa:0;
+		html+=
+			'<tr><td class="col-lbl">'+(covidRow?covidRow.label:'Covid-19')+'</td>'+
+			mkTdCr(cvCB,'','Covid-19','Cur Budget')+
+			mkTdCr(cvCA,'ex-act','Covid-19','Cur Actuals')+
+			'<td class="ex-pct">'+fmtPct(cvCA,cvCB)+'</td>'+
+			mkTdCr(cvPB,'sep-yr','Covid-19','Prev Budget')+
+			mkTdCr(cvPA,'ex-act','Covid-19','Prev Actuals')+
+			'<td class="ex-pct">'+fmtPct(cvPA,cvPB)+'</td>'+
+			'</tr>';
+
+		var gCB=tCB+cvCB, gCA=tCA+cvCA, gPB=tPB+cvPB, gPA=tPA+cvPA;
+		html+=
+			'<tr class="ex-total"><td class="col-lbl">Grand Total</td>'+
+			mkTdCr(gCB,'','Grand Total','Cur Budget')+
+			mkTdCr(gCA,'ex-act','Grand Total','Cur Actuals')+
+			'<td class="ex-pct">'+fmtPct(gCA,gCB)+'</td>'+
+			mkTdCr(gPB,'sep-yr','Grand Total','Prev Budget')+
+			mkTdCr(gPA,'ex-act','Grand Total','Prev Actuals')+
+			'<td class="ex-pct">'+fmtPct(gPA,gPB)+'</td>'+
 			'</tr>';
 		$('#'+tblId+' tbody').empty().html(html);
 		setStickyTops('#'+tblId);
@@ -7118,7 +7171,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 			return c === 'PROGRAM EXPENSES' || c === 'PROGRAM  EXPENSES';
 		}
 
-		var sorted=(curData||[]).slice().sort(function(a,b){return(a.sequence_id||0)-(b.sequence_id||0);});
+		var sorted=(curData||[]).slice().sort(bySeqId);
 
 		/* prevLookup: unit -> { sub_head_name: {b,a,items[]}, __opex_total:{b,a} } */
 		var prevLookup={};
@@ -7423,7 +7476,7 @@ frappe.pages['monthly-mis'].on_page_load = function (wrapper) {
 		keys.forEach(function(k) {
 			var entries = findEntries(k)
 				.filter(function(e){ return e.settings_doc!=='CONSOLIDATED' && (e.label||'')!=='CONSOLIDATED TOTAL'; })
-				.sort(function(a,b){ return (a.sequence_id||0)-(b.sequence_id||0); });
+				.sort(bySeqId);
 			sections.push({ label: k, entries: entries });
 		});
 
