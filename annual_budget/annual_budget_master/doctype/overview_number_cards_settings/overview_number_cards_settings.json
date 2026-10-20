@@ -8,6 +8,7 @@
   "number_card_title",
   "set_group_id",
   "is_special_case",
+  "is_consolidation",
   "column_break_gsnh",
   "description_for_this_settings",
   "section_break_tngy",
@@ -16,7 +17,8 @@
   "select_units",
   "select_cost_centers",
   "select_location_codes",
-  "special_case_table"
+  "special_case_table",
+  "sub_items"
  ],
  "fields": [
   {
@@ -43,7 +45,18 @@
    "label": "Special Case"
   },
   {
+   "default": "0",
    "depends_on": "eval:!doc.is_special_case",
+   "description": "Check this when this card is a consolidation of other Overview number cards settings records (e.g. Education = District Institutes + Azim Premji Schools), instead of selecting units/cost centers/location codes directly.",
+   "fieldname": "is_consolidation",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Consolidation of Sub Items"
+  },
+  {
+   "depends_on": "eval:!doc.is_special_case",
+   "description": "Stays visible even when Consolidation of Sub Items is checked, but is not read in that case -- the card's totals come only from Sub Items below.",
    "fieldname": "select_units",
    "fieldtype": "Table",
    "label": "Select Units",
@@ -51,6 +64,7 @@
   },
   {
    "depends_on": "eval:!doc.is_special_case",
+   "description": "Stays visible even when Consolidation of Sub Items is checked, but is not read in that case -- the card's totals come only from Sub Items below.",
    "fieldname": "select_cost_centers",
    "fieldtype": "Table",
    "label": "Select Cost centers",
@@ -58,6 +72,7 @@
   },
   {
    "depends_on": "eval:!doc.is_special_case",
+   "description": "Stays visible even when Consolidation of Sub Items is checked, but is not read in that case -- the card's totals come only from Sub Items below.",
    "fieldname": "select_location_codes",
    "fieldtype": "Table",
    "label": "Select Location Codes",
@@ -69,6 +84,13 @@
    "fieldtype": "Table",
    "label": "Special Case",
    "options": "Special Case Link"
+  },
+  {
+   "depends_on": "eval:doc.is_consolidation",
+   "fieldname": "sub_items",
+   "fieldtype": "Table",
+   "label": "Sub Items",
+   "options": "Sub Item Link"
   },
   {
    "default": "0",
@@ -99,7 +121,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-27 14:16:40.295158",
+ "modified": "2026-10-21 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Annual Budget Master",
  "name": "Overview number cards settings",

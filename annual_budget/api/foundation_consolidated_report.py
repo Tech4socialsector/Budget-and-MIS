@@ -674,104 +674,7 @@ def get_combination_table_settings_1(table_name_filter=None):
             setting.name
         )
 
-        if doc.get("is_special_case"):
-            # -------- SPECIAL CASE: EACH ROW IS ITS OWN GROUP --------
-            # (not merged by unit -- a Special Case Link row is a single
-            # unit + cost_center + location_code combination, computed and
-            # consolidated independently, same as any other card's units)
-            grouped_units = []
-
-            for row in doc.special_case_table:
-                if not (row.unit or row.cost_center or row.location_code):
-                    continue
-
-                grouped_units.append({
-                    "unit": row.unit,
-                    "cost_centers": [row.cost_center] if row.cost_center else [],
-                    "cost_centers_erp": [row.cost_center_erp] if row.cost_center_erp else [],
-                    "locations": [row.location_code] if row.location_code else [],
-                    "locations_erp": [row.location_code_erp] if row.location_code_erp else []
-                })
-
-        else:
-            # -------- GROUPING BY UNIT --------
-            unit_map = {}
-
-            # ✅ Initialize units
-            for d in doc.select_units:
-                if not d.unit:
-                    continue
-
-                if d.unit not in unit_map:
-                    unit_map[d.unit] = {
-                        "unit": d.unit,
-                        "cost_centers": [],
-                        "cost_centers_erp": [],
-                        "locations": [],
-                        "locations_erp": []
-                    }
-
-            # -------- COST CENTERS (WITH reference_for LOGIC) --------
-            for d in doc.select_cost_centers:
-                if not d.unit:
-                    continue
-
-                if d.unit not in unit_map:
-                    unit_map[d.unit] = {
-                        "unit": d.unit,
-                        "cost_centers": [],
-                        "cost_centers_erp": [],
-                        "locations": [],
-                        "locations_erp": []
-                    }
-
-                ref = (d.reference_for or "Both").strip()
-
-                # ✅ Budget → normal cost center
-                if ref in ["Budget", "Both"]:
-                    if d.cost_center:
-                        unit_map[d.unit]["cost_centers"].append(d.cost_center)
-
-                # ✅ Actual → ERP cost center
-                if ref in ["Actual", "Both"]:
-                    if d.cost_center_erp:
-                        unit_map[d.unit]["cost_centers_erp"].append(d.cost_center_erp)
-
-            # -------- LOCATIONS (WITH reference_for LOGIC) --------
-            for d in doc.select_location_codes:
-                if not d.unit:
-                    continue
-
-                if d.unit not in unit_map:
-                    unit_map[d.unit] = {
-                        "unit": d.unit,
-                        "cost_centers": [],
-                        "cost_centers_erp": [],
-                        "locations": [],
-                        "locations_erp": []
-                    }
-
-                ref = (d.reference_for or "Both").strip()
-
-                # ✅ Budget → normal location
-                if ref in ["Budget", "Both"]:
-                    if d.location_code:
-                        unit_map[d.unit]["locations"].append(d.location_code)
-
-                # ✅ Actual → ERP location
-                if ref in ["Actual", "Both"]:
-                    if d.location_code_erp:
-                        unit_map[d.unit]["locations_erp"].append(d.location_code_erp)
-
-            # -------- REMOVE DUPLICATES (OPTIONAL BUT RECOMMENDED) --------
-            for unit in unit_map.values():
-                unit["cost_centers"] = list(set(unit["cost_centers"]))
-                unit["cost_centers_erp"] = list(set(unit["cost_centers_erp"]))
-                unit["locations"] = list(set(unit["locations"]))
-                unit["locations_erp"] = list(set(unit["locations_erp"]))
-
-            # Convert to list
-            grouped_units = list(unit_map.values())
+        grouped_units = resolve_grouped_units(doc)
 
         # -------- CHILD TABLE FILTER --------
         combination_settings = []
@@ -858,6 +761,171 @@ def warn_on_overlapping_main_items(settings, grouped_actuals_data, table_name_fi
 
 
 
+
+import frappe
+
+
+def resolve_grouped_units(doc, _visited=None):
+    """Resolve an 'Overview number cards settings' document down to its
+    grouped_units (unit -> cost centers / location codes), following
+    is_consolidation -> sub_items recursively until reaching leaf documents
+    that specify units/cost centers/location codes directly (or a
+    special-case table). _visited guards against a sub_items cycle (a record
+    pointing back to an ancestor, directly or indirectly) turning into
+    infinite recursion."""
+    _visited = _visited or set()
+    if doc.name in _visited:
+        frappe.log_error(
+            title="Overview number cards settings: sub_items cycle detected",
+            message=f"{doc.name} ({doc.number_card_title}) is part of a sub_items cycle: {_visited}",
+        )
+        return []
+    _visited = _visited | {doc.name}
+
+    if doc.get("is_consolidation"):
+        # -------- CONSOLIDATION: CONCATENATION OF SUB ITEMS' OWN GROUPS --------
+        # Each sub-item's grouped_units entries are kept separate rather than
+        # merged by unit: a sub-item with no location restriction (an empty
+        # locations/locations_erp list, meaning "match any location for these
+        # cost centers") would otherwise get folded into another sub-item's
+        # entry for the same unit and inherit THAT entry's location list,
+        # silently turning "unrestricted" into "restricted" and dropping its
+        # actuals (this is exactly what happened when Central Teams, which
+        # has cost centers but no locations, got merged with Rajasthan/
+        # Uttarakhand/etc under the shared APFD unit). get_combined_actuals is
+        # already called once per grouped_units entry and the results summed
+        # (see consolidate_actuals), so concatenating preserves each
+        # sub-item's own cost-center/location pairing exactly as if it were
+        # resolved as its own independent card.
+        sub_rows = sorted(doc.sub_items, key=lambda r: (r.sequence_id or 0))
+        grouped_units = []
+        for row in sub_rows:
+            if not row.sub_setting:
+                continue
+            sub_doc = frappe.get_doc("Overview number cards settings", row.sub_setting)
+            grouped_units.extend(resolve_grouped_units(sub_doc, _visited))
+        return grouped_units
+
+    if doc.get("is_special_case"):
+        # -------- SPECIAL CASE: EACH ROW IS ITS OWN GROUP --------
+        # (not merged by unit -- a Special Case Link row is a single
+        # unit + cost_center + location_code combination)
+        grouped_units = []
+
+        for row in doc.special_case_table:
+            if not (row.unit or row.cost_center or row.location_code):
+                continue
+
+            grouped_units.append({
+                "unit": row.unit,
+                "cost_centers": [row.cost_center] if row.cost_center else [],
+                "cost_centers_erp": [row.cost_center_erp] if row.cost_center_erp else [],
+                "locations": [row.location_code] if row.location_code else [],
+                "locations_erp": [row.location_code_erp] if row.location_code_erp else []
+            })
+
+        return grouped_units
+
+    # ===================================
+    # GROUPING BY UNIT
+    # ===================================
+    unit_map = {}
+
+    def ensure_unit(unit):
+        if not unit:
+            return
+
+        if unit not in unit_map:
+            unit_map[unit] = {
+                "unit": unit,
+                "cost_centers": [],
+                "cost_centers_erp": [],
+                "locations": [],
+                "locations_erp": []
+            }
+
+    # -----------------------------------
+    # UNITS
+    # -----------------------------------
+    for d in doc.select_units:
+        ensure_unit(d.unit)
+
+    # -----------------------------------
+    # COST CENTERS
+    # -----------------------------------
+    for d in doc.select_cost_centers:
+
+        if not d.unit:
+            continue
+
+        ensure_unit(d.unit)
+
+        ref = (d.reference_for or "Both").strip()
+
+        # Budget
+        if ref in ["Budget", "Both"]:
+            if d.cost_center:
+                unit_map[d.unit]["cost_centers"].append(
+                    d.cost_center
+                )
+
+        # Actual
+        if ref in ["Actual", "Both"]:
+            if d.cost_center_erp:
+                unit_map[d.unit]["cost_centers_erp"].append(
+                    d.cost_center_erp
+                )
+
+    # -----------------------------------
+    # LOCATIONS
+    # -----------------------------------
+    for d in doc.select_location_codes:
+
+        if not d.unit:
+            continue
+
+        ensure_unit(d.unit)
+
+        ref = (d.reference_for or "Both").strip()
+
+        # Budget
+        if ref in ["Budget", "Both"]:
+            if d.location_code:
+                unit_map[d.unit]["locations"].append(
+                    d.location_code
+                )
+
+        # Actual
+        if ref in ["Actual", "Both"]:
+            if d.location_code_erp:
+                unit_map[d.unit]["locations_erp"].append(
+                    d.location_code_erp
+                )
+
+    # -----------------------------------
+    # REMOVE DUPLICATES
+    # -----------------------------------
+    for unit in unit_map.values():
+
+        unit["cost_centers"] = list(
+            dict.fromkeys(unit["cost_centers"])
+        )
+
+        unit["cost_centers_erp"] = list(
+            dict.fromkeys(unit["cost_centers_erp"])
+        )
+
+        unit["locations"] = list(
+            dict.fromkeys(unit["locations"])
+        )
+
+        unit["locations_erp"] = list(
+            dict.fromkeys(unit["locations_erp"])
+        )
+
+    return list(unit_map.values())
+
+
 @guest_api
 def get_combination_table_settings_test(table_name_filter=None):
 
@@ -906,123 +974,7 @@ def get_combination_table_settings_test(table_name_filter=None):
             setting.name
         )
 
-        if doc.get("is_special_case"):
-            # -------- SPECIAL CASE: EACH ROW IS ITS OWN GROUP --------
-            # (not merged by unit -- a Special Case Link row is a single
-            # unit + cost_center + location_code combination)
-            grouped_units = []
-
-            for row in doc.special_case_table:
-                if not (row.unit or row.cost_center or row.location_code):
-                    continue
-
-                grouped_units.append({
-                    "unit": row.unit,
-                    "cost_centers": [row.cost_center] if row.cost_center else [],
-                    "cost_centers_erp": [row.cost_center_erp] if row.cost_center_erp else [],
-                    "locations": [row.location_code] if row.location_code else [],
-                    "locations_erp": [row.location_code_erp] if row.location_code_erp else []
-                })
-
-        else:
-            # ===================================
-            # GROUPING BY UNIT
-            # ===================================
-            unit_map = {}
-
-            def ensure_unit(unit):
-                if not unit:
-                    return
-
-                if unit not in unit_map:
-                    unit_map[unit] = {
-                        "unit": unit,
-                        "cost_centers": [],
-                        "cost_centers_erp": [],
-                        "locations": [],
-                        "locations_erp": []
-                    }
-
-            # -----------------------------------
-            # UNITS
-            # -----------------------------------
-            for d in doc.select_units:
-                ensure_unit(d.unit)
-
-            # -----------------------------------
-            # COST CENTERS
-            # -----------------------------------
-            for d in doc.select_cost_centers:
-
-                if not d.unit:
-                    continue
-
-                ensure_unit(d.unit)
-
-                ref = (d.reference_for or "Both").strip()
-
-                # Budget
-                if ref in ["Budget", "Both"]:
-                    if d.cost_center:
-                        unit_map[d.unit]["cost_centers"].append(
-                            d.cost_center
-                        )
-
-                # Actual
-                if ref in ["Actual", "Both"]:
-                    if d.cost_center_erp:
-                        unit_map[d.unit]["cost_centers_erp"].append(
-                            d.cost_center_erp
-                        )
-
-            # -----------------------------------
-            # LOCATIONS
-            # -----------------------------------
-            for d in doc.select_location_codes:
-
-                if not d.unit:
-                    continue
-
-                ensure_unit(d.unit)
-
-                ref = (d.reference_for or "Both").strip()
-
-                # Budget
-                if ref in ["Budget", "Both"]:
-                    if d.location_code:
-                        unit_map[d.unit]["locations"].append(
-                            d.location_code
-                        )
-
-                # Actual
-                if ref in ["Actual", "Both"]:
-                    if d.location_code_erp:
-                        unit_map[d.unit]["locations_erp"].append(
-                            d.location_code_erp
-                        )
-
-            # -----------------------------------
-            # REMOVE DUPLICATES
-            # -----------------------------------
-            for unit in unit_map.values():
-
-                unit["cost_centers"] = list(
-                    dict.fromkeys(unit["cost_centers"])
-                )
-
-                unit["cost_centers_erp"] = list(
-                    dict.fromkeys(unit["cost_centers_erp"])
-                )
-
-                unit["locations"] = list(
-                    dict.fromkeys(unit["locations"])
-                )
-
-                unit["locations_erp"] = list(
-                    dict.fromkeys(unit["locations_erp"])
-                )
-
-            grouped_units = list(unit_map.values())
+        grouped_units = resolve_grouped_units(doc)
 
         # ===================================
         # TABLE NAME WISE PROCESSING
