@@ -340,8 +340,17 @@ function hasChildren(node) {
 function canGlDrill(node) {
   return !hasChildren(node) && !!props.financialYear && !!node?.sequence_id
 }
+// A hierarchy leaf (a single cost-center+location row, e.g. from the
+// Monthly MIS drill-down tree) has no further children but still carries
+// its own __lineItems - clicking it should go straight to that line-item
+// view, the same destination its "View line items" button would reach,
+// rather than requiring a second click once there's nothing left to
+// navigate into.
+function canViewLineItemsDirectly(node) {
+  return !hasChildren(node) && !!node?.__lineItems?.length
+}
 function isDrillable(node) {
-  return hasChildren(node) || canGlDrill(node)
+  return hasChildren(node) || canGlDrill(node) || canViewLineItemsDirectly(node)
 }
 
 const children = computed(() => {
@@ -411,6 +420,11 @@ const glLoadingName = ref(null)
 async function drillInto(child) {
   if (hasChildren(child)) {
     history.value.push(child)
+    sortByAmount.value = false
+    return
+  }
+  if (canViewLineItemsDirectly(child)) {
+    history.value.push({ name: child.name, sub_heads: [], items: child.__lineItems || [] })
     sortByAmount.value = false
     return
   }
