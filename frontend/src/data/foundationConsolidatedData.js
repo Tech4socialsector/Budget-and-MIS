@@ -1,16 +1,16 @@
 // Shared helpers for the Foundation Consolidated Budget page
 // (src/pages/FoundationConsolidated.vue), replicating the Desk page at
-// annual_budget/annual_budget_mis/page/consolidated_budget/consolidated_budget.js.
+// budget_mis/main/page/consolidated_budget/consolidated_budget.js.
 //
 // Two different "expense tree" shapes are in play across this page's 6 tabs:
 //
-// 1. Annual Budget Consolidated tab (annual_budget.api.phase_sheet.get_consolidated_report):
+// 1. Annual Budget Consolidated tab (budget_mis.api.phase_sheet.get_consolidated_report):
 //    head -> sub_heads[] -> items[], each carrying q1..q4 (lowercase), each a
 //    3-element array of monthly amounts. Same shape BudgetDashboard.vue/
 //    BudgetSummaryTable.vue already use via dashboardData.js/budgetTotals.js.
 //
 // 2. Actuals Consolidated tab, and SummaryINR's previous-FY Quarter Phasing half
-//    (annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total):
+//    (budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total):
 //    head -> sub_heads[] -> items[], each carrying Q1..Q4 (uppercase, a single
 //    already-summed number per quarter - NOT an array) plus a separate `months`
 //    object keyed by fiscal month-number STRING ("4".."12","1".."3", April..March
@@ -126,7 +126,7 @@ export function pctChange(from, to, dp = 1) {
 // Downloads a server-generated XLSX file the same way the Desk page's
 // serverExport() does: base64 -> byte array -> Blob -> object URL ->
 // programmatic anchor click -> cleanup. `payload` is the {data, filename}
-// object returned by annual_budget.api.export_reports.export_* endpoints.
+// object returned by budget_mis.api.export_reports.export_* endpoints.
 export function downloadXlsx(payload) {
   if (!payload?.data) return false
   const bin = atob(payload.data)

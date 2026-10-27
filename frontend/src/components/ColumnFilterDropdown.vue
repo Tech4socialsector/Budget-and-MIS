@@ -57,7 +57,7 @@
         </div>
         <div class="mt-2 flex justify-end gap-2 border-t border-gray-100 pt-2 dark:border-gray-800">
           <Button variant="subtle" size="sm" @click="onClear(close)">Clear</Button>
-          <Button variant="solid" size="sm" @click="onApply(close)">Apply</Button>
+          <Button variant="solid" theme="gray" size="sm" @click="onApply(close)">Apply</Button>
         </div>
       </div>
     </template>

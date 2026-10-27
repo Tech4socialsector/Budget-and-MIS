@@ -21,7 +21,7 @@
 <template>
   <ErrorMessage v-if="error" :message="errorMessage" />
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-    <AppLoader label="Building Budget & Actuals..." />
+    <AppLoader variant="build" label="Building Budget & Actuals..." />
   </div>
   <div v-else-if="!rawData.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
     No data available.
@@ -34,7 +34,7 @@
       </FormControl>
       <div class="flex flex-wrap items-center gap-5">
         <Switch v-model="expandItems" label="Expand Line Items" />
-        <Button variant="solid" class="fc-xl-btn" :loading="exporting" @click="$emit('export')">
+        <Button variant="solid" theme="gray" :loading="exporting" @click="$emit('export')">
           <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
           Export XLS
         </Button>

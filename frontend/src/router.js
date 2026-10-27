@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import { session, initialUserCheck, userResource } from '@/data/session'
-import { modulesResource, findModuleByRoute, findModuleByPageRoute } from '@/data/modules'
+import { modulesResource, findModuleByRoute, findModuleByPageRoute, isSidebarModule } from '@/data/modules'
 import { setActiveModule, clearActiveModule } from '@/data/activeModule'
-import { findStaticModuleByRouteName } from '@/data/nav'
 
 const routes = [
   {
@@ -73,7 +72,7 @@ const routes = [
 ]
 
 let router = createRouter({
-  history: createWebHistory('/annual_budget'),
+  history: createWebHistory('/budget-mis'),
   routes,
 })
 
@@ -114,6 +113,15 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState === 'visible') {
       lastCheckedAt = 0
       userResource.fetch().catch(() => {})
+      // Module records (App Module Setting - Home tiles, sidebar items,
+      // icons) are routinely edited directly in Desk while this tab sits
+      // open elsewhere in the app - without this, an edit there would
+      // only ever show up here after a hard reload, since nothing else
+      // re-fetches modulesResource once it's already loaded (see
+      // ensureModulesLoaded's own `if (modulesResource.data) return`
+      // below, which is deliberately a one-time-per-session guard, not a
+      // "never refetch" one).
+      if (session.user) modulesResource.fetch().catch(() => {})
     }
   })
 }
@@ -163,37 +171,34 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     to.meta.resolvedDoctype = item.doctype_name
-    // Keep the sidebar's module section in sync while browsing that
-    // module's list/form pages, so it persists across navigation there.
-    setActiveModule(item.module)
+    // Only a sidebar module (is_sidebar_module) shows a sidebar at all -
+    // a direct module's own DocType item (its direct_doctype_name) is a
+    // single Home tile and never opens one, so landing on its route
+    // directly must not resurrect a sidebar either, same as the Page
+    // branch below.
+    if (isSidebarModule(item.module)) {
+      setActiveModule(item.module)
+    } else {
+      clearActiveModule()
+    }
   } else {
-    // A dynamic App Module Setting module can list a "SPA Page" item
-    // (page_route = a named Vue route like 'BudgetSummary') alongside or
-    // instead of DocType items - landing directly on that route must show
-    // its owning module in the sidebar the same way a DocType item does
-    // above, checked first since it's backend-driven and can override a
-    // page that's ALSO listed as a hardcoded staticModule fallback below.
+    // A sidebar module can list a "SPA Page" item (page_route = a named Vue
+    // route like 'BudgetSummary') alongside or instead of DocType items, and
+    // a direct module can itself resolve straight to one (direct.page_route)
+    // - landing directly on one of these routes only shows a sidebar when it
+    // belongs to a sidebar module; a direct module's own Page route is a Home
+    // tile with no sidebar of its own (see Home.vue), so a direct/bookmarked
+    // visit must behave the same way a Home-tile click already does.
     const dynamicItem = findModuleByPageRoute(to.name)
-    if (dynamicItem) {
+    if (dynamicItem && isSidebarModule(dynamicItem.module)) {
       setActiveModule(dynamicItem.module)
       return next()
     }
-    // Budget Reports / MIS Reports are staticModules (data/nav.js) - a
-    // hardcoded fallback for routes no App Module Setting record claims
-    // yet. Landing directly on one of their routes (a bookmark, a refresh,
-    // an in-page link) must still show that module's section, exactly like
-    // a dynamic module does above, so isStatic marks it for AppSidebar's
-    // separate static-module render branch (its items are named routes,
-    // not doctypeRoute params).
-    const staticMod = findStaticModuleByRouteName(to.name)
-    if (staticMod) {
-      setActiveModule({ ...staticMod, isStatic: true })
-    } else {
-      // Any other route (Home, Budget Dashboard) isn't part of a module at
-      // all - without this, a module set while browsing it earlier would
-      // stay pinned in the sidebar forever, showing on every page.
-      clearActiveModule()
-    }
+    // Any other route (Home, a flattened report route, or any route not
+    // claimed by an App Module Setting record) isn't part of a sidebar
+    // module - without this, a module set while browsing it earlier would
+    // stay pinned in the sidebar forever, showing on every page.
+    clearActiveModule()
   }
 
   next()

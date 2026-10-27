@@ -87,7 +87,7 @@
                 <FeatherIcon :name="listening ? 'mic-off' : 'mic'" class="h-4 w-4" />
               </button>
             </AppTooltip>
-            <Button variant="solid" :loading="sending.loading" :disabled="!draft.trim()" @click="submit">
+            <Button variant="solid" theme="gray" :loading="sending.loading" :disabled="!draft.trim()" @click="submit">
               <template #icon>
                 <FeatherIcon name="send" class="h-4 w-4" />
               </template>

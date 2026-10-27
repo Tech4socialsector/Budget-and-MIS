@@ -3,8 +3,8 @@
     <AppTooltip v-for="insight in insights" :key="insight.label" :text="insight.onClick ? 'Click to drill down' : ''" :disabled="!insight.onClick">
       <component
         :is="insight.onClick ? 'button' : 'div'"
-        class="flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3.5 text-left dark:border-gray-800 dark:bg-gray-900"
-        :class="insight.onClick ? 'transition hover:shadow-md' : ''"
+        class="flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3.5 text-left shadow-sm transition dark:border-gray-800 dark:bg-gray-900"
+        :class="insight.onClick ? 'hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:hover:border-gray-700' : ''"
         @click="insight.onClick?.()"
       >
         <span

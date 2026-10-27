@@ -17,7 +17,7 @@
   </div>
   <template v-else>
     <div class="flex justify-end">
-      <Button variant="solid" class="fc-xl-btn" :loading="exporting" @click="$emit('export')">
+      <Button variant="solid" theme="gray" :loading="exporting" @click="$emit('export')">
         <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
         Export XLS
       </Button>

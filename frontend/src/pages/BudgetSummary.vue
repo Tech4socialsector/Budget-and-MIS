@@ -45,7 +45,7 @@
             />
           </div>
         </div>
-        <Button variant="outline" class="self-start" @click="clearFilters">
+        <Button variant="outline" theme="gray" class="self-start" @click="clearFilters">
           <template #prefix>
             <FeatherIcon name="x-circle" class="h-4 w-4" />
           </template>
@@ -53,9 +53,7 @@
         </Button>
       </div>
 
-      <div v-if="reportError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/40 dark:text-red-400">
-        {{ reportErrorMessage }}
-      </div>
+      <ErrorMessage v-if="reportError" :message="reportErrorMessage" />
 
       <template v-else>
         <!-- Summary cards + pie -->
@@ -68,11 +66,11 @@
         </div>
 
         <!-- Table controls -->
-        <div class="flex flex-shrink-0 flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex flex-shrink-0 flex-wrap items-center justify-between gap-4">
           <FormControl
             type="text"
             v-model="searchQuery"
-            placeholder="Search Expense / Sub Head / Item / GL Code..."
+            placeholder="Search Expense / Sub Head / Item..."
             class="w-full max-w-sm"
           >
             <template #prefix>
@@ -82,7 +80,7 @@
           <div class="flex flex-wrap items-center gap-5">
             <Switch v-model="expandQuarters" label="Expand Quarters" />
             <Switch v-model="expandItemsAll" label="Expand Items" />
-            <Button variant="solid" :loading="reportLoading" @click="exportExcel">
+            <Button variant="solid" theme="gray" :loading="exporting" @click="exportExcel">
               <template #prefix>
                 <FeatherIcon name="download" class="h-4 w-4" />
               </template>
@@ -98,21 +96,22 @@
         min-h-[12rem] keeps it from collapsing to nothing if the content
         above happens to fill almost the whole page. -->
         <div class="relative min-h-[12rem] min-w-0 flex-1">
-          <div v-if="reportLoading" class="h-full rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div v-if="reportLoading" class="h-full">
             <AppLoader label="Loading budget summary..." />
           </div>
-          <div v-else-if="!expenseHeads.length" class="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          <div v-else-if="!expenseHeads.length" class="flex h-full items-center justify-center text-center text-sm text-gray-500 dark:text-gray-400">
             No budget data found for the selected filters.
           </div>
           <BudgetSummaryTable
             v-else
-            class="h-full"
+            class="max-h-full"
             :heads="filteredHeads"
             :expand-quarters="expandQuarters"
             :expanded-heads="expandedHeads"
             :expanded-sub-heads="expandedSubHeads"
             :expand-items-all="expandItemsAll"
             :expanded-quarter-keys="expandedQuarterKeys"
+            :show-full-numbers="showFullNumbers"
             @toggle-head="toggleHead"
             @toggle-sub-head="toggleSubHead"
             @toggle-quarter="toggleQuarter"
@@ -120,18 +119,31 @@
         </div>
       </template>
     </div>
+
+    <!-- A multi-sheet export (one sheet per cost center/location) can take
+    noticeably longer than a normal click-and-done action - the Export
+    button's own small spinner alone isn't enough feedback for that wait,
+    so this covers the page with the same branded logo loader used
+    everywhere else in the app while the file is being generated. -->
+    <div
+      v-if="exporting"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
+    >
+      <AppLoader variant="export" label="Generating your Excel file..." />
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon, Switch } from 'frappe-ui'
+import { MultiSelect, FormControl, Button, FeatherIcon, Switch, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetSummaryCards from '@/components/BudgetSummaryCards.vue'
 import BudgetSummaryTable from '@/components/BudgetSummaryTable.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
+import { downloadXlsx } from '@/data/foundationConsolidatedData'
 
 onMounted(() => setPageTitle('Budget Summary'))
 
@@ -201,7 +213,7 @@ function toOptions(list) {
 }
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({
     label: r.financial_year,
     value: r.financial_year,
@@ -222,7 +234,7 @@ function defaultFinancialYear(options) {
 }
 
 async function loadUnits() {
-  const r = await call('annual_budget.api.filter_options.get_units')
+  const r = await call('budget_mis.api.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
 }
 
@@ -231,7 +243,7 @@ async function loadCostCenters() {
     costCenterOptions.value = []
     return
   }
-  const r = await call('annual_budget.api.filter_options.get_cost_centers_by_set_id', {
+  const r = await call('budget_mis.api.filter_options.get_cost_centers_by_set_id', {
     units: filters.units.join(','),
   })
   costCenterOptions.value = toOptions(r?.data)
@@ -242,7 +254,7 @@ async function loadLocationCodes() {
     locationCodeOptions.value = []
     return
   }
-  const r = await call('annual_budget.api.filter_options.get_location_codes_by_unit', {
+  const r = await call('budget_mis.api.filter_options.get_location_codes_by_unit', {
     unit: filters.units.join(','),
   })
   locationCodeOptions.value = toOptions(r?.data)
@@ -253,7 +265,7 @@ async function loadReport() {
   reportLoading.value = true
   reportError.value = null
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_consolidated_report', {
+    const result = await call('budget_mis.api_1.budget_summary.get_budget_summary', {
       financial_year: filters.financialYear,
       units: filters.units.join(',') || undefined,
       cost_center: filters.costCenters.join(',') || undefined,
@@ -342,14 +354,23 @@ const filteredHeads = computed(() => {
     .filter(Boolean)
 })
 
-function exportExcel() {
-  const params = new URLSearchParams({
-    financial_year: filters.financialYear || '',
-    units: filters.units.join(','),
-    cost_center: filters.costCenters.join(','),
-    location_code: filters.locationCodes.join(','),
-  })
-  window.open(`/api/method/annual_budget.api.export_reports.export_phase_sheet_excel?${params.toString()}`, '_blank')
+const exporting = ref(false)
+
+async function exportExcel() {
+  exporting.value = true
+  try {
+    const result = await call('budget_mis.api_1.budget_summary.export_phase_sheet_excel', {
+      financial_year: filters.financialYear || '',
+      units: filters.units.join(','),
+      cost_center: filters.costCenters.join(','),
+      location_code: filters.locationCodes.join(','),
+    })
+    if (!downloadXlsx(result)) window.alert('Export failed — no data returned.')
+  } catch (e) {
+    window.alert(e?.messages?.[0] || e?.message || 'Export failed.')
+  } finally {
+    exporting.value = false
+  }
 }
 
 onMounted(async () => {

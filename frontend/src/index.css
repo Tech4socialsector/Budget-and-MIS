@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* App-wide thin scrollbar - applies to every scrollable element (page body,
+modals/dialogs, dropdowns, any overflow-auto container), not just the few
+spots that previously opted in with their own .fc-scroll-wrapper/:deep()
+rules below. Those more specific rules are left in place since they also
+set a themed thumb color tuned to their own surface, not just a width. */
+* {
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #c1c9d2;
+  border-radius: 4px;
+}
+:root:not([data-theme='light']) *::-webkit-scrollbar-thumb,
+[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background-color: rgb(75 85 99);
+}
+
 /* frappe-ui's Dialog overlay/content ship with no z-index of their own,
 so they sit in the auto/0 stacking bucket of the root stacking context.
 Any in-page element with an explicit positive z-index and nothing
@@ -31,6 +55,25 @@ sidebar's assistant card. */
   transform: translateZ(0);
 }
 
+/* The "N selected" bulk-action bar under a ListView (DoctypeList's own list,
+ChildTable's row grid) - frappe-ui's stock ListSelectBanner floats centered
+over the rows (position: absolute, bottom-6, min-width 596px), which on a
+narrower list/child-table column collides with rows above it rather than
+sitting in the page flow below them. Scoped by .selection-bar (set on
+SelectionBar.vue's own ListSelectBanner) so this doesn't affect any other
+Popover/banner elsewhere in the app that happens to float the same way. */
+.selection-bar,
+.selection-bar:where([class]) {
+  min-width: 0;
+}
+.relative > .absolute.inset-x-0.bottom-6:has(.selection-bar),
+div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
+  position: sticky;
+  bottom: 0.75rem;
+  margin-top: 0.75rem;
+  z-index: 5;
+}
+
 /* =========================================================================
    Foundation Consolidated Budget page (src/pages/FoundationConsolidated.vue
    and src/components/foundationConsolidated/*) - shared table primitives
@@ -56,8 +99,8 @@ sidebar's assistant card. */
   scrollbar-width: thin;
 }
 .fc-scroll-wrapper::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 .fc-scroll-wrapper::-webkit-scrollbar-track {
   background: transparent;
@@ -252,6 +295,72 @@ sidebar's assistant card. */
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.12);
 }
 
+/* .fc-td is deliberately transparent (see its own comment above) so a
+   tinted ancestor <tr> shows through - that works for a plain in-flow
+   cell, but position:sticky takes this cell out of normal stacking, so
+   once the table scrolls horizontally the cell's own (missing)
+   background is what actually gets painted, not "whatever's behind it" -
+   other rows' cells scrolling past underneath show straight through the
+   label text. Every row context this column appears in needs its own
+   explicit, fully opaque background here instead of relying on
+   inheritance; each one restates the exact color its own row class
+   already uses elsewhere in this file, so the sticky cell always matches
+   its row even though it's compositing independently from it.
+
+   Scoped to tbody/tfoot specifically (not a bare .fc-sticky-col rule) so
+   it can never apply inside thead too - the header's own rowspan'd first
+   cell is also .fc-sticky-col (so its text stays put during horizontal
+   scroll same as every other column), but its background must stay
+   .fc-th's blue, not get overridden by a body-row background here. */
+.fc-table tbody .fc-sticky-col,
+.fc-table tfoot .fc-sticky-col {
+  background-color: #fff;
+}
+:root:not([data-theme='light']) .fc-table tbody .fc-sticky-col,
+[data-theme='dark'] .fc-table tbody .fc-sticky-col,
+:root:not([data-theme='light']) .fc-table tfoot .fc-sticky-col,
+[data-theme='dark'] .fc-table tfoot .fc-sticky-col {
+  background-color: rgb(17 24 39);
+}
+/* Each of these needs to be at least as specific as the generic
+   ".fc-table tbody .fc-sticky-col" default above (3 class selectors) or
+   it silently loses to it regardless of source order - a bare two-class
+   ".fc-row-head .fc-sticky-col" (specificity 0,2,0 vs the default's
+   0,3,0) was losing outright, which is what made every sticky head/sub/
+   total-row label cell render with the plain white/dark default instead
+   of its own row's tint. */
+.fc-table .fc-row-head .fc-sticky-col {
+  background-color: #eaf1fb;
+}
+/* Opaque equivalent of .fc-row-head's own translucent dark background
+   (rgb(37 60 92 / 0.4) over .fc-table's rgb(17 24 39)) - a sticky cell
+   can't use the same alpha-blend trick since it isn't reliably sitting
+   over that exact backdrop once it's compositing independently. */
+:root:not([data-theme='light']) .fc-table .fc-row-head .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-row-head .fc-sticky-col {
+  background-color: #19263c;
+}
+.fc-table .fc-row-sub .fc-sticky-col {
+  background-color: #f5f8fd;
+}
+:root:not([data-theme='light']) .fc-table .fc-row-sub .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-row-sub .fc-sticky-col {
+  background-color: #18212f;
+}
+.fc-table .fc-row-grand .fc-sticky-col {
+  background-color: #1e5fa8;
+}
+.fc-table .ppt-total-row .fc-sticky-col,
+.fc-table .fc-subtotal-row .fc-sticky-col {
+  background-color: #dceafd;
+}
+:root:not([data-theme='light']) .fc-table .ppt-total-row .fc-sticky-col,
+[data-theme='dark'] .fc-table .ppt-total-row .fc-sticky-col,
+:root:not([data-theme='light']) .fc-table .fc-subtotal-row .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-subtotal-row .fc-sticky-col {
+  background-color: #1e2f49;
+}
+
 .fc-search-input {
   width: 240px;
 }
@@ -276,13 +385,4 @@ sidebar's assistant card. */
     position: static !important;
     box-shadow: none !important;
   }
-}
-
-.fc-xl-btn {
-  background-color: #1a1a1a !important;
-  border-color: #1a1a1a !important;
-  color: #fff !important;
-}
-.fc-xl-btn:hover {
-  background-color: #333 !important;
 }
