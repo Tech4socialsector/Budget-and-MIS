@@ -2,10 +2,10 @@
   <div class="flex h-screen flex-col bg-white dark:bg-gray-900 lg:flex-row">
     <div class="login-panel relative flex flex-shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-900 to-blue-600 p-6 text-white sm:p-8 lg:w-1/2 lg:justify-between lg:p-12">
       <div class="login-fade-in flex items-center gap-3" style="animation-delay: 0ms">
-        <span class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white/10 p-3 backdrop-blur">
+        <span class="flex h-20 max-w-[11rem] items-center justify-center overflow-hidden rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
           <img :src="brandingResource.data?.app_logo || defaultAppLogo" class="h-full w-full object-contain" />
         </span>
-        <span class="text-xl font-semibold">{{ brandingResource.data?.app_title || 'Annual Budget MIS' }}</span>
+        <span class="text-xl font-semibold">{{ brandingResource.data?.app_title || 'Budget MIS' }}</span>
       </div>
 
       <div class="login-fade-in mt-6 max-w-sm lg:mt-0" style="animation-delay: 120ms">
@@ -15,7 +15,7 @@
       </div>
 
       <p class="login-fade-in mt-6 hidden text-xs text-white/50 lg:mt-0 lg:block" style="animation-delay: 220ms">
-        &copy; {{ new Date().getFullYear() }} {{ brandingResource.data?.app_title || 'Annual Budget MIS' }}
+        &copy; {{ new Date().getFullYear() }} {{ brandingResource.data?.app_title || 'Budget MIS' }}
       </p>
 
       <div class="login-orb pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/5 lg:-right-24 lg:-top-24 lg:h-72 lg:w-72" />
@@ -73,7 +73,7 @@
             </button>
           </div>
           <ErrorMessage :message="loginResource.error" />
-          <Button variant="solid" :loading="loginResource.loading" type="submit" size="lg">
+          <Button variant="solid" theme="gray" :loading="loginResource.loading" type="submit" size="lg">
             Log in
           </Button>
         </form>
@@ -98,7 +98,7 @@
         </p>
       </template>
       <template #actions>
-        <Button variant="solid" :loading="resetLoading" class="w-full" @click="submitForgotPassword">
+        <Button variant="solid" theme="gray" :loading="resetLoading" class="w-full" @click="submitForgotPassword">
           Send reset link
         </Button>
       </template>

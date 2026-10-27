@@ -8,7 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     frappeui({
-      frontendRoute: '/annual_budget',
+      frontendRoute: '/budget-mis',
     }),
     vue(),
     Components({
@@ -17,7 +17,7 @@ export default defineConfig({
     }),
     VitePWA({
       // No manifest generated here - the actual <link rel="manifest"> in
-      // index.html points at annual_budget.api.pwa.get_pwa_manifest, which
+      // index.html points at budget_mis.api.pwa.get_pwa_manifest, which
       // builds it live from Master Settings.app_title/app_logo (see
       // src/App.vue and api/pwa.py) so branding changes don't need a
       // rebuild. This plugin's only job is the offline app-shell service
@@ -29,7 +29,7 @@ export default defineConfig({
       // update handling are done by hand in PwaUpdatePrompt.vue instead
       // (auto-applies updates and reloads, rather than waiting on a
       // dismissible prompt), because the service worker must be served
-      // from Frappe's /annual_budget/sw.js route, not Vite's asset path.
+      // from Frappe's /budget-mis/sw.js route, not Vite's asset path.
       injectRegister: false,
       workbox: {
         // Only the app shell (JS/CSS/icons Vite actually built) is
@@ -37,19 +37,19 @@ export default defineConfig({
         // a user never sees stale budget data while offline; they'll just
         // get a clear network-error state from the app itself instead.
         globPatterns: ['**/*.{js,css,png,svg,ico}'],
-        // Neither 'index.html' nor '/annual_budget' can ever be
+        // Neither 'index.html' nor '/budget-mis' can ever be
         // glob-precached: Frappe serves a Jinja-templated
-        // annual_budget.html (with a per-request CSRF token) for every
-        // /annual_budget/* route, not a static build file. The
+        // budget-mis.html (with a per-request CSRF token) for every
+        // /budget-mis/* route, not a static build file. The
         // runtimeCaching rule below is the actual offline-shell mechanism
-        // instead: it caches /annual_budget the first time it's visited
+        // instead: it caches /budget-mis the first time it's visited
         // online, and serves that cached copy on later requests if the
         // network fails - no precache entry required.
         navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: ({ url, request }) =>
-              request.mode === 'navigate' && url.pathname.startsWith('/annual_budget'),
+              request.mode === 'navigate' && url.pathname.startsWith('/budget-mis'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'annual-budget-app-shell',

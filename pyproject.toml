@@ -1,5 +1,5 @@
 [project]
-name = "annual_budget"
+name = "budget_mis"
 authors = [
     { name = "Augustin Moses", email = "tech4socialsector@azimpremjifoundation.org" }
 ]

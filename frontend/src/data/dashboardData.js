@@ -1,6 +1,6 @@
 // Shared helpers for the data shape returned by
-// annual_budget.api.foundation_consolidated_report.get_unit_wise_plan_budget
-// and annual_budget.api.phase_sheet.get_combined_actuals - both return a
+// budget_mis.api.foundation_consolidated_report.get_unit_wise_plan_budget
+// and budget_mis.api.phase_sheet.get_combined_actuals - both return a
 // tree of {name, sub_heads[], items[]} nodes, but leaf amounts differ:
 // the unit-wise endpoint carries a flat `ytd` number per node, while the
 // combined-actuals endpoint carries `ytd` (budget) AND

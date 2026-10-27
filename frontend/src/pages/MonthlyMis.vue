@@ -1,6 +1,6 @@
 <!--
   Monthly MIS page - Vue replica of the Desk page at
-  annual_budget/annual_budget_mis/page/monthly_mis/monthly_mis.js (only the
+  budget_mis/main/page/monthly_mis/monthly_mis.js (only the
   live block at lines 6230-7601 - the file's earlier 6 versions are dead
   code and were not replicated).
 
@@ -48,9 +48,15 @@
               v-model="filters.month"
             />
           </div>
+          <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
+            <template #prefix>
+              <FeatherIcon name="refresh-cw" class="h-4 w-4" />
+            </template>
+            Refresh
+          </Button>
           <Switch v-model="showFullNumbers" label="Show full numbers" />
         </div>
-        <Button variant="solid" class="fc-export-all" @click="exportMis">
+        <Button variant="solid" theme="gray" @click="exportMis">
           <template #prefix>
             <FeatherIcon name="download" class="h-4 w-4" />
           </template>
@@ -132,7 +138,30 @@ import {
   buildExpTotals,
   buildBreakupSections,
   buildUnitDetailGrid,
+  flattenBreakup,
 } from '@/data/monthlyMisData'
+
+// Single source of table groups for get_monthly_mis_break_up - covers both
+// the Monthly MIS Capex & Opex table (previously its own get_unit_wise_plan
+// call) and every breakup table (Education/University/Health/Livelihoods/
+// Enablers), so one call per financial year now returns everything this
+// page needs.
+const MIS_TABLE_NAME_FILTER = [
+  'Monthly MIS Capex & Opex',
+  'Education - District Institutes',
+  'Education- Azim Premji Schools',
+  'Azim Premji University (Bangalore Campus)',
+  'Azim Premji University (Bhopal Campus)',
+  'Azim Premji University (Ranchi Campus)',
+  'Azim Premji University (Guwahati Campus)',
+  'Enablers',
+  'Livelihoods',
+  'Urban Primary care work',
+  'Rural Primary care work',
+  'Central Initiatives',
+  'Hospital',
+  'Health Programs Team & Enablers',
+].join(',')
 
 const monthOptions = MONTHS.map((m) => ({ label: m, value: m }))
 
@@ -175,7 +204,7 @@ function defaultFyAndMonth(options) {
 }
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   const years = (rows || []).map((r) => r.financial_year)
   financialYearOptions.value = years.map((y) => ({ label: y, value: y }))
   if (!filters.financialYear && years.length) {
@@ -192,16 +221,18 @@ watch(
 )
 
 // -------------------------------------------------------------------------
-// Load - a single Promise.all of the 3 backend calls the Desk page's
-// loadData() makes. Confirmed against the live source (fetchData(),
-// lines 6802-6816): get_unit_wise_plan is called WITHOUT an is_previous
-// flag on EITHER call - the "previous year" call just passes the already-
-// computed prevFY string directly as financial_year, exactly like the
-// current-year call, both with table_name_filter='Monthly MIS Capex & Opex'.
-// (is_previous is a real, accepted backend param, but the Desk JS never
-// sends it here, so financial_year alone drives which year's data comes
-// back for each call - this is NOT the same calling convention
-// FoundationConsolidated.vue uses for its own get_unit_wise_plan calls.)
+// Load - exactly ONE backend call, to api_1's
+// get_monthly_mis_break_up_with_prev_year, which runs get_monthly_mis_break_up
+// for both financial_year and its previous year server-side and returns
+// {current, previous} in one response (replacing the earlier 3-call mix of
+// get_unit_wise_plan x2 + get_monthly_mis_break_up, and then the later
+// 2-call pair of get_monthly_mis_break_up x2). table_name_filter covers
+// every table this page needs (Monthly MIS Capex & Opex + the Education/
+// University/Health/Livelihoods/Enablers breakup tables), so `current`
+// alone supplies both curData (via flattenBreakup) and breakupData (used
+// as-is - its dict-of-table-groups shape is what buildBreakupSections/
+// findEntries expect natively). `previous` only ever needs flattening for
+// prevData; its breakup tables aren't shown anywhere on this page.
 // -------------------------------------------------------------------------
 const loading = ref(false)
 const error = ref(null)
@@ -220,24 +251,15 @@ async function loadAll(force) {
   loading.value = true
   error.value = null
   try {
-    const [cur, prev, breakup] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month, table_name_filter: 'Monthly MIS Capex & Opex',
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: getPrevFY(fy), month, table_name_filter: 'Monthly MIS Capex & Opex',
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_monthly_mis_break_up', {
-        financial_year: fy,
-        month,
-        table_name_filter: 'Education - District Institutes,Education- Azim Premji Schools,Azim Premji University (Bangalore Campus),Azim Premji University (Bhopal Campus),Azim Premji University (Ranchi Campus),Azim Premji University (Guwahati Campus),Enablers,Livelihoods,Urban Primary care work,Rural Primary care work,Central Initiatives,Hospital,Health Programs Team & Enablers',
-        is_previous: 0,
-      }),
-    ])
+    const result = await call('budget_mis.api_1.monthly_mis.get_monthly_mis_break_up_with_prev_year', {
+      financial_year: fy, month, table_name_filter: MIS_TABLE_NAME_FILTER,
+    })
     if (gen !== requestGen) return
-    curData.value = Array.isArray(cur) ? cur : []
-    prevData.value = Array.isArray(prev) ? prev : []
-    breakupData.value = breakup && typeof breakup === 'object' ? breakup : {}
+    const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
+    const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
+    curData.value = flattenBreakup(curDict, 'Monthly MIS Capex & Opex')
+    prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
+    breakupData.value = curDict
   } catch (e) {
     if (gen !== requestGen) return
     error.value = e
@@ -361,7 +383,7 @@ function exportMis() {
   const fy = filters.financialYear
   const month = filters.month
   if (!fy || !month) return
-  const url = `/api/method/annual_budget.api.monthly_mis.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=excel`
+  const url = `/api/method/budget_mis.api.monthly_mis.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=excel`
   window.open(url, '_blank')
 }
 
@@ -376,14 +398,3 @@ onMounted(async () => {
   await loadFinancialYears()
 })
 </script>
-
-<style scoped>
-.fc-export-all {
-  background-color: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-.fc-export-all:hover {
-  background-color: #333;
-}
-</style>

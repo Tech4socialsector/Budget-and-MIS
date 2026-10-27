@@ -1,6 +1,6 @@
 <!--
   ERP Actuals page - Vue replica of the Desk page at
-  annual_budget/annual_budget_mis/page/erp_actuals/erp_actuals.js (all 633
+  budget_mis/main/page/erp_actuals/erp_actuals.js (all 633
   lines are live - no dead code to filter out, unlike Monthly MIS).
 
   Unlike every other page in this app, the Fetch trigger here is MANUAL
@@ -48,7 +48,7 @@
             v-model="filters.month"
           />
         </div>
-        <Button variant="solid" :loading="loading" @click="fetchData">
+        <Button variant="solid" theme="gray" :loading="loading" @click="fetchData">
           <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
           Fetch
         </Button>
@@ -64,18 +64,13 @@
         <button class="text-xs text-fc-blue-mid underline" @click="cancelFetch">Cancel</button>
       </div>
 
-      <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/40 dark:text-red-400">
-        {{ error }}
-      </div>
+      <ErrorMessage v-else-if="error" :message="error" />
 
       <div v-else-if="!hasFetched" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
         Select an API, Financial Year and Month, then click Fetch.
       </div>
 
-      <div v-else-if="statusFailed" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900 dark:bg-red-900/40 dark:text-red-400">
-        Status: {{ response?.status || 'failed' }}
-        <span v-if="response?.error"> — {{ response.error }}</span>
-      </div>
+      <ErrorMessage v-else-if="statusFailed" :message="statusFailedMessage" />
 
       <template v-else>
         <!-- Summary strip -->
@@ -84,7 +79,7 @@
           <div><span class="font-semibold text-fc-blue-mid">Fiscal Year:</span> {{ response?.fiscal_year }}</div>
           <div><span class="font-semibold text-fc-blue-mid">Accounting Period:</span> {{ response?.accounting_period }}</div>
           <div><span class="font-semibold text-fc-blue-mid">Row Count:</span> {{ allRows.length }}</div>
-          <Button variant="outline" size="sm" class="ml-auto" :loading="exporting" @click="exportExcel">
+          <Button variant="outline" theme="gray" size="sm" class="ml-auto" :loading="exporting" @click="exportExcel">
             <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
             Export to Excel
           </Button>
@@ -141,7 +136,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon } from 'frappe-ui'
+import { MultiSelect, FormControl, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import ColumnFilterDropdown from '@/components/ColumnFilterDropdown.vue'
@@ -155,11 +150,11 @@ setPageTitle('ERP Actuals')
 // Filters
 // -------------------------------------------------------------------------
 const API_OPTIONS = {
-  'ERP Actuals (YTD)': 'annual_budget.api.actuals.get_actuals_from_erp_prod',
-  'ERP Actuals (Month Wise)': 'annual_budget.api.actuals.get_actuals_from_erp_month_wise',
+  'ERP Actuals (YTD)': 'budget_mis.api.erp_actuals.fetch_actuals_ytd',
+  'ERP Actuals (Month Wise)': 'budget_mis.api.erp_actuals.fetch_actuals_month_wise',
 }
 // April = accounting period 1 ... March = 12 - matches
-// annual_budget.api.actual_format.get_accounting_period_from_month, and
+// budget_mis.api.actual_format.get_accounting_period_from_month, and
 // confirmed verbatim against erp_actuals.js lines 74-87.
 const MONTH_TO_PERIOD = {
   April: 1, May: 2, June: 3, July: 4, August: 5, September: 6,
@@ -184,7 +179,7 @@ const financialYearSelection = computed({
 })
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     const now = new Date()
@@ -281,6 +276,10 @@ function cancelFetch() {
 }
 
 const statusFailed = computed(() => hasFetched.value && response.value && response.value.status !== 'success')
+const statusFailedMessage = computed(() => {
+  const status = `Status: ${response.value?.status || 'failed'}`
+  return response.value?.error ? `${status} — ${response.value.error}` : status
+})
 
 // -------------------------------------------------------------------------
 // Rows / columns / cell rendering - mirrors truthy()/cell_text() exactly.

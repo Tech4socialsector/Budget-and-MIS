@@ -1,0 +1,195 @@
+{
+ "actions": [],
+ "autoname": "field:module_name",
+ "creation": "2026-08-30 05:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "module_name",
+  "label",
+  "column_break_icon",
+  "icon",
+  "sort_order",
+  "is_sidebar_module",
+  "section_break_direct",
+  "direct_item_type",
+  "direct_page_route",
+  "direct_doctype_name",
+  "direct_url",
+  "column_break_direct_route",
+  "direct_route",
+  "section_break_doctypes",
+  "doctypes",
+  "section_break_roles",
+  "restrict_by_role",
+  "roles"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "description": "Internal identifier for this module, used as its record name. Not shown in the app.",
+   "fieldname": "module_name",
+   "fieldtype": "Data",
+   "label": "Module Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Display text shown as the sidebar section heading.",
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_icon",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Icon used as a fallback for sidebar items in this module that don't set their own. Pick a Lucide icon - this picker also offers icons from other sets (Espresso, Timeless) that look similar but won't render in the app; if the icon shows blank on Home after saving, you picked one of those by mistake.",
+   "fieldname": "icon",
+   "fieldtype": "Icon",
+   "in_list_view": 1,
+   "label": "Icon"
+  },
+  {
+   "default": "0",
+   "description": "Controls sidebar section order (lower first).",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Order"
+  },
+  {
+   "default": "0",
+   "description": "On: this module renders as a sidebar of DocTypes (the Doctypes table below). Off: this module itself is a single Home tile that opens a Page, DocType, or external URL directly.",
+   "fieldname": "is_sidebar_module",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Sidebar Module"
+  },
+  {
+   "depends_on": "eval:!doc.is_sidebar_module",
+   "fieldname": "section_break_direct",
+   "fieldtype": "Section Break",
+   "label": "Direct Link"
+  },
+  {
+   "depends_on": "eval:!doc.is_sidebar_module",
+   "description": "What this module's single Home tile opens.",
+   "fieldname": "direct_item_type",
+   "fieldtype": "Select",
+   "label": "Opens",
+   "mandatory_depends_on": "eval:!doc.is_sidebar_module",
+   "options": "Page\nDocType\nURL"
+  },
+  {
+   "depends_on": "eval:doc.direct_item_type == 'Page'",
+   "description": "One of this app's built-in Vue pages (matches a named route in the frontend router - see frontend/src/router.js).",
+   "fieldname": "direct_page_route",
+   "fieldtype": "Select",
+   "label": "Page",
+   "mandatory_depends_on": "eval:doc.direct_item_type == 'Page'",
+   "options": "BudgetSummary\nBudgetDashboard\nFoundationConsolidated\nMonthlyMis\nErpActuals\nBudgetVsActual"
+  },
+  {
+   "depends_on": "eval:doc.direct_item_type == 'DocType'",
+   "description": "The DocType this module's tile opens (list + form).",
+   "fieldname": "direct_doctype_name",
+   "fieldtype": "Link",
+   "label": "DocType",
+   "mandatory_depends_on": "eval:doc.direct_item_type == 'DocType'",
+   "options": "DocType"
+  },
+  {
+   "depends_on": "eval:doc.direct_item_type == 'URL'",
+   "description": "Opens in a new tab.",
+   "fieldname": "direct_url",
+   "fieldtype": "Data",
+   "label": "URL",
+   "mandatory_depends_on": "eval:doc.direct_item_type == 'URL'"
+  },
+  {
+   "depends_on": "eval:doc.direct_item_type == 'DocType'",
+   "fieldname": "column_break_direct_route",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.direct_item_type == 'DocType'",
+   "description": "URL-safe route segment. Defaults to a slug of the DocType name if left blank.",
+   "fieldname": "direct_route",
+   "fieldtype": "Data",
+   "label": "Route"
+  },
+  {
+   "depends_on": "eval:doc.is_sidebar_module",
+   "fieldname": "section_break_doctypes",
+   "fieldtype": "Section Break",
+   "label": "Sidebar DocTypes"
+  },
+  {
+   "description": "DocTypes shown as sidebar items under this module's section.",
+   "fieldname": "doctypes",
+   "fieldtype": "Table",
+   "label": "DocTypes",
+   "options": "App Module DocType Item"
+  },
+  {
+   "fieldname": "section_break_roles",
+   "fieldtype": "Section Break",
+   "label": "Visible To"
+  },
+  {
+   "default": "0",
+   "description": "When off, this module is visible to every logged-in user regardless of role.",
+   "fieldname": "restrict_by_role",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Restrict by Role"
+  },
+  {
+   "depends_on": "eval:doc.restrict_by_role",
+   "description": "Roles that can see this module in the Vue app.",
+   "fieldname": "roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Roles",
+   "options": "App Module Setting Role"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-30 05:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Master",
+ "name": "App Module Setting",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

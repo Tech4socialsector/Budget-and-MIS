@@ -3,35 +3,36 @@
     <div class="flex flex-col gap-4 lg:col-span-2">
       <!-- Grand total + head cards row -->
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <AppTooltip text="Click to drill down">
-          <button
-            class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
-            @click="openDrilldown({ name: 'Grand Total', items: nonZeroHeads, sub_heads: [], q1: [], q2: [], q3: [], q4: [] })"
-          >
-            <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grand Total Budget</div>
-            <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(grandTotal) }}</div>
-            <div class="mt-1.5 flex items-center gap-2 text-xs text-gray-400">
-              <span>{{ nonZeroHeads.length }} Expense Head{{ nonZeroHeads.length !== 1 ? 's' : '' }}</span>
-              <span v-if="financialYear" class="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                {{ financialYear }}
-              </span>
-            </div>
-          </button>
-        </AppTooltip>
+        <NumberCard
+          size="lg"
+          icon="pie-chart"
+          accent-color="neutral"
+          clickable
+          label="Grand Total Budget"
+          :value="formatAmount(grandTotal)"
+          @click="openDrilldown({ name: 'Grand Total', items: nonZeroHeads, sub_heads: [], q1: [], q2: [], q3: [], q4: [] })"
+        >
+          <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span>{{ nonZeroHeads.length }} Expense Head{{ nonZeroHeads.length !== 1 ? 's' : '' }}</span>
+            <span v-if="financialYear" class="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              {{ financialYear }}
+            </span>
+          </div>
+        </NumberCard>
 
-        <AppTooltip v-for="(head, i) in nonZeroHeads" :key="head.name" text="Click to drill down">
-          <button
-            class="w-full rounded-lg border-l-4 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-            :style="{ borderColor: accentColor(headIndex(head)) }"
-            @click="openDrilldown(head)"
-          >
-            <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="head.name">
-              {{ head.name }}
-            </div>
-            <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(headTotal(head)) }}</div>
-            <div class="mt-1 text-xs text-gray-400">{{ pctOfGrand(headTotal(head)) }}% of total</div>
-          </button>
-        </AppTooltip>
+        <NumberCard
+          v-for="head in nonZeroHeads"
+          :key="head.name"
+          size="md"
+          :icon="headIcon(head.name)"
+          :accent-color="accentColor(headIndex(head))"
+          clickable
+          :label="head.name"
+          :value="formatAmount(headTotal(head))"
+          @click="openDrilldown(head)"
+        >
+          <div class="text-xs text-gray-500 dark:text-gray-400">{{ pctOfGrand(headTotal(head)) }}% of total</div>
+        </NumberCard>
       </div>
 
       <!-- Sub-head breakdown, always shown for heads that have one -->
@@ -40,21 +41,22 @@
           {{ head.name }}
         </div>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <AppTooltip v-for="sub in nonZeroSubHeads(head)" :key="sub.name" text="Click to drill down">
-            <button
-              class="w-full rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-              @click="openDrilldown(sub)"
-            >
-              <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="sub.name">{{ sub.name }}</div>
-              <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(rowTotal(sub)) }}</div>
-            </button>
-          </AppTooltip>
+          <NumberCard
+            v-for="sub in nonZeroSubHeads(head)"
+            :key="sub.name"
+            size="sm"
+            :accent-color="accentColor(headIndex(head))"
+            clickable
+            :label="sub.name"
+            :value="formatAmount(rowTotal(sub))"
+            @click="openDrilldown(sub)"
+          />
         </div>
       </div>
     </div>
 
     <!-- Direct Work vs Grants & Donations -->
-    <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
         FY {{ financialYear }} — Grants &amp; Donations and Direct Work
       </div>
@@ -109,7 +111,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import AppTooltip from '@/components/AppTooltip.vue'
+import NumberCard from '@/components/NumberCard.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 
 const props = defineProps({
@@ -158,6 +160,20 @@ const nonZeroHeads = computed(() => props.heads.filter((h) => headTotal(h) > 0))
 
 function headIndex(head) {
   return props.heads.indexOf(head)
+}
+
+// Head names are admin-configured template text (see phase_sheet.py's
+// TOP_LEVEL_HEADS), not a fixed enum - this only recognizes the handful of
+// names actually seen in practice and falls back to a generic icon for
+// anything else, rather than failing on a head the template introduces later.
+const HEAD_ICONS = {
+  'CAPITAL EXPENSES': 'briefcase',
+  'OPERATING EXPENSES': 'activity',
+  'COVID SUPPORT': 'heart',
+}
+
+function headIcon(name) {
+  return HEAD_ICONS[(name || '').trim().toUpperCase()] || 'folder'
 }
 
 function nonZeroSubHeads(head) {

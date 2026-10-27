@@ -3,7 +3,8 @@
     <div class="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
       <img
         :src="brandingResource.data?.app_logo || defaultAppIcon"
-        class="h-7 w-7 flex-shrink-0 rounded-lg object-contain"
+        class="h-7 max-w-[4rem] flex-shrink-0 object-contain object-left"
+        alt="Logo"
       />
       <h1 class="min-w-0 flex-1 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
         {{ pageTitle }}

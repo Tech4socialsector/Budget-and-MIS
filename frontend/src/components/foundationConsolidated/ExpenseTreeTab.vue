@@ -37,7 +37,7 @@
       <div class="flex flex-wrap items-center gap-5">
         <Switch v-model="expandQuarters" label="Expand Quarters" />
         <Switch v-model="expandItems" label="Expand Line Items" />
-        <Button variant="solid" class="fc-xl-btn" :loading="exporting" @click="$emit('export')">
+        <Button variant="solid" theme="gray" :loading="exporting" @click="$emit('export')">
           <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
           Export XLS
         </Button>
@@ -88,7 +88,17 @@
               </td>
               <QuarterCells :node="head" :kind="kind" :expanded-q="expandedQ" />
               <td class="fc-td text-right font-bold">
-                <CrCell mode="inr" :value="rowTotal(head)" />
+                <span class="inline-flex items-center justify-end gap-1.5">
+                  <CrCell mode="inr" :value="rowTotal(head)" />
+                  <button
+                    v-if="hasChildren(head)"
+                    class="flex-shrink-0 text-gray-400 hover:text-fc-blue-mid"
+                    title="Drill down"
+                    @click.stop="drillInto(head)"
+                  >
+                    <FeatherIcon name="corner-down-right" class="h-3.5 w-3.5" />
+                  </button>
+                </span>
               </td>
             </tr>
 
@@ -110,7 +120,19 @@
                       </span>
                     </td>
                     <QuarterCells :node="sub" :kind="kind" :expanded-q="expandedQ" />
-                    <td class="fc-td text-right font-medium"><CrCell mode="inr" :value="rowTotal(sub)" /></td>
+                    <td class="fc-td text-right font-medium">
+                      <span class="inline-flex items-center justify-end gap-1.5">
+                        <CrCell mode="inr" :value="rowTotal(sub)" />
+                        <button
+                          v-if="hasChildren(sub)"
+                          class="flex-shrink-0 text-gray-400 hover:text-fc-blue-mid"
+                          title="Drill down"
+                          @click.stop="drillInto(sub)"
+                        >
+                          <FeatherIcon name="corner-down-right" class="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </td>
                   </tr>
                   <tr v-for="item in sub.items || []" v-show="isSubOpen(head.name, sub.name)" :key="'subitem-' + head.name + '-' + sub.name + '-' + item.name">
                     <td class="fc-td fc-sticky-col bg-white pl-12 text-left dark:bg-gray-900">{{ item.name }}</td>
@@ -129,7 +151,19 @@
                       </span>
                     </td>
                     <QuarterCells :node="sub" :kind="kind" :expanded-q="expandedQ" />
-                    <td class="fc-td text-right font-medium"><CrCell mode="inr" :value="rowTotal(sub)" /></td>
+                    <td class="fc-td text-right font-medium">
+                      <span class="inline-flex items-center justify-end gap-1.5">
+                        <CrCell mode="inr" :value="rowTotal(sub)" />
+                        <button
+                          v-if="hasChildren(sub)"
+                          class="flex-shrink-0 text-gray-400 hover:text-fc-blue-mid"
+                          title="Drill down"
+                          @click.stop="drillInto(sub)"
+                        >
+                          <FeatherIcon name="corner-down-right" class="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </td>
                   </tr>
                   <tr v-for="item in sub.items || []" v-show="isSubOpen(head.name, sub.name)" :key="'subitem-' + head.name + '-' + sub.name + '-' + item.name">
                     <td class="fc-td fc-sticky-col bg-white pl-12 text-left dark:bg-gray-900">{{ item.name }}</td>
@@ -155,6 +189,15 @@
         </tfoot>
       </table>
     </div>
+
+    <BudgetDrilldownModal
+      v-model="drilldownOpen"
+      :node="drilldownNode"
+      :total-mode="kind === 'actuals' ? 'ytd' : 'quarters'"
+      :show-actuals="false"
+      :financial-year="kind === 'actuals' ? financialYear : ''"
+      month="March"
+    />
   </template>
 </template>
 
@@ -163,6 +206,7 @@ import { computed, h, reactive, ref } from 'vue'
 import { FormControl, Switch, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import CrCell from './CrCell.vue'
+import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 import {
   QUARTER_KEYS,
   actualsQuarterTotal,
@@ -224,6 +268,37 @@ function toggleSub(headName, subName) {
   const key = headName + '::' + subName
   if (openSubs.has(key)) openSubs.delete(key)
   else openSubs.add(key)
+}
+
+// --- Drill-down ---------------------------------------------------------
+// Annual nodes (q1..q4 arrays) already match BudgetDrilldownModal's default
+// 'quarters' totalMode with zero reshaping - same shape BudgetSummaryCards
+// passes it. Actuals nodes carry Q1..Q4 as single already-summed numbers
+// instead (no `ytd` field the modal's 'ytd' totalMode could read), so
+// drilling into one wraps it - and every descendant, recursively, since the
+// modal walks sub_heads/items on its own as the user drills deeper - in a
+// thin adapter that exposes a `ytd` computed from Q1+Q2+Q3+Q4 without
+// mutating or reshaping the original tree data.
+function toYtdNode(node) {
+  if (!node) return node
+  return {
+    ...node,
+    ytd: actualsRowTotal(node),
+    sub_heads: (node.sub_heads || []).map(toYtdNode),
+    items: (node.items || []).map(toYtdNode),
+  }
+}
+
+function hasChildren(node) {
+  return !!(node?.sub_heads?.length || node?.items?.length)
+}
+
+const drilldownOpen = ref(false)
+const drilldownNode = ref(null)
+function drillInto(node) {
+  if (!hasChildren(node)) return
+  drilldownNode.value = props.kind === 'actuals' ? toYtdNode(node) : node
+  drilldownOpen.value = true
 }
 
 // Search: Desk-exact behavior - matches at the HEAD level only (head name,

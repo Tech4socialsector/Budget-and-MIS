@@ -93,7 +93,7 @@ export const logoutResource = createResource({
     userResource.reset()
     // The service worker's app-shell cache (vite.config.js's
     // 'annual-budget-app-shell', NetworkFirst) can hold the last
-    // successfully-fetched /annual_budget navigation document - including
+    // successfully-fetched /budget-mis navigation document - including
     // its inlined per-session CSRF token/boot data - from before this
     // logout. If a later Back/reload's network request is slow or offline,
     // NetworkFirst falls back to that stale authenticated-looking shell

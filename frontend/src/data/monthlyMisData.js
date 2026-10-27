@@ -1,6 +1,6 @@
 // Shared helpers for the Monthly MIS page (src/pages/MonthlyMis.vue),
 // replicating the Desk page at
-// annual_budget/annual_budget_mis/page/monthly_mis/monthly_mis.js
+// budget_mis/main/page/monthly_mis/monthly_mis.js
 // (only lines 6230-7601 are live; earlier versions in that file are dead
 // code and were ignored).
 //
@@ -83,6 +83,25 @@ function extractConsolidated(e) {
   }
   if (!r.total_b && !r.total_a) { r.total_b = r.opex_b + r.capex_b + r.covid_b; r.total_a = r.opex_a + r.capex_a + r.covid_a }
   return r
+}
+
+// get_monthly_mis_break_up's result ({table_name: [entry, ...], ...}) ->
+// a flat array of entries for ONE table group, the shape buildMap/
+// buildExpRows/buildUnitDetailGrid expect (get_unit_wise_plan's native
+// shape, which only ever covered a single table_name_filter). Pulling from
+// a single named group (rather than concatenating every group in the dict)
+// matters because the dict here carries many unrelated table groups at
+// once (Pie Chart, Unit Wise Plan, Health's own breakdown, etc., pulled in
+// by the combined table_name_filter the page sends for the breakup
+// sections) - flattening all of them together would mix in labels that
+// don't belong to the Operating/Capital/Overall Foundation tables at all.
+// That table's own "CONSOLIDATED TOTAL" entry is dropped rather than kept -
+// buildMap/buildExpRows already skip sequence_id === 9999 and fall back to
+// summing non-sub-item rows themselves.
+export function flattenBreakup(breakupDict, tableName) {
+  const entries = breakupDict?.[tableName]
+  if (!Array.isArray(entries)) return []
+  return entries.filter((e) => e.sequence_id !== 9999 && e.settings_doc !== 'CONSOLIDATED')
 }
 
 // data -> { order: [label,...], rows: {label: zero8()}, subFlags: {label: bool}, grand: zero8() }

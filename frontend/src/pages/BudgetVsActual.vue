@@ -1,6 +1,6 @@
 <!--
   Budget vs Actual - a dedicated Vue port of the Desk page at
-  annual_budget/annual_budget_mis/page/budget_actuals_phase/
+  budget_mis/main/page/budget_actuals_phase/
   budget_actuals_phase.js (only the last of 8 revisions in that file is
   live - see its own on_page_load, at the very end of the file).
 
@@ -15,7 +15,7 @@
   <AppLayout>
     <div class="flex flex-col gap-4">
       <!-- Filters -->
-      <div class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+      <div class="flex flex-col gap-3">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
@@ -42,17 +42,17 @@
             <MultiSelect v-model="baFilters.locationCodes" :options="locationCodeOptions" :disabled="!baFilters.units.length" placeholder="All location codes" class="w-full" />
           </div>
         </div>
-        <Button variant="solid" class="self-start" :loading="actualsLoading" @click="loadActuals">
+        <Button variant="solid" theme="gray" class="self-start" :loading="actualsLoading" @click="loadActuals">
           <template #prefix><FeatherIcon name="search" class="h-4 w-4" /></template>
           Get Report
         </Button>
       </div>
 
       <ErrorMessage v-if="actualsError" :message="actualsErrorMessage" />
-      <div v-else-if="actualsLoading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div v-else-if="actualsLoading">
         <AppLoader label="Loading budget vs actuals..." />
       </div>
-      <div v-else-if="!actualsHeads.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+      <div v-else-if="!actualsHeads.length" class="p-16 text-center text-sm text-gray-500 dark:text-gray-400">
         Choose filters and click "Get Report" to see the budget vs actuals breakdown.
       </div>
       <template v-else>
@@ -60,74 +60,89 @@
           <Switch v-model="showFullNumbers" label="Show full numbers" />
         </div>
 
-        <!-- Grand total + head cards -->
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <AppTooltip text="Click to drill down">
-            <button
-              class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
-              @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
-            >
-              <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grand Total</div>
-              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(actualsGrandBudget) }}</div>
-              <div class="mt-1 text-xs text-gray-400">Actual: {{ formatAmount(actualsGrandActual) }}</div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div class="h-full rounded-full" :style="{ width: Math.min(actualsGrandUtil, 100) + '%', backgroundColor: utilizationColor(actualsGrandUtil) }" />
-              </div>
-              <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(actualsGrandUtil) }">{{ actualsGrandUtil }}% utilized</div>
-            </button>
-          </AppTooltip>
-          <AppTooltip v-for="(head, i) in actualsHeads" :key="head.name" text="Click to drill down">
-            <button
-              class="w-full rounded-lg border-l-4 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-              :style="{ borderColor: accentColor(i) }"
-              @click="openDrilldown(head, 'actuals')"
-            >
-              <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="head.name">{{ head.name }}</div>
-              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(treeTotal(head, nodeBudget)) }}</div>
-              <div class="mt-1 text-xs text-gray-400">Actual: {{ formatAmount(treeTotal(head, nodeActual)) }}</div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div class="h-full rounded-full" :style="{ width: Math.min(utilizationPct(head), 100) + '%', backgroundColor: utilizationColor(utilizationPct(head)) }" />
-              </div>
-              <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(utilizationPct(head)) }">{{ utilizationPct(head) }}% utilized</div>
-            </button>
-          </AppTooltip>
+        <!-- Grand Total + Expense Head + Sub Head KPI cards - ports the Desk
+        page's own card design exactly (left accent border, Budget/Actual
+        row, Variance/Util % row, progress bar), including its section
+        labels and grid widths (Grand Total full-width, Expense Heads 2-up,
+        each head's Sub Heads 3-up beneath their own tinted label). -->
+        <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Grand Total</div>
+        <BudgetActualKpiCard
+          large
+          clickable
+          label="Grand Total"
+          :budget="actualsGrandBudget"
+          :actual="actualsGrandActual"
+          accent-color="#0076B6"
+          :format-amount="formatAmount"
+          :utilization-color="utilizationColor"
+          @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
+        />
+
+        <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Expense Heads</div>
+        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <BudgetActualKpiCard
+            v-for="(head, i) in actualsHeads"
+            :key="head.name"
+            clickable
+            :label="head.name"
+            :budget="treeTotal(head, nodeBudget)"
+            :actual="treeTotal(head, nodeActual)"
+            :accent-color="accentColor(i)"
+            :format-amount="formatAmount"
+            :utilization-color="utilizationColor"
+            @click="openDrilldown(head, 'actuals')"
+          />
         </div>
+
+        <template v-for="(head, i) in actualsHeads" :key="'subs-' + head.name">
+          <template v-if="head.sub_heads?.length">
+            <div class="text-[11px] font-bold uppercase tracking-wider" :style="{ color: accentColor(i) }">
+              <span class="text-gray-400 opacity-60 dark:text-gray-500">Sub Heads —</span> {{ head.name }}
+            </div>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <BudgetActualKpiCard
+                v-for="sub in head.sub_heads"
+                :key="sub.name"
+                clickable
+                :label="sub.name"
+                :budget="treeTotal(sub, nodeBudget)"
+                :actual="treeTotal(sub, nodeActual)"
+                :accent-color="accentColor(i)"
+                :format-amount="formatAmount"
+                :utilization-color="utilizationColor"
+                @click="openDrilldown(sub, 'actuals')"
+              />
+            </div>
+          </template>
+        </template>
 
         <InsightStrip :insights="actualsInsights" />
 
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Breakdown</div>
-            <div class="mt-3 h-64">
-              <canvas ref="budgetPieRef" />
-            </div>
-          </div>
-          <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Actuals Breakdown</div>
-            <div class="mt-3 h-64">
-              <canvas ref="actualPieRef" />
-            </div>
-          </div>
+        <!-- Budget/Actuals doughnuts - matches the Desk page's own chart
+        design (budget_actuals_phase.js) exactly, per explicit request, so
+        this page looks the same as the one Desk users already know. -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <BudgetActualDoughnuts :rows="doughnutRows" />
         </div>
 
         <!-- Detailed table: search + expand-all + Excel export, then the
         full Expense Head -> Sub Head -> Item tree - the piece the
         Dashboard's own "Budget vs Actuals Breakdown" tab doesn't have. -->
-        <div class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3">
             <FormControl type="text" v-model="tableSearch" placeholder="Search Expense Head / Sub Head / Item..." class="fc-search-input">
               <template #prefix><FeatherIcon name="search" class="h-4 w-4 text-gray-400" /></template>
             </FormControl>
             <div class="flex items-center gap-4">
               <Switch v-model="expandAll" label="Expand all" />
-              <Button variant="outline" :loading="exporting" @click="exportExcel">
+              <Button variant="outline" theme="gray" :loading="exporting" @click="exportExcel">
                 <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
                 Export Excel
               </Button>
             </div>
           </div>
 
-          <div class="fc-scroll-wrapper !border-0 !rounded-none">
+          <div class="fc-scroll-wrapper">
             <table class="fc-table w-full min-w-[720px] text-sm">
               <thead>
                 <tr class="fc-thead-main">
@@ -237,17 +252,17 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Chart } from 'chart.js/auto'
 import { MultiSelect, FormControl, FeatherIcon, ErrorMessage, Switch, Button } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
-import AppTooltip from '@/components/AppTooltip.vue'
+import BudgetActualKpiCard from '@/components/BudgetActualKpiCard.vue'
 import InsightStrip from '@/components/InsightStrip.vue'
+import BudgetActualDoughnuts from '@/components/BudgetActualDoughnuts.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import { downloadXlsx } from '@/data/foundationConsolidatedData'
-import { accentColor, formatCr, formatINR, isDarkMode } from '@/data/budgetTotals'
+import { accentColor, formatCr, formatINR } from '@/data/budgetTotals'
 import { nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct } from '@/data/dashboardData'
 
 setPageTitle('Budget vs Actual')
@@ -261,10 +276,6 @@ function toOptions(list) {
   return (list || []).filter((o) => o.value).map((o) => ({ label: o.label, value: o.value }))
 }
 
-function tickColor() {
-  return isDarkMode() ? '#f9fafb' : '#6b7280'
-}
-
 // --- Financial Year -------------------------------------------------------
 const filters = reactive({ financialYear: '' })
 const financialYearOptions = ref([])
@@ -274,7 +285,7 @@ const financialYearSelection = computed({
 })
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     const now = new Date()
@@ -287,7 +298,7 @@ async function loadFinancialYears() {
 
 const unitOptions = ref([])
 async function loadUnits() {
-  const r = await call('annual_budget.api.filter_options.get_units')
+  const r = await call('budget_mis.api.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
 }
 
@@ -327,7 +338,7 @@ const themeSelection = computed({
 async function loadThemes() {
   themeLoading.value = true
   try {
-    const rows = await call('annual_budget.api.filter_options.get_theme')
+    const rows = await call('budget_mis.api.filter_options.get_theme')
     for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
     themeOptions.value = (rows || []).map((d) => {
       themeLabelToName[d.number_card_title] = d.name
@@ -342,7 +353,7 @@ let suppressUnitWatch = false
 async function applyThemeSelection() {
   if (!themeSelectionNames.value.length) return
   const results = await Promise.all(
-    themeSelectionNames.value.map((name) => call('annual_budget.api.filter_options.get_theme_mappings', { theme_name: name })),
+    themeSelectionNames.value.map((name) => call('budget_mis.api.filter_options.get_theme_mappings', { theme_name: name })),
   )
   const unitVals = new Map()
   const ccVals = new Map()
@@ -379,8 +390,8 @@ watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
     return
   }
   const [cc, loc] = await Promise.all([
-    call('annual_budget.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
-    call('annual_budget.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
+    call('budget_mis.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
+    call('budget_mis.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
   ])
   costCenterOptions.value = toOptions(cc?.data)
   locationCodeOptions.value = toOptions(loc?.data)
@@ -403,7 +414,7 @@ async function openItemGlDrilldown(item) {
   if (!item?.sequence_id) return
   glDrilldownLoading.value = item.name
   try {
-    const rows = await call('annual_budget.api.phase_sheet.get_actual_gl_breakup', {
+    const rows = await call('budget_mis.api.phase_sheet.get_actual_gl_breakup', {
       financial_year: filters.financialYear,
       month: month.value,
       sequence_id: item.sequence_id,
@@ -446,7 +457,7 @@ async function loadActuals() {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_combined_actuals', {
+    const result = await call('budget_mis.api.phase_sheet.get_combined_actuals', {
       financial_year: filters.financialYear,
       month: month.value,
       unit: baFilters.units.join(',') || undefined,
@@ -461,8 +472,6 @@ async function loadActuals() {
     actualsHeads.value = []
   } finally {
     actualsLoading.value = false
-    await nextTick()
-    renderCharts()
   }
 }
 
@@ -521,52 +530,30 @@ const actualsInsights = computed(() => {
   return insights
 })
 
-// --- Charts --------------------------------------------------------------
-const budgetPieRef = ref(null)
-const actualPieRef = ref(null)
-let budgetPieChart = null
-let actualPieChart = null
-
-function renderCharts() {
-  if (budgetPieRef.value) {
-    budgetPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeBudget) > 0)
-    budgetPieChart = new Chart(budgetPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index]) },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
+// --- Budget/Actual doughnuts (Budget Breakdown / Actuals Breakdown) -------
+// Ports the Desk page's own flatten rule exactly (budget_actuals_phase.js,
+// live revision, renderPieCharts): a head contributes its SUB-heads only
+// if at least one of them is individually non-zero in budget OR actual;
+// otherwise the head itself is used as a single row (covers heads with no
+// sub-heads, and heads whose sub-heads are all zero). Both doughnuts key
+// off this one shared row list, same as the Desk page's shared `labels`.
+const doughnutRows = computed(() => {
+  const rows = []
+  for (const head of actualsHeads.value) {
+    const subs = head.sub_heads || []
+    const validSubs = subs.filter((s) => Math.round(treeTotal(s, nodeBudget)) !== 0 || Math.round(treeTotal(s, nodeActual)) !== 0)
+    if (validSubs.length) {
+      rows.push(...validSubs)
+    } else {
+      rows.push(head)
+    }
   }
-  if (actualPieRef.value) {
-    actualPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeActual) > 0)
-    actualPieChart = new Chart(actualPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index]) },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
-  }
-}
-
-watch(showFullNumbers, renderCharts)
+  return rows.map((row) => ({
+    label: row.name,
+    budget: Math.round(treeTotal(row, nodeBudget)),
+    actual: Math.round(treeTotal(row, nodeActual)),
+  }))
+})
 
 // --- Detailed table: search + expand-all -----------------------------
 const tableSearch = ref('')
@@ -633,7 +620,7 @@ async function exportExcel() {
   if (!actualsHeads.value.length) return
   exporting.value = true
   try {
-    const result = await call('annual_budget.api.export_reports.export_budget_vs_actual', {
+    const result = await call('budget_mis.api.export_reports.export_budget_vs_actual', {
       financial_year: filters.financialYear,
       month: month.value,
       heads_data: JSON.stringify(actualsHeads.value),

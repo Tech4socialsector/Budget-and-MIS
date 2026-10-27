@@ -2,7 +2,7 @@
 //
 // Unlike Foundation Consolidated / Monthly MIS (whose export endpoints
 // either return a base64 JSON payload via call(), or are simple GETs),
-// annual_budget.api.export_reports.export_erp_actuals_excel takes a
+// budget_mis.api.erp_actuals.export_actuals_excel takes a
 // `rows` argument that can be arbitrarily large (the full currently-
 // filtered ERP dataset) and returns a raw binary xlsx response directly
 // (frappe.response['filecontent']/['type']='binary') - so it needs a POST
@@ -28,7 +28,7 @@ export async function exportErpActualsExcel({ fiscalYear, accountingPeriod, rows
     headers['X-Frappe-CSRF-Token'] = window.csrf_token
   }
 
-  const res = await fetch('/api/method/annual_budget.api.export_reports.export_erp_actuals_excel', {
+  const res = await fetch('/api/method/budget_mis.api.erp_actuals.export_actuals_excel', {
     method: 'POST',
     headers,
     body: JSON.stringify({

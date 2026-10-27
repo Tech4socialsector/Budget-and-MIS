@@ -158,14 +158,15 @@
                     v-for="(child, i) in displayedChildren"
                     :key="child.name + i"
                     class="cursor-pointer border-t border-gray-100 transition odd:bg-white even:bg-gray-50/60 hover:bg-fc-blue-light/40 dark:border-gray-800 dark:odd:bg-transparent dark:even:bg-gray-800/30 dark:hover:bg-gray-800/70"
-                    :class="{ 'cursor-default': !hasChildren(child) }"
-                    @click="hasChildren(child) && drillInto(child)"
+                    :class="{ 'cursor-default': !isDrillable(child) }"
+                    @click="isDrillable(child) && drillInto(child)"
                   >
                     <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300">
                       <span class="flex items-center gap-2">
                         <span class="h-2 w-2 flex-shrink-0 rounded-full" :style="{ backgroundColor: accentColor(childColorIndex(child)) }" />
                         {{ child.name }}
-                        <FeatherIcon v-if="hasChildren(child)" name="chevron-right" class="h-3.5 w-3.5 text-gray-400" />
+                        <FeatherIcon v-if="glLoadingName === child.name" name="loader" class="h-3.5 w-3.5 animate-spin text-gray-400" />
+                        <FeatherIcon v-else-if="isDrillable(child)" name="chevron-right" class="h-3.5 w-3.5 text-gray-400" />
                       </span>
                     </td>
                     <td class="border-l border-gray-100 px-4 py-2.5 dark:border-gray-800">
@@ -210,6 +211,7 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, FeatherIcon, Switch } from 'frappe-ui'
 import AppTooltip from '@/components/AppTooltip.vue'
+import { call } from '@/data/decrypt'
 import { accentColor, formatCr, formatINR, rowTotal } from '@/data/budgetTotals'
 import { nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct as utilPct } from '@/data/dashboardData'
 
@@ -226,6 +228,21 @@ const props = defineProps({
   // When true (only meaningful with totalMode: 'ytd'), also shows the
   // actual/utilization/variance columns alongside budget.
   showActuals: { type: Boolean, default: false },
+  // GL-code drill-down (optional, one level beyond Line Items): a leaf
+  // item carrying its own `sequence_id` (the Expenses master's row id) can
+  // be drilled into for its underlying GL-code-level actuals breakdown,
+  // fetched on demand via budget_mis.api.phase_sheet.get_actual_gl_breakup
+  // - the same data/endpoint BudgetVsActual.vue's own item rows already
+  // use, just reachable generically from any caller of this modal instead
+  // of duplicated per-page. Only activates when financialYear is supplied;
+  // callers with nothing further to show below Line Items simply omit it.
+  financialYear: { type: String, default: '' },
+  month: { type: String, default: 'March' },
+  unit: { type: String, default: '' },
+  costCenter: { type: String, default: '' },
+  locationCode: { type: String, default: '' },
+  erpCostCenterValue: { type: String, default: '' },
+  erpLocValue: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -274,6 +291,20 @@ function hasChildren(node) {
   return !!(node?.sub_heads?.length || node?.items?.length)
 }
 
+// A leaf Line Item (no sub_heads/items of its own) can still be drilled
+// into ONE further level, for its GL-code breakdown - but only when the
+// caller supplied enough context to fetch it (financialYear) and the item
+// actually carries a sequence_id (the Expenses master row id the backend
+// keys the breakdown lookup on). A GL-code row itself has no sequence_id
+// (it's not an Expenses row), so this naturally stops recursing past one
+// extra level without needing to track "are we at a GL level" separately.
+function canGlDrill(node) {
+  return !hasChildren(node) && !!props.financialYear && !!node?.sequence_id
+}
+function isDrillable(node) {
+  return hasChildren(node) || canGlDrill(node)
+}
+
 const children = computed(() => {
   const node = current.value
   if (!node) return []
@@ -300,14 +331,58 @@ function sharePct(child) {
 }
 
 const isSubHeadLevel = computed(() => !!current.value?.sub_heads?.length)
-const childLabel = computed(() => (isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'))
-const childIcon = computed(() => (isSubHeadLevel.value ? 'folder' : 'list'))
-const levelIcon = computed(() => (history.value.length <= 1 ? 'layers' : isSubHeadLevel.value ? 'folder' : 'file-text'))
+const isGlLevel = computed(() => !!current.value?.__isGlLevel)
+const childLabel = computed(() => (isGlLevel.value ? 'GL Codes' : isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'))
+const childIcon = computed(() => (isGlLevel.value ? 'hash' : isSubHeadLevel.value ? 'folder' : 'list'))
+const levelIcon = computed(() => (history.value.length <= 1 ? 'layers' : isGlLevel.value ? 'hash' : isSubHeadLevel.value ? 'folder' : 'file-text'))
 
-function drillInto(child) {
-  if (!hasChildren(child)) return
-  history.value.push(child)
-  sortByAmount.value = false
+const glLoadingName = ref(null)
+async function drillInto(child) {
+  if (hasChildren(child)) {
+    history.value.push(child)
+    sortByAmount.value = false
+    return
+  }
+  if (!canGlDrill(child)) return
+  glLoadingName.value = child.name
+  try {
+    const rows = await call('budget_mis.api.phase_sheet.get_actual_gl_breakup', {
+      financial_year: props.financialYear,
+      month: props.month,
+      sequence_id: child.sequence_id,
+      unit: props.unit || undefined,
+      cost_center: props.costCenter || undefined,
+      location_code: props.locationCode || undefined,
+      erp_cost_center_value: props.erpCostCenterValue || undefined,
+      erp_loc_value: props.erpLocValue || undefined,
+    })
+    history.value.push({
+      name: child.name,
+      __isGlLevel: true,
+      ytd: total(child),
+      total_posted_amt_ytd: actualTotal(child),
+      // GL rows have no budget of their own - the modal's Total/Budget
+      // column always reads .ytd via total() regardless of showActuals, so
+      // a plain total_posted_amt-only row would render as 0 whenever this
+      // instance has showActuals off (this tree's "Total" column is really
+      // showing actuals throughout, per its own totalMode:'ytd' usage -
+      // see ExpenseTreeTab.vue's kind==='actuals' case). Put the real GL
+      // amount in whichever field this instance's own total() actually
+      // reads, so a GL row displays correctly either way.
+      items: (rows || []).map((r) => ({
+        name: r.gl_code || 'Unspecified',
+        ytd: props.showActuals ? 0 : r.total_posted_amt,
+        total_posted_amt: r.total_posted_amt,
+      })),
+    })
+    sortByAmount.value = false
+  } catch (e) {
+    // Non-fatal - the item itself still shows its own totals in the table
+    // row; a failed GL lookup just means this one click doesn't drill any
+    // further, not a broken modal.
+  } finally {
+    glLoadingName.value = null
+  }
 }
 
 function jumpTo(index) {
