@@ -19,7 +19,7 @@
   <div v-if="!data" class="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900">
     No data available.
   </div>
-  <div v-else class="fc-scroll-wrapper">
+  <div v-else class="fc-scroll-wrapper fc-scroll-wrapper-tall">
     <table class="fc-table w-full min-w-[900px] text-sm">
       <thead>
         <tr class="fc-thead-main">

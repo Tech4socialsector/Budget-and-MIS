@@ -87,6 +87,36 @@ def resolve_grouped_units(doc, _visited=None):
     return list(unit_map.values())
 
 
+# Like resolve_grouped_units, but keeps the "Define by Card Mapping" hierarchy intact instead of flattening it: returns {"label", "settings_doc", "grouped_units", "children": [...]} where "grouped_units" is this node's OWN leaf-level rows (empty for a pure Card Mapping node) and "children" is the resolved tree for each sub-item, recursively. A leaf ("Define by Cost Centre and Location Code") node has grouped_units populated and no children. _visited guards against a sub_items cycle the same way resolve_grouped_units does.
+def resolve_grouped_units_tree(doc, _visited=None):
+    _visited = _visited or set()
+    if doc.name in _visited:
+        frappe.log_error(
+            title="Overview number cards settings: sub_items cycle detected",
+            message=f"{doc.name} ({doc.number_card_title}) is part of a sub_items cycle: {_visited}",
+        )
+        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "children": []}
+
+    _visited = _visited | {doc.name}
+
+    if doc.type == "Define by Card Mapping":
+        sub_rows = sorted(doc.sub_items, key=lambda r: (r.sequence_id or 0))
+        children = []
+        for row in sub_rows:
+            if not row.sub_setting:
+                continue
+            sub_doc = frappe.get_doc("Overview number cards settings", row.sub_setting)
+            children.append(resolve_grouped_units_tree(sub_doc, _visited))
+        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "children": children}
+
+    return {
+        "label": doc.number_card_title,
+        "settings_doc": doc.name,
+        "grouped_units": resolve_grouped_units(doc),
+        "children": [],
+    }
+
+
 # Fetches every "Overview number cards settings" doc, resolves each into grouped_units, and groups the results by table_name (from each doc's combination_table_settings rows), optionally filtered to specific table names.
 @guest_api
 def get_combination_table_settings_test(table_name_filter=None):
