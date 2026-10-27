@@ -118,6 +118,18 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   border-color: rgb(55 65 81);
 }
 
+/* Monthly MIS's own tables (ExpenseTable/ConsolidatedTable/BreakupTable/
+   UnitDetailGrid) opt out of .fc-scroll-wrapper's 72vh cap + vertical
+   scroll - their rows should grow with the page (the page itself
+   scrolls) instead of scrolling inside a short fixed-height box.
+   Horizontal scroll is kept (these tables still have a min-width wider
+   than narrow viewports), only overflow-y/max-height are dropped. */
+.fc-scroll-wrapper-tall {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: auto;
+}
+
 .fc-table {
   border-collapse: collapse;
 }

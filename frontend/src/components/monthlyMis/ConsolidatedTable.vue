@@ -6,7 +6,7 @@
   source's cr-sub-item / isSub handling exactly.
 -->
 <template>
-  <div class="fc-scroll-wrapper">
+  <div class="fc-scroll-wrapper fc-scroll-wrapper-tall">
     <table class="fc-table w-full min-w-[900px] text-sm">
       <thead>
         <tr class="fc-thead-main">

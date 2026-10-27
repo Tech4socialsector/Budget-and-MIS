@@ -11,7 +11,7 @@
   not used here.
 -->
 <template>
-  <div class="fc-scroll-wrapper">
+  <div class="fc-scroll-wrapper fc-scroll-wrapper-tall">
     <table class="fc-table w-full min-w-[800px] text-sm">
       <thead>
         <tr class="fc-thead-main">
