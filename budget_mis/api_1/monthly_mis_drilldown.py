@@ -102,8 +102,12 @@ def _consolidate_actuals(all_unit_actuals):
     return list(head_map.values())
 
 
-# Resolves one grouped_units entry (a single unit + its cost_centers/locations lists, from the "Define by Cost Centre and Location Code" leaf type) into its own head/sub-head/item actuals tree, and labels it by its cost-center/location pairing for display as a level-3 drill-down row.
-def _leaf_unit_node(gu, financial_year, month, grouped_actuals_data):
+# Resolves one grouped-unit-shaped entry (a unit + its cost_centers/locations
+# lists - either a merged-by-unit grouped_units entry, or a single-row
+# grouped_rows entry with exactly one cost_center/location_code each) into
+# its own head/sub-head/item actuals tree, and labels it by its
+# cost-center/location pairing for display as a drill-down row.
+def _leaf_entity_node(gu, financial_year, month, grouped_actuals_data):
     actuals = get_combined_actuals(
         financial_year=financial_year,
         month=month,
@@ -118,6 +122,12 @@ def _leaf_unit_node(gu, financial_year, month, grouped_actuals_data):
 
     cc_label = ", ".join(gu.get("cost_centers") or []) or "-"
     loc_label = ", ".join(gu.get("locations") or []) or "-"
+    cc_desc = gu.get("cost_center_description")
+    loc_desc = gu.get("location_code_description")
+    if cc_desc:
+        cc_label = f"{cc_label} ({cc_desc})"
+    if loc_desc:
+        loc_label = f"{loc_label} ({loc_desc})"
     label = f"{gu.get('unit') or '-'} · CC {cc_label} · Loc {loc_label}"
 
     return {
@@ -130,7 +140,7 @@ def _leaf_unit_node(gu, financial_year, month, grouped_actuals_data):
     }
 
 
-# Walks a resolve_grouped_units_tree() node bottom-up, building a drill-down node at every level: a leaf ("Define by Cost Centre and Location Code") node becomes one row per grouped_units entry (level 3/4 - a single unit+cost-center+location slice, with its own line-item actuals); a "Define by Card Mapping" node recurses into each child, then sums all descendants' actuals together via _consolidate_actuals into its own node's "actuals" (so every level, from the top-level card down to each cost-center+location pair, carries both its own totals AND its children for the next drill-down step).
+# Walks a resolve_grouped_units_tree() node bottom-up, building a drill-down node at every level: a "Define by Card Mapping" node recurses into each child, then sums all descendants' actuals together via _consolidate_actuals into its own node's "actuals". A leaf ("Define by Cost Centre and Location Code") node is TWO levels: the leaf itself gets its own total from grouped_units (merged by unit - the same math get_monthly_mis_break_up already verifies), but its drill-down children come from grouped_rows (one real cost_center+location_code pair per row, NOT merged) so a card with e.g. 3 cost centers x 3 locations shows all 9 real combinations instead of one collapsed row - each with its own line items. Every level, from the top-level card down to a single raw row, carries both its own totals AND its children for the next drill-down step.
 def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data):
     if tree_node["children"]:
         children = [
@@ -145,16 +155,21 @@ def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data
             "children": children,
         }
 
-    leaf_children = [
-        _leaf_unit_node(gu, financial_year, month, grouped_actuals_data)
+    unit_nodes = [
+        _leaf_entity_node(gu, financial_year, month, grouped_actuals_data)
         for gu in tree_node["grouped_units"]
     ]
-    actuals = _consolidate_actuals([c["actuals"] for c in leaf_children])
+    actuals = _consolidate_actuals([n["actuals"] for n in unit_nodes])
+
+    row_children = [
+        _leaf_entity_node(row, financial_year, month, grouped_actuals_data)
+        for row in tree_node["grouped_rows"]
+    ]
     return {
         "label": tree_node["label"],
         "settings_doc": tree_node["settings_doc"],
         "actuals": actuals,
-        "children": leaf_children,
+        "children": row_children,
     }
 
 

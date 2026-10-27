@@ -87,7 +87,39 @@ def resolve_grouped_units(doc, _visited=None):
     return list(unit_map.values())
 
 
-# Like resolve_grouped_units, but keeps the "Define by Card Mapping" hierarchy intact instead of flattening it: returns {"label", "settings_doc", "grouped_units", "children": [...]} where "grouped_units" is this node's OWN leaf-level rows (empty for a pure Card Mapping node) and "children" is the resolved tree for each sub-item, recursively. A leaf ("Define by Cost Centre and Location Code") node has grouped_units populated and no children. _visited guards against a sub_items cycle the same way resolve_grouped_units does.
+# Resolves ONE "Define by Cost Centre and Location Code" leaf's own
+# cost_centre_and_location_code_grouping rows into individual single-row
+# grouped_units entries (unlike resolve_grouped_units' merge-by-unit - each
+# row here stays its own entry, e.g. 9 distinct cost_center+location_code
+# pairs stay 9 entries instead of collapsing into one unit's merged lists).
+# Used only for the drill-down tree's finest display level; the merged,
+# by-unit totals resolve_grouped_units/get_monthly_mis_break_up compute are
+# unaffected and still correct - both are built from the exact same rows,
+# just grouped differently for two different purposes (one real filter
+# per get_combined_actuals call here, vs. one unit-wide filter there).
+def resolve_grouped_rows(doc):
+    rows = []
+    for row in doc.cost_centre_and_location_code_grouping:
+        if not (row.unit or row.cost_center or row.location_code):
+            continue
+
+        ref = (row.reference_for or "Both").strip()
+        include_budget = ref in ["Budget", "Both"]
+        include_actual = ref in ["Actual", "Both"]
+
+        rows.append({
+            "unit": row.unit,
+            "cost_centers": [row.cost_center] if include_budget and row.cost_center else [],
+            "cost_centers_erp": [row.cost_center_erp] if include_actual and row.cost_center_erp else [],
+            "locations": [row.location_code] if include_budget and row.location_code else [],
+            "locations_erp": [row.location_code_erp] if include_actual and row.location_code_erp else [],
+            "cost_center_description": row.cost_center_description,
+            "location_code_description": row.location_code_description,
+        })
+    return rows
+
+
+# Like resolve_grouped_units, but keeps the "Define by Card Mapping" hierarchy intact instead of flattening it: returns {"label", "settings_doc", "grouped_units", "grouped_rows", "children": [...]} where "grouped_units" is this node's OWN leaf-level rows merged by unit (empty for a pure Card Mapping node, used for this node's own total), "grouped_rows" is the same leaf's rows kept separate one-per-row (for the drill-down tree's finest display level), and "children" is the resolved tree for each sub-item, recursively. A leaf ("Define by Cost Centre and Location Code") node has grouped_units/grouped_rows populated and no children. _visited guards against a sub_items cycle the same way resolve_grouped_units does.
 def resolve_grouped_units_tree(doc, _visited=None):
     _visited = _visited or set()
     if doc.name in _visited:
@@ -95,7 +127,7 @@ def resolve_grouped_units_tree(doc, _visited=None):
             title="Overview number cards settings: sub_items cycle detected",
             message=f"{doc.name} ({doc.number_card_title}) is part of a sub_items cycle: {_visited}",
         )
-        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "children": []}
+        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "grouped_rows": [], "children": []}
 
     _visited = _visited | {doc.name}
 
@@ -107,12 +139,13 @@ def resolve_grouped_units_tree(doc, _visited=None):
                 continue
             sub_doc = frappe.get_doc("Overview number cards settings", row.sub_setting)
             children.append(resolve_grouped_units_tree(sub_doc, _visited))
-        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "children": children}
+        return {"label": doc.number_card_title, "settings_doc": doc.name, "grouped_units": [], "grouped_rows": [], "children": children}
 
     return {
         "label": doc.number_card_title,
         "settings_doc": doc.name,
         "grouped_units": resolve_grouped_units(doc),
+        "grouped_rows": resolve_grouped_rows(doc),
         "children": [],
     }
 
