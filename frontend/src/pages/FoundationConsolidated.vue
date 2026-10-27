@@ -15,7 +15,7 @@
           </div>
           <Switch v-model="showFullNumbers" label="Show full numbers" />
         </div>
-        <Button variant="solid" class="fc-export-all" :loading="exportingKey === 'all'" @click="exportTab('all')">
+        <Button variant="solid" theme="gray" :loading="exportingKey === 'all'" @click="exportTab('all')">
           <template #prefix>
             <FeatherIcon name="download" class="h-4 w-4" />
           </template>
@@ -54,6 +54,7 @@
         :education-groups="pptEducationGroups"
         :opex-table="pptOpexTable"
         :capex-table="pptCapexTable"
+        :financial-year="filters.financialYear"
         :exporting="exportingKey === 'ppt'"
         @retry="() => loadPpt(true)"
         @export="() => exportTab('ppt')"
@@ -186,7 +187,7 @@ function defaultFinancialYear(options) {
 }
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     filters.financialYear = defaultFinancialYear(financialYearOptions.value)
@@ -296,6 +297,17 @@ function buildPptRows(data, cfg) {
         eOpex: v.opex, eCapex: v.capex,
         eCovid: extractCovid(sections, cfg.actualField),
         eTotal: extractTotal(sections, cfg.actualField),
+        // Carried through (not rendered directly) so PptTab.vue can drill
+        // into this row's real head/sub-head/item tree on click - sections
+        // already has ytd/total_posted_amt_ytd on every node, exactly what
+        // BudgetDrilldownModal's totalMode:'ytd' reads. isGrandTotalSection
+        // entries (an "OVERALL GRAND TOTAL" pseudo-section already summing
+        // the others, per extractVals/extractCovid/extractTotal's own
+        // filtering above) are dropped here too - otherwise
+        // BudgetDrilldownModal's treeTotal() sums it as a sibling alongside
+        // the real sections it's a total OF, doubling the drill-down's own
+        // displayed total against what this row's own display columns show.
+        sections: sections.filter((s) => !isGrandTotalSection(s)),
       }
     })
   const tot = { bOpex: 0, bCapex: 0, bCovid: 0, bTotal: 0, eOpex: 0, eCapex: 0, eCovid: 0, eTotal: 0 }
@@ -328,7 +340,7 @@ function buildEducationGroups(data, cfg, bLbl, eLbl) {
       const eTot = extractTotal(sections, cfg.actualField)
       tot.bOpex += b.opex; tot.bCapex += b.capex; tot.bTotal += bTot
       tot.eOpex += v.opex; tot.eCapex += v.capex; tot.eTotal += eTot
-      return { label: e.label || '', bOpex: b.opex, bCapex: b.capex, bTotal: bTot, eOpex: v.opex, eCapex: v.capex, eTotal: eTot }
+      return { label: e.label || '', bOpex: b.opex, bCapex: b.capex, bTotal: bTot, eOpex: v.opex, eCapex: v.capex, eTotal: eTot, sections: sections.filter((s) => !isGrandTotalSection(s)) }
     })
     return { name: grp, title: 'EDUCATION', bLbl, eLbl, rows, total: tot }
   })
@@ -364,6 +376,25 @@ function buildBreakdownTable(entries, kind, fyLabel) {
     }
     return v
   }
+  // Every unit's own matching sub_head node (opex rows only - a sub_head
+  // still has its own items to drill into; capex rows come from items,
+  // already leaves with nothing further to show) for this row name,
+  // combined across units into one synthetic node so a single click drills
+  // into the row's full item breakdown regardless of which unit(s)
+  // contributed to it.
+  function rowNode(name) {
+    if (kind !== 'opex') return null
+    const items = []
+    for (const e of entries) {
+      for (const s of e.actuals || []) {
+        if (!isMatch(s.name)) continue
+        for (const sub of s.sub_heads || []) {
+          if ((sub.name || '').trim() === name) items.push(...(sub.items || []))
+        }
+      }
+    }
+    return items.length ? { name, items } : null
+  }
   function catTotal(e) {
     let v = 0
     for (const s of e.actuals || []) {
@@ -375,7 +406,7 @@ function buildBreakdownTable(entries, kind, fyLabel) {
   if (!rowNames.length) return null
   const rows = rowNames.map((name) => {
     const cells = entries.map((e) => rowVal(e, name))
-    return { name, cells, rowTotal: cells.reduce((a, b) => a + b, 0) }
+    return { name, cells, rowTotal: cells.reduce((a, b) => a + b, 0), node: rowNode(name) }
   })
   const totalsRow = entries.map((e) => catTotal(e))
   const fyPart = fyLabel.replace(/\s*budget\s*/i, '').trim()
@@ -398,10 +429,10 @@ async function loadPpt(force) {
   pptError.value = null
   try {
     const [d, raw] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_foundation_overall', {
+      call('budget_mis.api.foundation_consolidated_report.get_foundation_overall', {
         financial_year: fy, month: 'March', table_name_filter: 'Foundation Overall',
       }),
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
+      call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
         financial_year: fy, month: 'March', table_name_filter: 'Opex Capex', is_previous: 1,
       }),
     ])
@@ -474,14 +505,14 @@ async function loadSummaryInr(force) {
   try {
     const prevYear = fyToPrevBareYear(fy)
     const [summary, hc, cr, ga] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
+      call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
         financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan', is_previous: 1,
       }),
-      call('annual_budget.api.foundation_consolidated_report.get_headcount', {
+      call('budget_mis.api.foundation_consolidated_report.get_headcount', {
         financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
       }),
-      call('annual_budget.api.phase_sheet.get_consolidated_report', { financial_year: fy }),
-      call('annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
+      call('budget_mis.api.phase_sheet.get_consolidated_report', { financial_year: fy }),
+      call('budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
         fiscal_year: prevYear, accounting_period: '12',
       }),
     ])
@@ -517,7 +548,7 @@ async function loadHeadcount(force) {
   headcountLoading.value = true
   headcountError.value = null
   try {
-    const hc = await call('annual_budget.api.foundation_consolidated_report.get_headcount', {
+    const hc = await call('budget_mis.api.foundation_consolidated_report.get_headcount', {
       financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
     })
     if (gen !== requestGen.headcount) return
@@ -549,7 +580,7 @@ async function loadAnnual(force) {
   annualLoading.value = true
   annualError.value = null
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_consolidated_report', { financial_year: fy })
+    const result = await call('budget_mis.api.phase_sheet.get_consolidated_report', { financial_year: fy })
     if (gen !== requestGen.annual_budget) return
     annualData.value = result || []
     if (!annualData.value.length) delete loadedFor.annual_budget
@@ -580,7 +611,7 @@ async function loadActuals(force) {
   actualsError.value = null
   try {
     const prevYear = fyToPrevBareYear(fy)
-    const result = await call('annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
+    const result = await call('budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
       fiscal_year: prevYear, accounting_period: '12',
     })
     if (gen !== requestGen.actuals) return
@@ -614,7 +645,7 @@ async function loadBudgetActuals(force) {
   budgetActualsLoading.value = true
   budgetActualsError.value = null
   try {
-    const d = await call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
+    const d = await call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
       financial_year: fy, month: 'March', table_name_filter: 'Budget & Estimate', is_previous: 1,
     })
     if (gen !== requestGen.budget_actuals) return
@@ -622,7 +653,7 @@ async function loadBudgetActuals(force) {
     const consolidatedBlock = all.find((e) => normName(e.table_name) === 'CONSOLIDATED')
     // Confirmed against the live Desk JS: get_unit_wise_plan's CONSOLIDATED
     // entry never actually sets a main_item_breakdown key in the current
-    // backend (grep across annual_budget/ found zero definitions of it
+    // backend (grep across budget_mis/ found zero definitions of it
     // outside this same JS file) - so this reads [] today, and the Grand
     // Total Plan/Est columns render as 0/blank, exactly matching the live
     // Desk page's current (buggy) behavior rather than guessing a fix.
@@ -668,13 +699,13 @@ watch(() => filters.financialYear, () => {
 const exportingKey = ref(null)
 
 const EXPORT_METHODS = {
-  ppt: 'annual_budget.api.export_reports.export_ppt',
-  summary_inr: 'annual_budget.api.export_reports.export_summary_inr',
-  headcount: 'annual_budget.api.export_reports.export_headcount',
-  annual: 'annual_budget.api.export_reports.export_annual',
-  actuals: 'annual_budget.api.export_reports.export_estimate',
-  budget_actuals: 'annual_budget.api.export_reports.export_budget_estimate',
-  all: 'annual_budget.api.export_reports.export_all',
+  ppt: 'budget_mis.api.export_reports.export_ppt',
+  summary_inr: 'budget_mis.api.export_reports.export_summary_inr',
+  headcount: 'budget_mis.api.export_reports.export_headcount',
+  annual: 'budget_mis.api.export_reports.export_annual',
+  actuals: 'budget_mis.api.export_reports.export_estimate',
+  budget_actuals: 'budget_mis.api.export_reports.export_budget_estimate',
+  all: 'budget_mis.api.export_reports.export_all',
 }
 
 function buildExportArgs(key, fy) {
@@ -765,14 +796,3 @@ onMounted(async () => {
   await loadFinancialYears()
 })
 </script>
-
-<style scoped>
-.fc-export-all {
-  background-color: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-.fc-export-all:hover {
-  background-color: #333;
-}
-</style>

@@ -2,12 +2,16 @@
   <MobileShell v-if="isMobile">
     <slot />
   </MobileShell>
-  <div v-else class="flex h-screen bg-gray-50 dark:bg-gray-900">
-    <AppSidebar />
+  <div v-else class="fixed inset-0 flex bg-surface-white text-ink-gray-8">
+    <!-- No module open (e.g. Home) - the sidebar doesn't mount at all, not
+    just render empty, so those pages go full width. TopNavbar switches to
+    showing the logo/app name itself once there's no sidebar to carry it -
+    see its own activeModule check. -->
+    <AppSidebar v-if="activeModule" />
     <div class="flex min-w-0 flex-1 flex-col">
       <TopNavbar />
       <main
-        class="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6"
+        class="flex-1 overflow-y-auto bg-surface-white px-5 py-4 sm:px-6"
         :class="fillHeight ? 'flex min-h-0 flex-col' : ''"
       >
         <slot />
@@ -23,6 +27,7 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import MobileShell from '@/components/MobileShell.vue'
 import AiAssistant from '@/components/AiAssistant.vue'
+import { activeModule } from '@/data/activeModule'
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('sm')

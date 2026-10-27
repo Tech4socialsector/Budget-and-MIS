@@ -7,7 +7,7 @@ export function toggleAssistant() {
 }
 
 export const assistantConfigResource = useCall({
-  url: '/api/v2/method/annual_budget.ai.assistant.get_assistant_config',
+  url: '/api/v2/method/budget_mis.ai.assistant.get_assistant_config',
   method: 'GET',
   cacheKey: 'annual-budget-ai-assistant-config',
 })
@@ -15,7 +15,7 @@ export const assistantConfigResource = useCall({
 export const conversation = ref([])
 
 const sendMessageCall = useCall({
-  url: '/api/v2/method/annual_budget.ai.assistant.send_message',
+  url: '/api/v2/method/budget_mis.ai.assistant.send_message',
   method: 'POST',
   immediate: false,
 })

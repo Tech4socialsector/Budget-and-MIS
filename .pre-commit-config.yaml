@@ -8,7 +8,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: "annual_budget.*"
+        files: "budget_mis.*"
         exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
       - id: check-merge-conflict
       - id: check-ast
@@ -38,11 +38,11 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
             (?x)^(
-                annual_budget/public/dist/.*|
+                budget_mis/public/dist/.*|
                 .*node_modules.*|
                 .*boilerplate.*|
-                annual_budget/templates/includes/.*|
-                annual_budget/public/js/lib/.*
+                budget_mis/templates/includes/.*|
+                budget_mis/public/js/lib/.*
             )$
 
 
@@ -55,12 +55,12 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
             (?x)^(
-                annual_budget/public/dist/.*|
+                budget_mis/public/dist/.*|
                 cypress/.*|
                 .*node_modules.*|
                 .*boilerplate.*|
-                annual_budget/templates/includes/.*|
-                annual_budget/public/js/lib/.*
+                budget_mis/templates/includes/.*|
+                budget_mis/public/js/lib/.*
             )$
 
 ci:

@@ -1,20 +1,15 @@
 <template>
-  <!-- Distinct mark for this app's assistant: a small upward bar-chart
-  trend (ties it to a budget/finance tool, not a generic AI sparkle) with
-  a spark at the peak to signal "AI-assisted". Two-tone via currentColor
-  fill + a lighter stroke so it still reads clearly at 14-16px. -->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-  >
-    <path d="M4 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    <path d="M10 20V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    <path d="M16 20V15.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+  <!-- A single clean 4-point sparkle, not the previous busy bar-chart +
+  tiny-sparkle + connector-lines mark - reads clearly at the small sizes
+  this renders at (navbar icon, mobile nav tab) the way the old glyph's
+  fine detail didn't. currentColor so it inherits whatever this instance
+  is placed in (an inline gradient def can't be reused safely across
+  multiple simultaneous instances - each would need its own unique id -
+  so the "AI" signal comes from the shape itself, not a gradient). -->
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
     <path
-      d="M17.5 3.2c.15-.4.75-.4.9 0l.42 1.13a.5.5 0 0 0 .29.29l1.13.42c.4.15.4.75 0 .9l-1.13.42a.5.5 0 0 0-.29.29l-.42 1.13c-.15.4-.75.4-.9 0l-.42-1.13a.5.5 0 0 0-.29-.29l-1.13-.42c-.4-.15-.4-.75 0-.9l1.13-.42a.5.5 0 0 0 .29-.29z"
+      d="M12 3c.3 0 .56.2.63.5l1.2 5.17a3.5 3.5 0 0 0 2.6 2.6l5.17 1.2a.65.65 0 0 1 0 1.26l-5.17 1.2a3.5 3.5 0 0 0-2.6 2.6l-1.2 5.17a.65.65 0 0 1-1.26 0l-1.2-5.17a3.5 3.5 0 0 0-2.6-2.6l-5.17-1.2a.65.65 0 0 1 0-1.26l5.17-1.2a3.5 3.5 0 0 0 2.6-2.6l1.2-5.17A.65.65 0 0 1 12 3Z"
       fill="currentColor"
     />
-    <path d="M4 13l4.5-4.5M10 9l3.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" />
   </svg>
 </template>

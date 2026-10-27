@@ -14,7 +14,7 @@
 <template>
   <ErrorMessage v-if="error" :message="errorMessage" />
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-    <AppLoader label="Building Summary in INR..." />
+    <AppLoader variant="build" label="Building Summary in INR..." />
   </div>
   <div v-else-if="!raw.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
     No data available.
@@ -22,7 +22,7 @@
   </div>
   <template v-else>
     <div class="flex justify-end">
-      <Button variant="solid" class="fc-xl-btn" :loading="exporting" @click="$emit('export')">
+      <Button variant="solid" theme="gray" :loading="exporting" @click="$emit('export')">
         <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
         Export XLS
       </Button>
@@ -47,7 +47,8 @@
           <tr
             v-for="r in rowsA"
             :key="r.display"
-            :class="r.isGrandTotal ? 'fc-row-grand' : (r.isTotal ? 'fc-subtotal-row' : '')"
+            :class="[r.isGrandTotal ? 'fc-row-grand' : (r.isTotal ? 'fc-subtotal-row' : ''), r.node ? 'cursor-pointer' : '']"
+            @click="r.node && drillIntoRow(r.node)"
           >
             <td class="fc-td fc-sticky-col text-left" :class="[r.isGrandTotal ? 'bg-fc-blue-mid' : 'bg-inherit', r.isSub ? 'pl-8 text-gray-500' : '']">{{ r.display }}</td>
             <td class="fc-td text-right"><CrCell :value="r.vals.opex_plan" /></td>
@@ -82,7 +83,7 @@
         </thead>
         <tbody>
           <template v-for="row in breakdownB.units" :key="row.label">
-            <tr class="fc-row-head">
+            <tr class="fc-row-head" :class="row.node ? 'cursor-pointer' : ''" @click="row.node && drillIntoRow(row.node)">
               <td class="fc-td fc-sticky-col bg-fc-blue-light text-left dark:bg-transparent" :colspan="subHeadNames.length + 5">{{ row.label }}</td>
             </tr>
             <tr>
@@ -244,16 +245,19 @@
     <!-- H. Capital Expenditure -->
     <SectionLabel text="H. Capital Expenditure" />
     <UnitGrandTable :rows="capex.rows" :totals-row="capex.totalsRow" :units="capex.units" :p-lbl="pLbl" :a-lbl="aLbl" />
+
+    <BudgetDrilldownModal v-model="drilldownOpen" :node="drilldownNode" total-mode="ytd" show-actuals :financial-year="financialYear" month="March" />
   </template>
 </template>
 
 <script setup>
-import { computed, h } from 'vue'
+import { computed, h, ref } from 'vue'
 import { Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import SectionLabel from '@/components/SectionLabel.vue'
 import CrCell from './CrCell.vue'
-import { normName, isConsolidatedEntry, prevFY as prevFyOf } from '@/data/foundationConsolidatedData'
+import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
+import { normName, isConsolidatedEntry, isGrandTotalSection, prevFY as prevFyOf } from '@/data/foundationConsolidatedData'
 import { rowTotal as annualRowTotal, QUARTERS } from '@/data/budgetTotals'
 import { actualsQuarterTotal } from '@/data/foundationConsolidatedData'
 
@@ -270,6 +274,20 @@ const props = defineProps({
 defineEmits(['retry', 'export'])
 
 const errorMessage = computed(() => props.error?.messages?.[0] || props.error?.message || 'Something went wrong loading Summary in INR.')
+
+// --- Drill-down ----------------------------------------------------------
+// Only sections A and B have rows that map to one addressable unit's real
+// head/sub-head/item tree (row.node, built alongside each row's flattened
+// display values above/below) - C/D/E/G are ratios, counts, or already-
+// summed totals with nothing further to show, and F/H's rows are
+// individual line items (already leaves) same as PptTab.vue's capex table.
+// All read ytd/total_posted_amt_ytd, so always totalMode:'ytd' + actuals.
+const drilldownOpen = ref(false)
+const drilldownNode = ref(null)
+function drillIntoRow(node) {
+  drilldownNode.value = node
+  drilldownOpen.value = true
+}
 
 const fyParts = computed(() => (props.financialYear || '2025-26').split('-'))
 const pLbl = computed(() => `${props.financialYear} Budget`)
@@ -314,7 +332,10 @@ const rowsA = computed(() => {
   for (const e of sorted) {
     if (isConsolidatedEntry(e)) continue
     const lbl = (e.label || '').trim()
-    const row = { display: lbl, isSub: e.is_this_sub_item === 1, isCovid: lbl.toLowerCase().includes('covid'), vals: extractA(e.actuals) }
+    // node: this unit's own full head/sub-head/item tree, so a click drills
+    // straight into the same data extractA() summed into vals above.
+    const secs = (e.actuals || []).filter((s) => !isGrandTotalSection(s))
+    const row = { display: lbl, isSub: e.is_this_sub_item === 1, isCovid: lbl.toLowerCase().includes('covid'), vals: extractA(e.actuals), node: secs.length ? { name: lbl, sub_heads: secs } : null }
     ;(row.isCovid ? covid : norm).push(row)
   }
   const gtVals = consolidatedTotals.value || zero()
@@ -378,7 +399,8 @@ const breakdownB = computed(() => {
     const cP = catTotal(act, 'plan', isCapital), cA = catTotal(act, 'act', isCapital)
     const coP = catTotal(act, 'plan', isCovidName), coA = catTotal(act, 'act', isCovidName)
     gtOP += oP; gtOA += oA; gtCP += cP; gtCA += cA; gtCoP += coP; gtCoA += coA
-    units.push({ label: lbl, plan: { sh: shP, opex: oP, capex: cP, covid: coP }, act: { sh: shA, opex: oA, capex: cA, covid: coA } })
+    const drillSecs = act.filter((s) => !isGrandTotalSection(s))
+    units.push({ label: lbl, plan: { sh: shP, opex: oP, capex: cP, covid: coP }, act: { sh: shA, opex: oA, capex: cA, covid: coA }, node: drillSecs.length ? { name: lbl, sub_heads: drillSecs } : null })
   }
   const ct = consolidatedTotals.value
   const finalOP = ct?.opex_plan || gtOP, finalOA = ct?.opex_act || gtOA
