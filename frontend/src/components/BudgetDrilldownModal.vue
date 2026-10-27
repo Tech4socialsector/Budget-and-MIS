@@ -121,16 +121,29 @@
                 <FeatherIcon :name="childIcon" class="h-3.5 w-3.5" />
                 {{ childLabel }}
               </div>
-              <!-- Sort toggle: default is the tree's own order, but ranking
-              by amount is usually more useful once there are more than a
-              handful of rows (which one dominates, at a glance). -->
-              <button
-                class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                @click="sortByAmount = !sortByAmount"
-              >
-                <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
-                {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
-              </button>
+              <div class="flex items-center gap-2">
+                <!-- Available on every hierarchy level (card/sub-item/state/
+                cost-center+location) - shows THIS node's own consolidated
+                head/sub-head/item breakdown without navigating to a child. -->
+                <button
+                  v-if="canViewLineItems"
+                  class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-fc-blue-mid hover:bg-fc-blue-light dark:text-fc-blue-light dark:hover:bg-gray-800"
+                  @click="viewLineItems"
+                >
+                  <FeatherIcon name="list" class="h-3.5 w-3.5" />
+                  View line items
+                </button>
+                <!-- Sort toggle: default is the tree's own order, but ranking
+                by amount is usually more useful once there are more than a
+                handful of rows (which one dominates, at a glance). -->
+                <button
+                  class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  @click="sortByAmount = !sortByAmount"
+                >
+                  <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
+                  {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
+                </button>
+              </div>
             </div>
             <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
               <table class="w-full min-w-[560px] border-collapse text-sm">
@@ -197,6 +210,20 @@
               </table>
             </div>
           </template>
+          <!-- A hierarchy leaf (a single cost-center+location pair) has no
+          further children to drill into, but its own line items are still
+          worth surfacing - same "View line items" action as every higher
+          level, just not gated behind a child row click here. -->
+          <div v-else-if="current?.__lineItems?.length" class="flex flex-col items-center gap-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            <FeatherIcon name="list" class="h-6 w-6 text-gray-300 dark:text-gray-600" />
+            This is the finest level of detail for this slice.
+            <Button variant="outline" theme="gray" @click="viewLineItems">
+              <template #prefix>
+                <FeatherIcon name="list" class="h-3.5 w-3.5" />
+              </template>
+              View line items
+            </Button>
+          </div>
           <div v-else class="flex flex-col items-center gap-2 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
             <FeatherIcon name="inbox" class="h-6 w-6 text-gray-300 dark:text-gray-600" />
             No further breakdown available.
@@ -287,8 +314,20 @@ watch(
 
 const current = computed(() => history.value[history.value.length - 1] || props.node)
 
-function hasChildren(node) {
+// A node can offer children two ways: the classic head/sub-head/item tree
+// (sub_heads/items, built in-page from a flat `.actuals` array), or a
+// hierarchy tree (`children`, from get_monthly_mis_drilldown_tree's
+// card -> sub-item -> state -> cost-center+location levels) - a hierarchy
+// node also carries its own `__lineItems`, so "View line items" can switch
+// to the classic line-item view for THAT node without leaving the tree.
+function hasHierarchyChildren(node) {
+  return !!node?.children?.length
+}
+function hasLineItems(node) {
   return !!(node?.sub_heads?.length || node?.items?.length)
+}
+function hasChildren(node) {
+  return hasHierarchyChildren(node) || hasLineItems(node)
 }
 
 // A leaf Line Item (no sub_heads/items of its own) can still be drilled
@@ -308,8 +347,23 @@ function isDrillable(node) {
 const children = computed(() => {
   const node = current.value
   if (!node) return []
+  if (hasHierarchyChildren(node)) return node.children
   return node.sub_heads?.length ? node.sub_heads : node.items || []
 })
+
+// True for any node from the hierarchy tree that carries its own
+// __lineItems (set on every level by buildDrilldownNode, including a leaf
+// cost-center+location node with no further children) - NOT true once the
+// user has already pushed a __lineItems view onto history (that pushed
+// node is a classic sub_heads/items node with no __lineItems of its own,
+// so this naturally stops offering the button a second time).
+const canViewLineItems = computed(() => !!current.value?.__lineItems?.length)
+function viewLineItems() {
+  const node = current.value
+  if (!node) return
+  history.value.push({ name: node.name, sub_heads: [], items: node.__lineItems || [] })
+  sortByAmount.value = false
+}
 
 // A child's own list index still drives its color even when the table's
 // display order is re-sorted by amount, so a given row keeps the same
@@ -332,8 +386,25 @@ function sharePct(child) {
 
 const isSubHeadLevel = computed(() => !!current.value?.sub_heads?.length)
 const isGlLevel = computed(() => !!current.value?.__isGlLevel)
-const childLabel = computed(() => (isGlLevel.value ? 'GL Codes' : isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'))
-const childIcon = computed(() => (isGlLevel.value ? 'hash' : isSubHeadLevel.value ? 'folder' : 'list'))
+const isHierarchyLevel = computed(() => hasHierarchyChildren(current.value))
+// A hierarchy level's own children are either further hierarchy nodes (so
+// this level is still a few steps above the finest grain) or leaf
+// cost-center+location nodes (no children of their own) - that single
+// check is enough to tell "Sub Items/States" rows apart from the final
+// "Cost Center · Location" rows without the tree needing to tag its own
+// depth explicitly.
+const isLeafHierarchyLevel = computed(() => isHierarchyLevel.value && !current.value.children.some(hasHierarchyChildren))
+const childLabel = computed(() => {
+  if (isGlLevel.value) return 'GL Codes'
+  if (isLeafHierarchyLevel.value) return 'Cost Center · Location'
+  if (isHierarchyLevel.value) return 'Breakdown'
+  return isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'
+})
+const childIcon = computed(() => {
+  if (isGlLevel.value) return 'hash'
+  if (isHierarchyLevel.value) return 'layers'
+  return isSubHeadLevel.value ? 'folder' : 'list'
+})
 const levelIcon = computed(() => (history.value.length <= 1 ? 'layers' : isGlLevel.value ? 'hash' : isSubHeadLevel.value ? 'folder' : 'file-text'))
 
 const glLoadingName = ref(null)

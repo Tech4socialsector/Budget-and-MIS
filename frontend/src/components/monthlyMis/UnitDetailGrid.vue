@@ -16,7 +16,7 @@
         <div class="border-b border-fc-blue-mid pb-1 text-sm font-bold uppercase tracking-wide text-fc-blue-dark">
           <span v-if="card.isSub">└&nbsp;</span>{{ card.title }}
         </div>
-        <div class="fc-scroll-wrapper">
+        <div class="fc-scroll-wrapper fc-scroll-wrapper-tall">
           <table class="fc-table w-full min-w-[700px] text-sm">
             <thead>
               <tr class="fc-thead-main">

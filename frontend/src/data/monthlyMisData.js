@@ -515,3 +515,36 @@ export function buildUnitDetailGrid(curData, prevData) {
 
   return cards
 }
+
+// -------------------------------------------------------------------------
+// Drill-down tree adapter - converts a get_monthly_mis_drilldown_tree node
+// ({label, actuals, children: [...]}, recursively) into the shape
+// BudgetDrilldownModal.vue already knows how to walk (a `name`, `ytd`/
+// `total_posted_amt_ytd` for its own totals, and either `sub_heads`/`items`
+// for a line-item level or a generic `children` array for a hierarchy
+// level). Every node keeps its own `actuals` tree under `__lineItems` so
+// the modal's "View line items" action can show that node's head/sub-head/
+// item breakdown without navigating away from it.
+// -------------------------------------------------------------------------
+function actualsGrandTotal(actuals) {
+  const gt = (actuals || []).find((h) => h.name === 'GRAND TOTAL')
+  if (gt) return { ytd: gt.ytd || 0, total_posted_amt_ytd: gt.total_posted_amt_ytd || 0 }
+  let ytd = 0, actual = 0
+  for (const h of actuals || []) {
+    ytd += h.ytd || 0
+    actual += h.total_posted_amt_ytd || 0
+  }
+  return { ytd, total_posted_amt_ytd: actual }
+}
+
+export function buildDrilldownNode(node) {
+  if (!node) return null
+  const { ytd, total_posted_amt_ytd } = actualsGrandTotal(node.actuals)
+  return {
+    name: node.label,
+    ytd,
+    total_posted_amt_ytd,
+    __lineItems: node.actuals || [],
+    children: (node.children || []).map(buildDrilldownNode),
+  }
+}

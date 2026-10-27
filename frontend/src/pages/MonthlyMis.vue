@@ -28,10 +28,13 @@
 <template>
   <AppLayout>
     <div class="flex flex-col gap-4">
-      <!-- Filters -->
-      <div class="flex flex-wrap items-end justify-between gap-4">
-        <div class="flex flex-wrap items-end gap-4">
-          <div class="w-full sm:w-56">
+      <!-- Filters: exactly 4 per row (a plain grid rather than flex-wrap,
+      so field width/height stays consistent and the per-row count never
+      depends on how much space happens to be left over), matching
+      BudgetSummary.vue's convention. -->
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect
               v-model="financialYearSelection"
@@ -40,28 +43,32 @@
               class="w-full"
             />
           </div>
-          <div class="w-full sm:w-48">
-            <FormControl
-              type="select"
-              label="Month (YTD up to)"
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Month (YTD up to)</label>
+            <Select
               :options="monthOptions"
               v-model="filters.month"
+              class="w-full"
             />
           </div>
-          <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
-            <template #prefix>
-              <FeatherIcon name="refresh-cw" class="h-4 w-4" />
-            </template>
-            Refresh
-          </Button>
-          <Switch v-model="showFullNumbers" label="Show full numbers" />
         </div>
-        <Button variant="solid" theme="gray" @click="exportMis">
-          <template #prefix>
-            <FeatherIcon name="download" class="h-4 w-4" />
-          </template>
-          Export
-        </Button>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
+              <template #prefix>
+                <FeatherIcon name="refresh-cw" class="h-4 w-4" />
+              </template>
+              Refresh
+            </Button>
+            <Switch v-model="showFullNumbers" label="Show full numbers" />
+          </div>
+          <Button variant="solid" theme="gray" @click="exportMis">
+            <template #prefix>
+              <FeatherIcon name="download" class="h-4 w-4" />
+            </template>
+            Export
+          </Button>
+        </div>
       </div>
 
       <ErrorMessage v-if="error" :message="errorMessage" />
@@ -117,7 +124,7 @@
 
 <script setup>
 import { computed, onMounted, provide, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon, ErrorMessage, Switch } from 'frappe-ui'
+import { MultiSelect, Select, Button, FeatherIcon, ErrorMessage, Switch } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import SectionLabel from '@/components/SectionLabel.vue'
@@ -139,6 +146,7 @@ import {
   buildBreakupSections,
   buildUnitDetailGrid,
   flattenBreakup,
+  buildDrilldownNode,
 } from '@/data/monthlyMisData'
 
 // Single source of table groups for get_monthly_mis_break_up - covers both
@@ -241,6 +249,16 @@ const prevData = ref([])
 const breakupData = ref({})
 const hasData = computed(() => curData.value.length > 0 || prevData.value.length > 0)
 
+// Drill-down tree: fetched once per load alongside the table data above (a
+// 2nd call, not re-fetched on every click) - get_monthly_mis_drilldown_tree
+// returns, for every card in "Monthly MIS Capex & Opex", its full sub-item
+// hierarchy (card -> sub-items -> ... -> cost-center+location pairs) with
+// every level's own actuals already computed server-side, so drilling from
+// a card's total down to a single cost-center+location's line items is
+// pure client-side navigation through this cached tree - no further API
+// calls. Keyed by label for openDrilldown's existing lookup-by-label flow.
+const drilldownTree = ref({})
+
 let requestGen = 0
 
 async function loadAll(force) {
@@ -251,21 +269,34 @@ async function loadAll(force) {
   loading.value = true
   error.value = null
   try {
-    const result = await call('budget_mis.api_1.monthly_mis.get_monthly_mis_break_up_with_prev_year', {
-      financial_year: fy, month, table_name_filter: MIS_TABLE_NAME_FILTER,
-    })
+    const [result, drillResult] = await Promise.all([
+      call('budget_mis.api_1.monthly_mis.get_monthly_mis_break_up_with_prev_year', {
+        financial_year: fy, month, table_name_filter: MIS_TABLE_NAME_FILTER,
+      }),
+      call('budget_mis.api_1.monthly_mis_drilldown.get_monthly_mis_drilldown_tree', {
+        financial_year: fy, month, table_name_filter: 'Monthly MIS Capex & Opex',
+      }),
+    ])
     if (gen !== requestGen) return
     const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
     const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
     curData.value = flattenBreakup(curDict, 'Monthly MIS Capex & Opex')
     prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
     breakupData.value = curDict
+
+    const drillEntries = (drillResult && typeof drillResult === 'object' && drillResult['Monthly MIS Capex & Opex']) || []
+    const byLabel = {}
+    for (const node of drillEntries) {
+      if (node?.label) byLabel[node.label] = node
+    }
+    drilldownTree.value = byLabel
   } catch (e) {
     if (gen !== requestGen) return
     error.value = e
     curData.value = []
     prevData.value = []
     breakupData.value = {}
+    drilldownTree.value = {}
   } finally {
     if (gen === requestGen) loading.value = false
   }
@@ -367,9 +398,17 @@ function openDrilldown(label, year = 'cur') {
     findByLabel(secondary, label) ||
     findByLabel(breakupEntities.value, label)
   if (!entity) return
-  // BudgetDrilldownModal walks node.sub_heads/node.items directly - an
-  // entity's real tree lives one level down, under `.actuals`.
-  drilldownNode.value = { name: label, sub_heads: [], items: entity.actuals || [] }
+  // A card covered by the drill-down tree (currently just the "Monthly MIS
+  // Capex & Opex" table's cards) gets the full card -> sub-item -> state ->
+  // cost-center+location hierarchy; anything else (Health/Livelihoods/
+  // Enablers breakup rows, which aren't in that tree) falls back to the
+  // single-level line-item view it always had - BudgetDrilldownModal walks
+  // node.sub_heads/node.items directly for that case, an entity's real
+  // tree lives one level down under `.actuals`.
+  const treeNode = drilldownTree.value[label]
+  drilldownNode.value = treeNode
+    ? buildDrilldownNode(treeNode)
+    : { name: label, sub_heads: [], items: entity.actuals || [] }
   drilldownOpen.value = true
 }
 

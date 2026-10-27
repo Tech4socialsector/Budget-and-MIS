@@ -27,7 +27,54 @@
         <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 sm:text-2xl">Welcome back</h1>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Log in to continue to your dashboard.</p>
 
+        <!-- Step 2: a 2FA-enabled account lands here instead of /home right
+        after submitting usr/pwd - twoFactor.verification is set the moment
+        loginResource's response carries a tmp_id (see session.js), and
+        stays set until confirmOtpResource's own success clears it. -->
         <form
+          v-if="twoFactor.verification"
+          class="login-form mt-6 flex flex-col gap-5 rounded-2xl border bg-white p-6 shadow-lg shadow-gray-200/60 transition-colors dark:bg-gray-900 dark:shadow-none sm:mt-8 sm:p-7"
+          :class="[
+            shake && 'login-form-shake',
+            confirmOtpResource.error ? 'border-red-300 dark:border-red-800' : 'border-gray-200 dark:border-gray-800',
+          ]"
+          @submit.prevent="submitOtp"
+          @animationend="shake = false"
+        >
+          <button
+            type="button"
+            class="-mb-1 flex items-center gap-1 self-start text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            @click="backToCredentials"
+          >
+            <FeatherIcon name="arrow-left" class="h-3.5 w-3.5" />
+            Back
+          </button>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ twoFactor.verification.prompt }}</p>
+          <FormControl
+            type="text"
+            label="Verification code"
+            v-model="otp"
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            required
+            @update:modelValue="clearOtpError"
+          />
+          <ErrorMessage :message="confirmOtpResource.error" />
+          <Button variant="solid" theme="gray" :loading="confirmOtpResource.loading" type="submit" size="lg">
+            Verify
+          </Button>
+          <button
+            type="button"
+            class="text-xs text-gray-500 hover:text-gray-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+            :disabled="loginResource.loading"
+            @click="resendCode"
+          >
+            Didn't get a code? Resend
+          </button>
+        </form>
+
+        <form
+          v-else
           class="login-form mt-6 flex flex-col gap-5 rounded-2xl border bg-white p-6 shadow-lg shadow-gray-200/60 transition-colors dark:bg-gray-900 dark:shadow-none sm:mt-8 sm:p-7"
           :class="[
             shake && 'login-form-shake',
@@ -76,6 +123,25 @@
           <Button variant="solid" theme="gray" :loading="loginResource.loading" type="submit" size="lg">
             Log in
           </Button>
+
+          <template v-if="ssoProviders.length">
+            <div class="flex items-center gap-3">
+              <span class="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+              <span class="text-xs text-gray-400 dark:text-gray-500">or continue with</span>
+              <span class="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <a
+                v-for="provider in ssoProviders"
+                :key="provider.name"
+                :href="provider.auth_url"
+                class="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                <span v-if="provider.icon" class="h-4 w-4" v-html="provider.icon" />
+                Sign in with {{ provider.provider_name }}
+              </a>
+            </div>
+          </template>
         </form>
       </div>
     </div>
@@ -181,24 +247,32 @@ silently updating some small text below the button. */
 </style>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { FormControl, Button, ErrorMessage, Dialog, FeatherIcon, call } from 'frappe-ui'
-import { loginResource } from '@/data/session'
+import { ref, watch, onMounted } from 'vue'
+import { FormControl, Button, ErrorMessage, Dialog, FeatherIcon, call, createResource } from 'frappe-ui'
+import { loginResource, confirmOtpResource, twoFactor, resendOtp, cancelTwoFactor } from '@/data/session'
 import { brandingResource, defaultAppLogo } from '@/data/branding'
 
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const shake = ref(false)
+const otp = ref('')
 
 // Invalid credentials should read as a rejection, not a quiet text update -
 // shake the form once the failed request settles. Watching .error (rather
 // than an onError callback on the shared resource) keeps this purely a
 // page-level presentation concern; the resource itself stays a plain
 // createResource reusable anywhere else without dragging animation state
-// along with it.
+// along with it. Covers both the credentials form (loginResource) and the
+// OTP form (confirmOtpResource) - whichever is visible owns the shake.
 watch(
   () => loginResource.error,
+  (error) => {
+    if (error) shake.value = true
+  },
+)
+watch(
+  () => confirmOtpResource.error,
   (error) => {
     if (error) shake.value = true
   },
@@ -219,6 +293,45 @@ function clearError() {
 function submit() {
   loginResource.submit({ email: email.value.trim(), password: password.value.trim() })
 }
+
+function clearOtpError() {
+  confirmOtpResource.error = null
+}
+
+function submitOtp() {
+  confirmOtpResource.submit({ otp: otp.value.trim() })
+}
+
+function backToCredentials() {
+  cancelTwoFactor()
+  otp.value = ''
+}
+
+function resendCode() {
+  otp.value = ''
+  confirmOtpResource.error = null
+  resendOtp(email.value.trim(), password.value.trim())
+}
+
+// SSO providers (Social Login Key records with enable_social_login=1 and a
+// usable client_id/client_secret/base_url) - fetched once on mount via
+// api_1.sso.get_sso_providers (the JSON-API equivalent of frappe/www/
+// login.py's own context.provider_logins, which only renders through
+// server-side Jinja and isn't callable from this Vue SPA). Each provider's
+// auth_url is a ready-to-navigate-to OAuth authorize URL - clicking it is
+// a plain link, not a submit, since the next step is a full-page redirect
+// to the provider and back.
+const ssoProviders = ref([])
+const ssoProvidersResource = createResource({
+  url: 'budget_mis.api_1.sso.get_sso_providers',
+  makeParams: () => ({ redirect_to: '/home' }),
+  onSuccess(data) {
+    ssoProviders.value = Array.isArray(data) ? data : []
+  },
+})
+onMounted(() => {
+  ssoProvidersResource.fetch()
+})
 
 const showForgotPassword = ref(false)
 const resetEmail = ref('')
