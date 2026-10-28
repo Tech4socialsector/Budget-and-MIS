@@ -1,8 +1,7 @@
 // Shared helpers for the Monthly MIS page (src/pages/MonthlyMis.vue),
-// replicating the Desk page at
-// budget_mis/main/page/monthly_mis/monthly_mis.js
-// (only lines 6230-7601 are live; earlier versions in that file are dead
-// code and were ignored).
+// replicating the legacy Frappe Desk page this was ported from (since
+// removed from the repo - it only ever existed as this page's porting
+// source, never referenced by any live code).
 //
 // All amounts here are in raw rupees, converted to Crores (divide by 1e7)
 // only at the point of rendering via CrCell - these helpers themselves
@@ -152,8 +151,8 @@ export function buildConsolidatedRows(cm, pm) {
 // Operating / Capital Expense tables - mirrors extractSection/buildExpRows.
 // Values already Cr (divide by 1e7 at extraction, like the Desk JS does).
 // -------------------------------------------------------------------------
-export const OPEX_NAMES = 'opex'
-export const CAPEX_NAMES = 'capex'
+const OPEX_NAMES = 'opex'
+const CAPEX_NAMES = 'capex'
 
 function extractSection(entry, kind) {
   const r = { ob: 0, cb: 0, vb: 0, tb: 0, oa: 0, ca: 0, va: 0, ta: 0 }
@@ -241,7 +240,7 @@ export function findEntries(breakupData, key) {
   return []
 }
 
-export function exAct(actuals) {
+function exAct(actuals) {
   let ob = 0, oa = 0, cb = 0, ca = 0
   const sorted = [...(actuals || [])].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
   for (const sec of sorted) {
@@ -288,7 +287,7 @@ export function buildBreakupSections(breakupData, keys) {
       if (!suLabel || suLabel === 'CONSOLIDATED TOTAL') continue
       const v = exAct(su.actuals || [])
       secTot = addExAct(secTot, v)
-      rows.push({ label: suLabel, v })
+      rows.push({ label: suLabel, v, isSub: su.is_this_sub_item === 1 })
     }
     grand = addExAct(grand, secTot)
     return { label: sec.label, rows, subtotal: secTot }
@@ -301,11 +300,11 @@ export function buildBreakupSections(breakupData, keys) {
 // the Grants & Donations special-case subtraction under PROGRAM EXPENSES.
 // Values already Cr.
 // -------------------------------------------------------------------------
-export function isGrantsItem(name) {
+function isGrantsItem(name) {
   const n = (name || '').trim().toUpperCase().replace(/\s+/g, ' ')
   return n === 'GRANTS & DONATIONS' || n === 'GRANTS AND DONATIONS' || n === 'GRANTS'
 }
-export function isProgHead(cat) {
+function isProgHead(cat) {
   const c = (cat || '').trim().toUpperCase().replace(/\s+/g, ' ')
   return c === 'PROGRAM EXPENSES' || c === 'PROGRAM  EXPENSES'
 }

@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import { createResource, setConfig, frappeRequest } from 'frappe-ui'
 import router from '@/router'
+import { listenForActualsCacheProgress } from '@/data/actualsCacheProgress'
 
 // createResource() below fires an immediate fetch at module-evaluation time
 // (see initialUserCheck) - that's before main.js reaches its own
@@ -91,6 +92,13 @@ function completeLogin() {
   resetTwoFactor()
   loginResource.error = null
   userResource.reload().then(() => {
+    // Only reaches here on a genuine fresh login (an already-logged-in
+    // visitor skips this whole flow via the router guard's shared-session
+    // check), which is exactly when the backend's on_login hook enqueues
+    // the actuals-cache-warming job this listens for - connecting the
+    // socket here, not at module load, keeps a guest's page load from
+    // opening a socket connection that has nothing to listen for yet.
+    listenForActualsCacheProgress(session.user)
     router.replace({ name: 'Home' })
   })
 }

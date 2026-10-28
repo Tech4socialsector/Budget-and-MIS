@@ -14,7 +14,7 @@
  "fields": [
   {
    "fieldname": "location_code",
-   "fieldtype": "Int",
+   "fieldtype": "Data",
    "label": "Location code"
   },
   {

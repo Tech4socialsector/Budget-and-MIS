@@ -56,7 +56,11 @@ app_include_js = "/assets/budget_mis/js/response_decrypt.bundle.js"
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+# Lands a logged-in System User on the Vue app's own routing (which then
+# sends them to /home) instead of Frappe's default Desk (/app) - same
+# pattern as the janadhikara app's own home_page hook. Matches vite.config.js's
+# frontendRoute ('/budget-mis').
+home_page = "budget-mis"
 
 # website user home page (by Role)
 # role_home_page = {
@@ -251,6 +255,32 @@ scheduler_events = {
 # auth_hooks = [
 # 	"budget_mis.auth.validate"
 # ]
+
+# Warms the shared server-side ERP actuals cache (budget_mis.startup) in a
+# background job right after login, for the exact two periods Monthly
+# MIS's own default filters land on - see budget_mis/startup.py's own
+# docstring for the full reasoning.
+#
+# Deliberately on_session_creation, NOT on_login: frappe.auth.LoginManager
+# fires on_login from post_login(), BEFORE make_session() assigns
+# frappe.local.session - so frappe.session.user is still "Guest" at that
+# point, not the user who just authenticated. frappe.enqueue() captures
+# frappe.session.user at enqueue time with no way to override it, so a job
+# enqueued from on_login silently runs as Guest and frappe.publish_progress
+# (which defaults to user=frappe.session.user) publishes to the Guest
+# realtime room instead of the real user's - the toast this job drives
+# would never reach the browser that's actually listening. on_session_creation
+# fires from make_session() itself, right after frappe.local.session is set,
+# so frappe.session.user is already correct by then.
+on_session_creation = [
+	"budget_mis.startup.warm_actuals_cache_on_login"
+]
+
+# Drops every cached ERP actuals entry (any period) when a session ends -
+# see budget_mis/startup.py's clear_actuals_cache_on_logout docstring.
+on_logout = [
+	"budget_mis.startup.clear_actuals_cache_on_logout"
+]
 
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True

@@ -25,6 +25,12 @@ def get_peoplesoft_prod_credentials():
     return doc.peoplesoft_erp_user_name_prod, doc.get_password("peoplesoft_erp_password_prod")
 
 
+# How long a fetched ERP actuals period stays cached (ERP Credentials.actuals_cache_duration_minutes), read fresh on every call so changing the setting takes effect immediately - falls back to 15 minutes if unset/zero (e.g. before the field has ever been saved).
+def get_actuals_cache_duration_seconds():
+    minutes = frappe.db.get_single_value("ERP Credentials", "actuals_cache_duration_minutes")
+    return (minutes or 15) * 60
+
+
 # Formats a 4-digit calendar year as this app's "YYYY-YY" financial-year string.
 def format_financial_year(year):
     year = int(year)

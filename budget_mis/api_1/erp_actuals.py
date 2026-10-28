@@ -5,12 +5,29 @@ import requests
 
 from budget_mis.api_1.adjustments import get_adjustments_month_wise
 from budget_mis.utils import guest_api
-from budget_mis.api_1.helper import get_peoplesoft_prod_credentials, format_financial_year
+from budget_mis.api_1.helper import (
+    get_peoplesoft_prod_credentials,
+    format_financial_year,
+    get_actuals_cache_duration_seconds,
+)
+
 
 #========================================= ERP Actuals API Month wise =======================================================================
-# Raw PeopleSoft pull for one fiscal_year/accounting_period, merged with Frappe-side adjustment rows for the same period.
+# Raw PeopleSoft pull for one fiscal_year/accounting_period, merged with Frappe-side adjustment rows for the same period - cached server-side (shared across all users), since this is a real, slow (up to 120s) external PeopleSoft HTTP call. Cache lifetime is ERP Credentials.actuals_cache_duration_minutes (read fresh each call, so changing it takes effect immediately, no restart needed): once that interval passes, the NEXT call for this exact (fiscal_year, accounting_period) re-fetches from the ERP and overwrites the stale entry with the fresh response - every other (fiscal_year, accounting_period) combination has its own separate cache key/expiry and is completely unaffected by this one expiring or refreshing.
 @guest_api
 def get_actuals_from_erp_month_wise(fiscal_year, accounting_period):
+    cache_key = f"budget_mis:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached
+
+    result = _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period)
+    if result.get("status") == "success":
+        frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
+    return result
+
+
+def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):
 
     try:
         username, password = get_peoplesoft_prod_credentials()
