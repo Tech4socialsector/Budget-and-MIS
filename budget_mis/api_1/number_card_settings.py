@@ -3,9 +3,9 @@ import frappe
 from budget_mis.utils import guest_api
 
 
-# Resolves an "Overview number cards settings" doc into grouped_units (one entry per unit, each with de-duplicated cost_centers/cost_centers_erp/locations/locations_erp lists), following doc.type:
+# Resolves an "Overview number cards settings" doc into grouped_units, following doc.type:
 # - "Define by Card Mapping": recurses through Sub Items (Card grouping rows), concatenating each sub-card's own grouped_units rather than merging across sub-cards.
-# - "Define by Cost Centre and Location Code" (or any other/unset type, the leaf-level default): reads Cost Centre and Location Code Grouping rows directly, merging by unit with reference_for (Budget/Actual/Both) controlling whether a row's budget-side value (cost_center/location_code), actuals-side value (cost_center_erp/location_code_erp), or both go into that unit's lists.
+# - "Define by Cost Centre and Location Code" (or any other/unset type, the leaf-level default): reads Cost Centre and Location Code Grouping rows directly, one grouped_units entry PER ROW (never merged with sibling rows, even under the same unit) - matches the reference annual_budget app's is_special_case behavior exactly (see this branch's own inline comment for why). reference_for (Budget/Actual/Both) controls whether a row's budget-side value (cost_center/location_code), actuals-side value (cost_center_erp/location_code_erp), or both populate that row's own entry.
 # _visited guards against a Sub Items cycle (a record pointing back to an ancestor, directly or indirectly) turning into infinite recursion.
 def resolve_grouped_units(doc, _visited=None):
     _visited = _visited or set()
@@ -39,64 +39,54 @@ def resolve_grouped_units(doc, _visited=None):
         return grouped_units
 
     # -------- Define by Cost Centre and Location Code (leaf-level default)
-    # -------- MERGED BY UNIT: one entry per unit, with that unit's
-    # cost_centers/cost_centers_erp/locations/locations_erp each
-    # de-duplicated (dict.fromkeys preserves first-seen order while dropping
-    # exact repeats) - matches the pre-existing select_units/
-    # select_cost_centers/select_location_codes grouping behavior this
-    # table replaces.
-    unit_map = {}
-
-    def ensure_unit(unit):
-        if not unit:
-            return
-        if unit not in unit_map:
-            unit_map[unit] = {
-                "unit": unit,
-                "cost_centers": [],
-                "cost_centers_erp": [],
-                "locations": [],
-                "locations_erp": []
-            }
-
+    # -------- EACH ROW IS ITS OWN GROUP (matches the reference annual_budget
+    # app's is_special_case behavior exactly - NOT merged by unit). The
+    # original port of this doctype (this session) collapsed the reference
+    # app's three distinct modes - plain merge-by-unit (select_units/
+    # select_cost_centers/select_location_codes), is_consolidation (now
+    # "Define by Card Mapping" above), and is_special_case (each
+    # cost_center+location_code pair kept as its own independent filter,
+    # never blended with sibling rows under the same unit) - down to only
+    # two, silently dropping is_special_case. That broke any card that
+    # relied on it (confirmed via the reference app's live data: Hospital,
+    # Central Initiatives, and a card named "Karnataka" (name=146) are all
+    # is_special_case=1 there) - merging 34 Central Initiatives rows under
+    # one APFD unit into a single "any of these 34 cost-centers AND any of
+    # these locations" filter over-matched the real actuals, instead of
+    # running 34 separate exact-pair filters and summing them (each
+    # grouped_units entry already gets its own get_combined_actuals call,
+    # summed in get_monthly_mis_break_up's consolidate_actuals - that
+    # fan-out-and-sum mechanism is what makes "each row its own group" give
+    # the correct total, exactly as it already does for "Define by Card
+    # Mapping" above). This now matches resolve_grouped_rows's own per-row
+    # shape (previously used only for the drill-down tree's display level)
+    # instead of the old dict.fromkeys-deduped-by-unit merge.
+    grouped_units = []
     for row in doc.cost_centre_and_location_code_grouping:
-        if not row.unit:
+        if not (row.unit or row.cost_center or row.location_code):
             continue
-
-        ensure_unit(row.unit)
 
         ref = (row.reference_for or "Both").strip()
         include_budget = ref in ["Budget", "Both"]
         include_actual = ref in ["Actual", "Both"]
 
-        if include_budget and row.cost_center:
-            unit_map[row.unit]["cost_centers"].append(row.cost_center)
-        if include_actual and row.cost_center_erp:
-            unit_map[row.unit]["cost_centers_erp"].append(row.cost_center_erp)
-        if include_budget and row.location_code:
-            unit_map[row.unit]["locations"].append(row.location_code)
-        if include_actual and row.location_code_erp:
-            unit_map[row.unit]["locations_erp"].append(row.location_code_erp)
+        grouped_units.append({
+            "unit": row.unit,
+            "cost_centers": [row.cost_center] if include_budget and row.cost_center else [],
+            "cost_centers_erp": [row.cost_center_erp] if include_actual and row.cost_center_erp else [],
+            "locations": [row.location_code] if include_budget and row.location_code else [],
+            "locations_erp": [row.location_code_erp] if include_actual and row.location_code_erp else [],
+        })
 
-    for unit in unit_map.values():
-        unit["cost_centers"] = list(dict.fromkeys(unit["cost_centers"]))
-        unit["cost_centers_erp"] = list(dict.fromkeys(unit["cost_centers_erp"]))
-        unit["locations"] = list(dict.fromkeys(unit["locations"]))
-        unit["locations_erp"] = list(dict.fromkeys(unit["locations_erp"]))
-
-    return list(unit_map.values())
+    return grouped_units
 
 
 # Resolves ONE "Define by Cost Centre and Location Code" leaf's own
-# cost_centre_and_location_code_grouping rows into individual single-row
-# grouped_units entries (unlike resolve_grouped_units' merge-by-unit - each
-# row here stays its own entry, e.g. 9 distinct cost_center+location_code
-# pairs stay 9 entries instead of collapsing into one unit's merged lists).
-# Used only for the drill-down tree's finest display level; the merged,
-# by-unit totals resolve_grouped_units/get_monthly_mis_break_up compute are
-# unaffected and still correct - both are built from the exact same rows,
-# just grouped differently for two different purposes (one real filter
-# per get_combined_actuals call here, vs. one unit-wide filter there).
+# cost_centre_and_location_code_grouping rows into the same one-entry-per
+# -row shape resolve_grouped_units' own leaf case now returns, PLUS each
+# row's cost_center_description/location_code_description - used for the
+# drill-down tree's own display labels (resolve_grouped_units has no need
+# for those, so it doesn't carry them).
 def resolve_grouped_rows(doc):
     rows = []
     for row in doc.cost_centre_and_location_code_grouping:

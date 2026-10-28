@@ -1,11 +1,12 @@
 <template>
   <AppLayout fill-height>
     <div class="flex h-full min-h-0 min-w-0 flex-col gap-3">
-      <!-- Filters: exactly 4 per row, any further fields wrap to their own
-      row (a plain 4-col grid rather than flex-wrap, so the count per row
-      never depends on how much width happens to be left over). -->
+      <!-- Filters: exactly 5 per row, any further fields wrap to their own
+      row (a plain 5-col grid rather than flex-wrap, so the count per row
+      never depends on how much width happens to be left over) - same
+      fixed-5-column convention every filter row in the app now uses. -->
       <div class="flex flex-shrink-0 flex-col gap-3">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect

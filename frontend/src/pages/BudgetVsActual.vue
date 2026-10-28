@@ -16,7 +16,7 @@
     <div class="flex flex-col gap-4">
       <!-- Filters -->
       <div class="flex flex-col gap-3">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect v-model="financialYearSelection" :options="financialYearOptions" placeholder="Select year" class="w-full" />
@@ -285,7 +285,7 @@ const financialYearSelection = computed({
 })
 
 async function loadFinancialYears() {
-  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api_1.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     const now = new Date()
@@ -298,7 +298,7 @@ async function loadFinancialYears() {
 
 const unitOptions = ref([])
 async function loadUnits() {
-  const r = await call('budget_mis.api.filter_options.get_units')
+  const r = await call('budget_mis.api_1.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
 }
 
@@ -338,7 +338,7 @@ const themeSelection = computed({
 async function loadThemes() {
   themeLoading.value = true
   try {
-    const rows = await call('budget_mis.api.filter_options.get_theme')
+    const rows = await call('budget_mis.api_1.filter_options.get_theme')
     for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
     themeOptions.value = (rows || []).map((d) => {
       themeLabelToName[d.number_card_title] = d.name
@@ -353,15 +353,26 @@ let suppressUnitWatch = false
 async function applyThemeSelection() {
   if (!themeSelectionNames.value.length) return
   const results = await Promise.all(
-    themeSelectionNames.value.map((name) => call('budget_mis.api.filter_options.get_theme_mappings', { theme_name: name })),
+    themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
   )
   const unitVals = new Map()
   const ccVals = new Map()
   const locVals = new Map()
   for (const r of results) {
     for (const u of r?.units || []) unitVals.set(u.value, u)
-    for (const c of r?.cost_centers || []) ccVals.set(c.value, c)
-    for (const l of r?.location_codes || []) locVals.set(l.value, l)
+    // get_theme_mappings now splits each cost-center/location-code entry by
+    // its own reference_for (Budget/Actual/Both): `value`/`erp_*_value` is
+    // left blank on whichever side a row doesn't apply to (an actuals-only
+    // row has no `value`, a budget-only row has no erp_*_value). Keying the
+    // merge Map by `value` would otherwise collide every blank-`value`
+    // actuals-only entry onto the same "" key (only the last would
+    // survive) and push a literal empty string into baFilters.costCenters/
+    // locationCodes below - skip entries with no value entirely for the
+    // Map/budget-filter purpose; their erp_* value is still picked up via
+    // the separate erpCostCenterValues/erpLocationValues pass further down,
+    // which already .filter(Boolean)s and doesn't go through this Map.
+    for (const c of r?.cost_centers || []) { if (c.value) ccVals.set(c.value, c) }
+    for (const l of r?.location_codes || []) { if (l.value) locVals.set(l.value, l) }
   }
 
   suppressUnitWatch = true
@@ -373,8 +384,8 @@ async function applyThemeSelection() {
   locationCodeOptions.value = [...locVals.values()].map((l) => ({ label: l.label, value: l.value }))
   baFilters.costCenters = [...ccVals.keys()]
   baFilters.locationCodes = [...locVals.keys()]
-  erpCostCenterValues.value = [...ccVals.values()].map((c) => c.erp_cost_center_value).filter(Boolean)
-  erpLocationValues.value = [...locVals.values()].map((l) => l.erp_loc_value).filter(Boolean)
+  erpCostCenterValues.value = (results.flatMap((r) => r?.cost_centers || [])).map((c) => c.erp_cost_center_value).filter(Boolean)
+  erpLocationValues.value = (results.flatMap((r) => r?.location_codes || [])).map((l) => l.erp_loc_value).filter(Boolean)
 }
 
 watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
@@ -390,8 +401,8 @@ watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
     return
   }
   const [cc, loc] = await Promise.all([
-    call('budget_mis.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
-    call('budget_mis.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
+    call('budget_mis.api_1.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
+    call('budget_mis.api_1.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
   ])
   costCenterOptions.value = toOptions(cc?.data)
   locationCodeOptions.value = toOptions(loc?.data)
@@ -457,7 +468,7 @@ async function loadActuals() {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const result = await call('budget_mis.api.phase_sheet.get_combined_actuals', {
+    const result = await call('budget_mis.api_1.budget_vs_actual.get_combined_actuals_report', {
       financial_year: filters.financialYear,
       month: month.value,
       unit: baFilters.units.join(',') || undefined,

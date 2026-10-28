@@ -27,12 +27,13 @@
 <template>
   <AppLayout>
     <div class="flex flex-col gap-4">
-      <!-- Filters: exactly 4 per row (a plain grid rather than flex-wrap,
+      <!-- Filters: exactly 5 per row (a plain grid rather than flex-wrap,
       so field width/height stays consistent and the per-row count never
-      depends on how much space happens to be left over), matching
-      BudgetSummary.vue's convention. -->
+      depends on how much space happens to be left over), matching the
+      same fixed-5-column convention every filter row in the app now uses
+      (BudgetSummary.vue, BudgetVsActual.vue, ErpActuals.vue, BudgetDashboard.vue). -->
       <div class="flex flex-col gap-3">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect
@@ -50,9 +51,12 @@
               class="w-full"
             />
           </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div class="flex flex-wrap items-center gap-4">
+          <!-- Refresh + the Cr/full-number toggle are controls ON the
+          filters (they affect what's shown for the already-chosen FY/
+          month), so they sit alongside Financial Year/Month in the same
+          filter row instead of being grouped with Export (a one-off
+          action, unrelated to the filter state itself). -->
+          <div class="flex items-end gap-4">
             <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
               <template #prefix>
                 <FeatherIcon name="refresh-cw" class="h-4 w-4" />
@@ -61,6 +65,8 @@
             </Button>
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-end gap-4">
           <Button variant="solid" theme="gray" @click="exportMis">
             <template #prefix>
               <FeatherIcon name="download" class="h-4 w-4" />
@@ -188,6 +194,11 @@ const showFullNumbers = ref(false)
 // so the toggle can live here without prop-drilling through 5+ levels of
 // table components.
 provide('misShowFullNumbers', showFullNumbers)
+// Monthly MIS's own tables are dense with cells (several per row, many
+// rows per section) - a hover tooltip on every single one read as noise
+// rather than help here, unlike pages with fewer, more spread-out amounts
+// (Foundation Consolidated, Budget Summary). See CrCell.vue's own comment.
+provide('misNoTooltip', true)
 
 const prevFY = computed(() => getPrevFY(filters.financialYear))
 const ytdSubtitle = computed(() => `Budget vs. Actuals – YTD ${monthYearLabel(filters.month, filters.financialYear)}`)

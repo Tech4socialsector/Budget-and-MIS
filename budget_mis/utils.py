@@ -55,6 +55,45 @@ def get_allowed_units(user=None):
 	return allowed_units
 
 
+def _get_allowed_values(user, field):
+	"""Shared walk of the current user's Finance user access mapping rows,
+	collecting one field's values (cost_center/location_code) - same
+	fetch-once-per-call shape as get_allowed_units, just generalized so
+	get_allowed_cost_centers/get_allowed_location_codes below don't each
+	re-walk the same doc rows with their own copy of this loop (the
+	previous api/filter_options.py functions each did exactly that, inline,
+	6 separate times)."""
+	user = user or frappe.session.user
+	if is_finance_admin(user):
+		return None
+
+	finance_docs = frappe.get_all("Finance user access", filters={"user": user}, fields=["name"])
+
+	allowed = set()
+	for finance in finance_docs:
+		doc = frappe.get_doc("Finance user access", finance.name)
+		for row in doc.mapping:
+			value = getattr(row, field, None)
+			if value:
+				allowed.add(value)
+
+	return allowed
+
+
+def get_allowed_cost_centers(user=None):
+	"""Cost Center doc names the given user may access via their Finance
+	user access mapping. Returns None for admins (unscoped), same
+	convention as get_allowed_units."""
+	return _get_allowed_values(user, "cost_center")
+
+
+def get_allowed_location_codes(user=None):
+	"""Location Code doc names the given user may access via their Finance
+	user access mapping. Returns None for admins (unscoped), same
+	convention as get_allowed_units."""
+	return _get_allowed_values(user, "location_code")
+
+
 def require_unit_access(units):
 	"""Throw a PermissionError unless the current user is allowed to see
 	every unit in `units` (a string, comma-separated string, or iterable of

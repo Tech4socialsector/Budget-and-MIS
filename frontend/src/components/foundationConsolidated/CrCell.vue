@@ -23,9 +23,17 @@
   `context` is an optional breadcrumb string shown as the tooltip's second
   line (e.g. "Azim Premji Schools · FY26-27 Plan · Opex"), matching the
   Desk page's per-cell context labels.
+
+  A page can opt out of the tooltip entirely by provide()-ing 'misNoTooltip'
+  as true (Monthly MIS does this - see MonthlyMis.vue) - the cell then just
+  renders its plain text with no hover affordance/dotted underline at all,
+  for a page dense enough with cells that a tooltip on every one was more
+  noise than help. Falls back to the normal tooltip behavior (false) for
+  every other page, which is unaffected by this.
 -->
 <template>
-  <AppTooltip placement="top" :delay="150">
+  <span v-if="noTooltip" class="tabular-nums">{{ display }}</span>
+  <AppTooltip v-else placement="top" :delay="150">
     <span class="cursor-help border-b border-dotted border-gray-400 tabular-nums">{{ display }}</span>
     <template #content>
       <div class="text-[13px] font-semibold">{{ tooltipMain }}</div>
@@ -47,6 +55,7 @@ const props = defineProps({
 
 const pageShowFullNumbers = inject('misShowFullNumbers', null)
 const effectiveMode = computed(() => (pageShowFullNumbers ? (pageShowFullNumbers.value ? 'inr' : 'cr') : props.mode))
+const noTooltip = inject('misNoTooltip', false)
 
 const display = computed(() => (effectiveMode.value === 'inr' ? formatINR(props.value) : formatCrDash(props.value)))
 const tooltipMain = computed(() => (effectiveMode.value === 'inr' ? formatCrTooltip(props.value) : formatFullRupees(props.value)))
