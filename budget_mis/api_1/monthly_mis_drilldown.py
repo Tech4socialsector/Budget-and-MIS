@@ -120,15 +120,34 @@ def _leaf_entity_node(gu, financial_year, month, grouped_actuals_data):
     )
     actuals = _calculate_totals(actuals)
 
-    cc_label = ", ".join(gu.get("cost_centers") or []) or "-"
-    loc_label = ", ".join(gu.get("locations") or []) or "-"
+    # grouped_rows (one raw row per entry - always exactly one cost_center
+    # and one location_code, each with its own ERP code and description)
+    # gets the "Unit - Description(ERP code) - Description(ERP code)" label
+    # format. A merged grouped_units entry (multiple cost centers/locations
+    # folded into one unit-wide total, used for intermediate-level totals,
+    # never shown as its own row) falls back to the old comma-joined format
+    # since there's no single description/ERP code to attach per value.
+    ccs = gu.get("cost_centers") or []
+    locs = gu.get("locations") or []
+    ccs_erp = gu.get("cost_centers_erp") or []
+    locs_erp = gu.get("locations_erp") or []
     cc_desc = gu.get("cost_center_description")
     loc_desc = gu.get("location_code_description")
-    if cc_desc:
-        cc_label = f"{cc_label} ({cc_desc})"
-    if loc_desc:
-        loc_label = f"{loc_label} ({loc_desc})"
-    label = f"{gu.get('unit') or '-'} · CC {cc_label} · Loc {loc_label}"
+
+    if len(ccs) <= 1 and len(locs) <= 1:
+        cc_name = cc_desc or (ccs[0] if ccs else "-")
+        cc_part = f"{cc_name}({ccs_erp[0]})" if ccs_erp else cc_name
+        loc_name = loc_desc or (locs[0] if locs else "-")
+        loc_part = f"{loc_name}({locs_erp[0]})" if locs_erp else loc_name
+        label = f"{gu.get('unit') or '-'} - {cc_part} - {loc_part}"
+    else:
+        cc_label = ", ".join(ccs) or "-"
+        loc_label = ", ".join(locs) or "-"
+        if cc_desc:
+            cc_label = f"{cc_label} ({cc_desc})"
+        if loc_desc:
+            loc_label = f"{loc_label} ({loc_desc})"
+        label = f"{gu.get('unit') or '-'} · CC {cc_label} · Loc {loc_label}"
 
     return {
         "label": label,

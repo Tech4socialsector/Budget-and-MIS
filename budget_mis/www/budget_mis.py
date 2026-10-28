@@ -23,6 +23,17 @@ def get_context(context):
 		context.boot = {}
 	context.boot["csrf_token"] = frappe.sessions.get_csrf_token()
 
+	# Same reasoning as csrf_token above: the generic website boot data
+	# doesn't carry this, but frappe-ui's initSocket() needs it to build a
+	# working socket.io URL whenever the bench isn't on the plain default
+	# port 9000 (this one key check mirrors frappe.boot.load_conf_settings,
+	# Desk's own equivalent). Without it, window.socketio_port is
+	# undefined and initSocket() silently falls back to port 9000, so the
+	# socket connects to nothing and every realtime event (e.g. the
+	# actuals-cache-warming login toast) never arrives.
+	if "socketio_port" in frappe.conf:
+		context.boot["socketio_port"] = frappe.conf.get("socketio_port")
+
 	# `no_cache = 1` above only stops FRAPPE's own server-side render cache
 	# from serving one session's rendered HTML (with ITS csrf_token/boot
 	# data baked in) to a different session - it sends no browser-facing

@@ -3,6 +3,7 @@ from budget_mis.api_1.helper import get_accounting_period_from_month, get_previo
 from budget_mis.api_1.grouped_actuals import group_actuals_ytd
 from budget_mis.api_1.number_card_settings import get_combination_table_settings_test
 from budget_mis.api_1.budget_actuals_combined import get_combined_actuals
+from budget_mis.api_1.monthly_mis_drilldown import get_monthly_mis_drilldown_tree
 
 
 def _safe_join(arr):
@@ -242,3 +243,57 @@ def get_monthly_mis_break_up_with_prev_year(financial_year, month, table_name_fi
         get_previous_financial_year(financial_year), month, table_name_filter
     )
     return {"current": current, "previous": previous}
+
+
+# Combines get_monthly_mis_break_up_with_prev_year and
+# get_monthly_mis_drilldown_tree into ONE call, fetching ERP actuals
+# (group_actuals_ytd -> get_actuals_from_erp_month_wise, the real
+# PeopleSoft HTTP call) exactly ONCE per period - once for financial_year,
+# once for get_previous_financial_year(financial_year) - and passing each
+# fetch's result into every function that needs that period via their own
+# _grouped_actuals_data param, instead of each function independently
+# re-fetching (or racing each other to fetch, if called concurrently - the
+# bug this function replaces: the Vue page previously called the break-up
+# and drill-down endpoints as two separate HTTP requests in parallel, both
+# needing the SAME current-period actuals, so both could hit PeopleSoft at
+# the same time before either's cache write landed). drilldown_table_filter
+# narrows the (slower) drill-down tree computation to just the one table
+# group that actually needs it (Monthly MIS Capex & Opex), while
+# table_name_filter still covers every table the break-up/breakup-section
+# data needs - the drill-down tree is never built for tables nothing
+# navigates into.
+@guest_api
+def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, drilldown_table_filter=None):
+    previous_financial_year = get_previous_financial_year(financial_year)
+
+    current_formatted = get_accounting_period_from_month(month, financial_year)
+    current_actuals_data = group_actuals_ytd(
+        fiscal_year=current_formatted.get("fiscal_year"),
+        accounting_period=current_formatted.get("accounting_period")
+    ).get("data", [])
+
+    previous_formatted = get_accounting_period_from_month(month, previous_financial_year)
+    previous_actuals_data = group_actuals_ytd(
+        fiscal_year=previous_formatted.get("fiscal_year"),
+        accounting_period=previous_formatted.get("accounting_period")
+    ).get("data", [])
+
+    current_break_up = get_monthly_mis_break_up(
+        financial_year, month, table_name_filter, _grouped_actuals_data=current_actuals_data
+    )
+    previous_break_up = get_monthly_mis_break_up(
+        previous_financial_year, month, table_name_filter, _grouped_actuals_data=previous_actuals_data
+    )
+
+    drilldown_tree = get_monthly_mis_drilldown_tree(
+        financial_year,
+        month,
+        drilldown_table_filter if drilldown_table_filter is not None else table_name_filter,
+        _grouped_actuals_data=current_actuals_data,
+    )
+
+    return {
+        "current": current_break_up,
+        "previous": previous_break_up,
+        "drilldown": drilldown_tree,
+    }

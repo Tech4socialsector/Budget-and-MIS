@@ -1,7 +1,7 @@
 <template>
-  <Dialog v-model="show" :options="{ size: '3xl', title: 'budget-drilldown' }">
+  <Dialog v-model="show" :options="{ size: '6xl', title: 'budget-drilldown' }">
     <template #body>
-      <div class="flex max-h-[85vh] min-h-[32rem] flex-col">
+      <div class="flex max-h-[90vh] min-h-[40rem] flex-col">
         <!-- Header: icon + breadcrumb trail + close -->
         <div class="border-b px-5 py-4 dark:border-gray-800">
           <div class="flex items-start justify-between gap-3">
