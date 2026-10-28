@@ -1,8 +1,7 @@
 <!--
-  Monthly MIS page - Vue replica of the Desk page at
-  budget_mis/main/page/monthly_mis/monthly_mis.js (only the
-  live block at lines 6230-7601 - the file's earlier 6 versions are dead
-  code and were not replicated).
+  Monthly MIS page - Vue replica of the legacy Frappe Desk page this was
+  ported from (since removed from the repo - it only ever existed as this
+  page's porting source, never referenced by any live code).
 
   Architecture mirrors src/pages/FoundationConsolidated.vue: reactive
   filters, a request-generation counter to guard against a stale response
@@ -211,20 +210,62 @@ function defaultFyAndMonth(options) {
   return { fy: target, month }
 }
 
+// Remembers the user's last-used Financial Year/Month across visits (a
+// per-viewer convenience, not a data cache - loadAll() still makes its
+// usual single API call either way). Read once on mount; if a saved pair
+// exists and its financial_year is still a real option, it wins over
+// defaultFyAndMonth()'s "previous completed month" guess. Wrapped in
+// try/catch since localStorage can throw (private browsing, blocked site
+// data, etc.) - a lost preference just means falling back to the
+// computed default, same as a first-ever visit.
+const MONTHLY_MIS_FILTERS_STORAGE_KEY = 'budget-mis:monthly-mis:filters'
+
+function loadSavedFilters() {
+  try {
+    const raw = localStorage.getItem(MONTHLY_MIS_FILTERS_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (parsed && typeof parsed.financialYear === 'string' && typeof parsed.month === 'string') {
+      return parsed
+    }
+  } catch {
+    /* unreadable - fall through to the computed default */
+  }
+  return null
+}
+
+function saveFilters(fy, month) {
+  try {
+    if (fy && month) {
+      localStorage.setItem(MONTHLY_MIS_FILTERS_STORAGE_KEY, JSON.stringify({ financialYear: fy, month }))
+    }
+  } catch {
+    /* storage unavailable - the choice just won't persist */
+  }
+}
+
 async function loadFinancialYears() {
   const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   const years = (rows || []).map((r) => r.financial_year)
   financialYearOptions.value = years.map((y) => ({ label: y, value: y }))
   if (!filters.financialYear && years.length) {
-    const { fy, month } = defaultFyAndMonth(years)
-    filters.financialYear = fy
-    filters.month = month
+    const saved = loadSavedFilters()
+    if (saved && years.includes(saved.financialYear) && MONTHS.includes(saved.month)) {
+      filters.financialYear = saved.financialYear
+      filters.month = saved.month
+    } else {
+      const { fy, month } = defaultFyAndMonth(years)
+      filters.financialYear = fy
+      filters.month = month
+    }
   }
 }
 
 watch(
   () => [filters.financialYear, filters.month],
-  ([fy, month]) => setPageTitle(fy && month ? `Monthly MIS - ${fy} - ${month}` : 'Monthly MIS'),
+  ([fy, month]) => {
+    setPageTitle(fy && month ? `Monthly MIS - ${fy} - ${month}` : 'Monthly MIS')
+    saveFilters(fy, month)
+  },
   { immediate: true },
 )
 
@@ -269,14 +310,18 @@ async function loadAll(force) {
   loading.value = true
   error.value = null
   try {
-    const [result, drillResult] = await Promise.all([
-      call('budget_mis.api_1.monthly_mis.get_monthly_mis_break_up_with_prev_year', {
-        financial_year: fy, month, table_name_filter: MIS_TABLE_NAME_FILTER,
-      }),
-      call('budget_mis.api_1.monthly_mis_drilldown.get_monthly_mis_drilldown_tree', {
-        financial_year: fy, month, table_name_filter: 'Monthly MIS Capex & Opex',
-      }),
-    ])
+    // ONE call for everything this page needs - get_monthly_mis_page_data
+    // fetches ERP actuals exactly once per period (current + previous)
+    // server-side and reuses each fetch across the break-up, breakup-
+    // section, and drill-down data derived from it, instead of this page
+    // firing 2 separate HTTP requests that could each independently (and,
+    // if concurrent, redundantly) trigger the same PeopleSoft call.
+    const result = await call('budget_mis.api_1.monthly_mis.get_monthly_mis_page_data', {
+      financial_year: fy,
+      month,
+      table_name_filter: MIS_TABLE_NAME_FILTER,
+      drilldown_table_filter: 'Monthly MIS Capex & Opex',
+    })
     if (gen !== requestGen) return
     const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
     const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
@@ -284,7 +329,8 @@ async function loadAll(force) {
     prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
     breakupData.value = curDict
 
-    const drillEntries = (drillResult && typeof drillResult === 'object' && drillResult['Monthly MIS Capex & Opex']) || []
+    const drillDict = result?.drilldown && typeof result.drilldown === 'object' ? result.drilldown : {}
+    const drillEntries = drillDict['Monthly MIS Capex & Opex'] || []
     const byLabel = {}
     for (const node of drillEntries) {
       if (node?.label) byLabel[node.label] = node

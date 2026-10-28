@@ -1,11 +1,14 @@
 <!--
   Shared breakup table for Education / Health / Livelihoods / University /
   Enablers - mirrors monthly_mis.js's renderBreakupTable(): section header
-  row (bold, spans all columns) per key, one row per sub_unit entry, a
-  subtotal row per section (.fc-subtotal-row, replacing the Desk's
-  sw-unit-total), and a single grand total row at the end
-  (.fc-row-grand, replacing sw-grand-total's inline #1565C0 background per
-  this app's .fc-th/.fc-row-grand blue convention).
+  row (bold, spans all columns) per key, one row per sub_unit entry
+  (is_this_sub_item rows get an extra indent, same pl-8 convention as
+  ConsolidatedTable/ExpenseTable), a subtotal row per section
+  (.fc-subtotal-row, replacing the Desk's sw-unit-total) - only shown when a
+  section actually has more than one row, since a 1-row section's "Total"
+  would just repeat that single row's own numbers - and a single grand
+  total row at the end (.fc-row-grand, replacing sw-grand-total's inline
+  #1565C0 background per this app's .fc-th/.fc-row-grand blue convention).
 
   Columns: Label | Operating Expense (Budget/Actuals/%) |
   Capital Expense (Budget/Actuals/%) | Total Expense (Budget/Actuals/%).
@@ -40,7 +43,7 @@
             <td class="fc-td fc-sticky-col bg-fc-blue-light text-left font-bold dark:bg-transparent" colspan="10">{{ sec.label }}</td>
           </tr>
           <tr v-for="r in sec.rows" :key="r.label" class="cursor-pointer" @click="$emit('drill', r.label)">
-            <td class="fc-td fc-sticky-col bg-white pl-4 text-left dark:bg-gray-900">{{ r.label }}</td>
+            <td class="fc-td fc-sticky-col bg-white text-left dark:bg-gray-900" :class="r.isSub ? 'pl-8' : 'pl-4'">{{ r.label }}</td>
             <td class="fc-td text-right"><MisAmount :value="r.v.ob * 1e7" :context="`${r.label} · Opex Budget`" /></td>
             <td class="fc-td text-right"><MisAmount :value="r.v.oa * 1e7" :context="`${r.label} · Opex Actuals`" /></td>
             <td class="fc-td text-right">{{ fmtPct(r.v.oa, r.v.ob) }}</td>
@@ -51,7 +54,7 @@
             <td class="fc-td text-right"><MisAmount :value="r.v.ta * 1e7" :context="`${r.label} · Total Actuals`" /></td>
             <td class="fc-td text-right">{{ fmtPct(r.v.ta, r.v.tb) }}</td>
           </tr>
-          <tr class="fc-subtotal-row font-semibold">
+          <tr v-if="sec.rows.length > 1" class="fc-subtotal-row font-semibold">
             <td class="fc-td fc-sticky-col bg-inherit text-left">Total</td>
             <td class="fc-td text-right"><MisAmount :value="sec.subtotal.ob * 1e7" /></td>
             <td class="fc-td text-right"><MisAmount :value="sec.subtotal.oa * 1e7" /></td>
