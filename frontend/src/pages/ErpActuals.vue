@@ -21,17 +21,22 @@
 <template>
   <AppLayout>
     <div class="flex flex-col gap-4">
-      <!-- Filters -->
-      <div class="flex flex-wrap items-end gap-4">
-        <div class="w-full sm:w-64">
-          <FormControl
-            type="select"
-            label="API"
+      <!-- Filters: same "plain grid rather than flex-wrap" convention as
+      MonthlyMis.vue/BudgetSummary.vue - a fixed 5-column grid (2 on small,
+      1 on mobile) with each field at a uniform w-full, rather than ad-hoc
+      per-field pixel widths, so field width/height stays consistent and
+      every filter row across the app lines up at the same column count
+      regardless of how many fields that particular page actually has. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">API</label>
+          <Select
             :options="apiOptions"
             v-model="filters.apiLabel"
+            class="w-full"
           />
         </div>
-        <div class="w-full sm:w-48">
+        <div>
           <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
           <MultiSelect
             v-model="financialYearSelection"
@@ -40,18 +45,20 @@
             class="w-full"
           />
         </div>
-        <div class="w-full sm:w-40">
-          <FormControl
-            type="select"
-            label="Month"
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Month</label>
+          <Select
             :options="monthOptions"
             v-model="filters.month"
+            class="w-full"
           />
         </div>
-        <Button variant="solid" theme="gray" :loading="loading" @click="fetchData">
-          <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
-          Fetch
-        </Button>
+        <div class="flex items-end">
+          <Button variant="solid" theme="gray" :loading="loading" @click="fetchData">
+            <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
+            Fetch
+          </Button>
+        </div>
       </div>
 
       <!-- Patient loading state -->
@@ -89,8 +96,14 @@
           No rows returned.
         </div>
         <template v-else>
-          <div class="text-xs text-gray-500 dark:text-gray-400">
-            Showing {{ visibleRows.length }} of {{ allRows.length }} rows
+          <div class="flex items-center justify-between gap-4">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              Showing {{ pagedRangeLabel }} of {{ visibleRows.length }} filtered rows ({{ allRows.length }} total)
+            </div>
+            <Button v-if="hasActiveFilters" variant="outline" theme="gray" size="sm" @click="clearAllFilters">
+              <template #prefix><FeatherIcon name="x" class="h-3.5 w-3.5" /></template>
+              Clear filters
+            </Button>
           </div>
 
           <div class="fc-scroll-wrapper">
@@ -99,14 +112,37 @@
                 <tr class="fc-thead-main">
                   <th v-for="col in columns" :key="col" class="fc-th erp-th text-center">
                     <span class="mr-1 align-middle">{{ col }}</span>
-                    <ColumnFilterDropdown
+                    <!-- frappe-ui's own default MultiSelect, same component
+                    used for the Financial Year filter above - its model is
+                    the array of currently-checked values for this column
+                    (instant-apply per click, matching MultiSelect's own
+                    native behavior everywhere else in the app, rather than
+                    the previous custom dropdown's separate staged "Apply"
+                    step). #trigger keeps the same compact filter-icon
+                    chevron button instead of MultiSelect's own full
+                    search-box trigger, which doesn't fit inline in a table
+                    header - MultiSelect's own ComboboxAnchor (wrapping this
+                    slot) already attaches its own @click="toggleOpen" to
+                    the slot's root element, so the button here must NOT
+                    call toggleOpen itself, or every click would toggle
+                    twice (open then immediately close again). -->
+                    <MultiSelect
                       class="inline-flex align-middle"
-                      :column="col"
-                      :distinct-values="distinctValues[col] || []"
-                      :model-value="activeFilters[col] || null"
-                      @apply="(set) => applyFilter(col, set)"
-                      @clear="() => clearFilter(col)"
-                    />
+                      :model-value="activeFilters[col] || []"
+                      :options="columnFilterOptions[col] || []"
+                      @update:model-value="(vals) => applyFilter(col, vals)"
+                    >
+                      <template #trigger>
+                        <button
+                          type="button"
+                          class="erp-filter-icon-btn"
+                          :class="{ 'is-active': (activeFilters[col] || []).length > 0 }"
+                          :aria-label="`Filter ${col}`"
+                        >
+                          <FeatherIcon name="chevron-down" class="h-3.5 w-3.5" />
+                        </button>
+                      </template>
+                    </MultiSelect>
                   </th>
                 </tr>
               </thead>
@@ -114,7 +150,7 @@
                 <tr v-if="!visibleRows.length">
                   <td class="fc-td text-center text-gray-400" :colspan="columns.length">No rows match the current filter.</td>
                 </tr>
-                <tr v-for="(row, i) in visibleRows" :key="i">
+                <tr v-for="(row, i) in pagedRows" :key="i">
                   <td v-for="col in columns" :key="col" class="fc-td text-right">{{ cellText(row, col) }}</td>
                 </tr>
               </tbody>
@@ -128,6 +164,20 @@
               </tfoot>
             </table>
           </div>
+
+          <div v-if="totalPages > 1" class="flex items-center justify-between gap-4 text-xs text-gray-500 dark:text-gray-400">
+            <div>Page {{ currentPage }} of {{ totalPages }}</div>
+            <div class="flex items-center gap-2">
+              <Button variant="outline" theme="gray" size="sm" :disabled="currentPage <= 1" @click="currentPage -= 1">
+                <template #prefix><FeatherIcon name="chevron-left" class="h-3.5 w-3.5" /></template>
+                Previous
+              </Button>
+              <Button variant="outline" theme="gray" size="sm" :disabled="currentPage >= totalPages" @click="currentPage += 1">
+                Next
+                <template #suffix><FeatherIcon name="chevron-right" class="h-3.5 w-3.5" /></template>
+              </Button>
+            </div>
+          </div>
         </template>
       </template>
     </div>
@@ -136,10 +186,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
+import { MultiSelect, Select, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
-import ColumnFilterDropdown from '@/components/ColumnFilterDropdown.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import { exportErpActualsExcel } from '@/data/erpActualsExport'
@@ -316,35 +365,72 @@ function cellText(row, col) {
 const hasAmountColumn = computed(() => columns.value.includes('posted_total_amt'))
 
 // -------------------------------------------------------------------------
-// Column filters - column -> Set of checked values, or absent = no filter.
-// distinctValues is always computed off the FULL unfiltered row set so the
-// checkbox list stays stable while other columns are filtered.
+// Column filters - column -> array of checked values (MultiSelect's own
+// v-model shape), empty array/absent = no filter. columnFilterOptions is
+// always computed off the FULL unfiltered row set so the option list stays
+// stable while other columns are filtered.
 // -------------------------------------------------------------------------
 const activeFilters = reactive({})
 
-const distinctValues = computed(() => {
+const columnFilterOptions = computed(() => {
   const out = {}
   for (const col of columns.value) {
     const seen = new Set()
     for (const row of allRows.value) seen.add(cellText(row, col))
-    out[col] = Array.from(seen).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    out[col] = Array.from(seen)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+      .map((v) => ({ label: v === '' ? '(blank)' : v, value: v }))
   }
   return out
 })
 
-function applyFilter(col, set) {
-  if (!set) delete activeFilters[col]
-  else activeFilters[col] = set
+function applyFilter(col, values) {
+  if (!values || !values.length) delete activeFilters[col]
+  else activeFilters[col] = values
 }
-function clearFilter(col) {
-  delete activeFilters[col]
+
+const hasActiveFilters = computed(() => Object.keys(activeFilters).length > 0)
+function clearAllFilters() {
+  for (const k of Object.keys(activeFilters)) delete activeFilters[k]
 }
 
 const visibleRows = computed(() =>
-  allRows.value.filter((row) => columns.value.every((c) => !activeFilters[c] || activeFilters[c].has(cellText(row, c)))),
+  allRows.value.filter((row) => columns.value.every((c) => !activeFilters[c] || activeFilters[c].includes(cellText(row, c)))),
 )
 
 const visibleTotal = computed(() => visibleRows.value.reduce((sum, row) => sum + (parseFloat(row.posted_total_amt) || 0), 0))
+
+// -------------------------------------------------------------------------
+// Client-side pagination of the render only - a live PeopleSoft fetch can
+// return 30k+ rows in one response, and rendering every one of them as a
+// real <tr> (ERP Actuals has no server-side "Load More" the way
+// DoctypeList.vue does - the whole result already arrived in a single
+// blocking call) froze the tab entirely ("Page Unresponsive"). visibleRows/
+// visibleTotal above still reflect the FULL filtered set (the footer total
+// must sum every matching row, not just the current page) - only the
+// <tbody> itself reads from pagedRows.
+// -------------------------------------------------------------------------
+const PAGE_SIZE = 100
+const currentPage = ref(1)
+const totalPages = computed(() => Math.max(1, Math.ceil(visibleRows.value.length / PAGE_SIZE)))
+const pagedRows = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return visibleRows.value.slice(start, start + PAGE_SIZE)
+})
+// A filter change can shrink the result below the page the user was on
+// (e.g. on page 5 of 400 rows, then a filter narrows it to 40 rows total) -
+// clamp back to the last valid page instead of showing an empty table.
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages
+})
+watch(activeFilters, () => { currentPage.value = 1 }, { deep: true })
+
+const pagedRangeLabel = computed(() => {
+  if (!visibleRows.value.length) return '0'
+  const start = (currentPage.value - 1) * PAGE_SIZE + 1
+  const end = Math.min(currentPage.value * PAGE_SIZE, visibleRows.value.length)
+  return `${start}-${end}`
+})
 
 // en-IN, 2 decimals - matches the Desk page's format_currency() exactly.
 // formatINR (foundationConsolidatedData.js) rounds to whole rupees, which
@@ -382,5 +468,27 @@ onMounted(async () => {
 <style scoped>
 .erp-th {
   position: relative;
+}
+
+/* Ported from the now-removed ColumnFilterDropdown.vue (replaced by
+frappe-ui's own default MultiSelect, see the template above) - the compact
+filter-icon trigger needs to read clearly against the table header's own
+dark fc-th background, which a plain default-variant MultiSelect trigger
+button was never styled for. */
+.erp-filter-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  color: #dbeeff;
+  cursor: pointer;
+}
+.erp-filter-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.erp-filter-icon-btn.is-active {
+  color: #ffd54a;
 }
 </style>

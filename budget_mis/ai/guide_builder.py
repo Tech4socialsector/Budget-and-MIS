@@ -85,6 +85,21 @@ def _actuals_response_shape_points():
 	]
 
 
+def _monthly_mis_response_shape_points():
+	return [
+		'get_monthly_mis_summary tool response shape: {"financial_year": "2026-27", "month": "September", '
+		'"tables": [ { "table_name": "Health" | "Education" | ..., "rows": [ { "label": (section/unit name), '
+		'"operating_expense_budget": (number), "operating_expense_actuals": (number), '
+		'"capital_expense_budget": (number), "capital_expense_actuals": (number), '
+		'"total_expense_budget": (number), "total_expense_actuals": (number) } ] } ] }',
+		"get_monthly_mis_summary answers Monthly MIS questions (Operating Expense / Capital Expense / Total Expense, budget vs actuals, by section such as Health or Education) - this is a different report from get_budget_summary and get_actuals_summary, which report org-wide totals without this Monthly MIS section breakdown. Use get_monthly_mis_summary whenever the user mentions 'Monthly MIS', 'MIS report', or asks for a breakdown by section/area of work.",
+		"get_monthly_mis_summary's `section` argument accepts: health, education, university, livelihoods, enablers (case-insensitive) - always use this for a named area of work rather than guessing a raw table_name_filter value, since the page's own section groupings (e.g. 'Health') are made up of several differently-named underlying tables the tool resolves for you.",
+		"get_monthly_mis_summary requires a month argument (full month name, April through March) - figures are always year-to-date through that month, same convention as get_actuals_summary.",
+		"get_monthly_mis_summary's figures match the Monthly MIS page exactly, including its own server-side cache of the same underlying ERP actuals data - never recompute these figures from search_records or get_record.",
+		"get_monthly_mis_summary currently applies no per-user unit restriction (it mirrors the Monthly MIS page itself, which any logged-in user who can open it sees in full) - do not claim it is scoped to the asking user's own units the way get_budget_summary/get_actuals_summary are.",
+	]
+
+
 def build_structure_points():
 	"""Flat, ordered list of point strings covering master doctypes, budget
 	doctypes, and the get_budget_summary response shape - each entry becomes
@@ -105,6 +120,7 @@ def build_structure_points():
 
 	points.extend(_budget_response_shape_points())
 	points.extend(_actuals_response_shape_points())
+	points.extend(_monthly_mis_response_shape_points())
 	return points
 
 

@@ -256,6 +256,136 @@ def get_actuals_summary(financial_year=None, month=None, unit=None):
 	}
 
 
+# The Monthly MIS page's own human-facing section names (shown as card/
+# breakup-table headings) are a FRONTEND-ONLY grouping of several raw
+# `table_name` values the backend actually understands - see
+# frontend/src/pages/MonthlyMis.vue's own buildBreakupSections() calls
+# (healthBreakup/eduBreakup/univBreakup/etc), which this mirrors exactly so
+# the assistant can accept the same human name a person looking at the page
+# would use, without needing to know or guess the underlying raw table
+# names itself.
+MONTHLY_MIS_SECTIONS = {
+	"health": [
+		"Urban Primary care work", "Rural Primary care work", "Central Initiatives",
+		"Hospital", "Health Programs Team & Enablers",
+	],
+	"education": ["Education - District Institutes", "Education- Azim Premji Schools"],
+	"university": [
+		"Azim Premji University (Bangalore Campus)", "Azim Premji University (Bhopal Campus)",
+		"Azim Premji University (Ranchi Campus)", "Azim Premji University (Guwahati Campus)",
+	],
+	"livelihoods": ["Livelihoods"],
+	"enablers": ["Enablers"],
+}
+
+
+def get_monthly_mis_summary(financial_year=None, month=None, section=None, table_name_filter=None):
+	"""The authoritative Monthly MIS Operating/Capital Expense break-up - the
+	same computation and the same shared server-side ERP actuals cache
+	(budget_mis.api_1.erp_actuals, TTL from ERP Credentials.
+	actuals_cache_duration_minutes) the Monthly MIS page itself reads, not a
+	re-derivation from raw doctype records. Returns current and previous
+	financial-year figures for the given month, broken down per table/
+	section with each row's Operating/Capital/Total Expense budget, actuals,
+	and % of budget - the same shape the Monthly MIS page's own breakup
+	tables show.
+
+	`section` accepts the same human-facing name shown on the Monthly MIS
+	page (health/education/university/livelihoods/enablers, case
+	-insensitive) and expands it to the underlying raw table_name_filter
+	group via MONTHLY_MIS_SECTIONS above - pass this instead of guessing raw
+	table names. table_name_filter is still available directly for any
+	other raw table name shown in the page's own "Foundation Overall" table
+	(e.g. a specific unit). If both are omitted, every table is returned.
+
+	The underlying page itself applies no per-user unit scoping (any logged
+	-in user who can open Monthly MIS sees the same foundation-wide figures,
+	same as get_monthly_mis_page_data's own HTTP endpoint) - this tool
+	matches that exactly rather than inventing a stricter scope the page
+	doesn't itself enforce. It does NOT expose anything beyond what the
+	Monthly MIS page already shows any logged-in user: no line-item detail,
+	no PII, no ERP credentials.
+
+	The tool's OWN summarized response (not just the underlying ERP fetch)
+	is cached server-side, shared across users and separate from the raw
+	ERP cache, so repeated/similar assistant questions about the same
+	financial_year+month+table_name_filter don't redo the aggregation work
+	- same TTL as the ERP actuals cache, since it's only ever as fresh as
+	that underlying data anyway.
+	"""
+	from budget_mis.api_1.helper import get_actuals_cache_duration_seconds
+	from budget_mis.api_1.monthly_mis import get_monthly_mis_break_up
+
+	if not financial_year:
+		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
+	if not financial_year:
+		frappe.throw(_("No financial year was given, and none is set as current in Master Settings."))
+	if not month:
+		frappe.throw(_("A month is required (e.g. 'September') - Monthly MIS is always reported year-to-date through a specific month."))
+
+	if section:
+		section_key = str(section).strip().lower()
+		section_tables = MONTHLY_MIS_SECTIONS.get(section_key)
+		if not section_tables:
+			frappe.throw(_("Unknown section '{0}'. Valid sections: {1}").format(
+				section, ", ".join(sorted(MONTHLY_MIS_SECTIONS))
+			))
+		table_name_filter = ",".join(section_tables)
+
+	cache_key = f"budget_mis:ai_monthly_mis_summary:{financial_year}:{month}:{table_name_filter or ''}"
+	cached = frappe.cache().get_value(cache_key)
+	if cached is not None:
+		return cached
+
+	break_up = get_monthly_mis_break_up(financial_year, month, table_name_filter) or {}
+
+	# Real ERP head names come through with inconsistent internal spacing
+	# (e.g. "OPERATING  EXPENSES", double space) - collapsed here the same
+	# way the frontend's own normName() does, rather than matching the
+	# exact literal string, which would silently zero out every row like
+	# this tool's first version did.
+	def _norm(name):
+		return " ".join(str(name or "").split()).upper()
+
+	tables = []
+	for table_name, entries in break_up.items():
+		rows = []
+		for entry in entries:
+			# is_this_sub_item rows are already folded into their parent's
+			# own totals (same convention as the page's own breakup tables -
+			# see BreakupTable.vue) - listing them separately here would
+			# double count. The synthetic "CONSOLIDATED TOTAL" entry
+			# (settings_doc == "CONSOLIDATED") uses different head names
+			# entirely (CAPEX TOTAL/OPEX TOTAL/OVERALL GRAND TOTAL) and
+			# carries no per-entry OPERATING/CAPITAL/GRAND TOTAL heads at
+			# all, so including it here would add an all-zero row.
+			if entry.get("is_this_sub_item") or entry.get("settings_doc") == "CONSOLIDATED":
+				continue
+			actuals = {_norm(a.get("name")): a for a in entry.get("actuals", [])}
+			opex = actuals.get("OPERATING EXPENSES") or {}
+			capex = actuals.get("CAPITAL EXPENSES") or {}
+			grand = actuals.get("GRAND TOTAL") or {}
+			rows.append({
+				"label": entry.get("label"),
+				"operating_expense_budget": opex.get("ytd", 0),
+				"operating_expense_actuals": opex.get("total_posted_amt_ytd", 0),
+				"capital_expense_budget": capex.get("ytd", 0),
+				"capital_expense_actuals": capex.get("total_posted_amt_ytd", 0),
+				"total_expense_budget": grand.get("ytd", 0),
+				"total_expense_actuals": grand.get("total_posted_amt_ytd", 0),
+			})
+		tables.append({"table_name": table_name, "rows": rows})
+
+	result = {
+		"financial_year": financial_year,
+		"month": month,
+		"tables": tables,
+		"note": "Figures are in raw rupees, year-to-date through the given month, same as the Monthly MIS page.",
+	}
+	frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
+	return result
+
+
 def search_records(doctype, filters=None, fields=None, limit=20):
 	"""List records the current user can read, permission-filtered by
 	frappe.get_list exactly as the app's own list views are."""
@@ -321,6 +451,7 @@ TOOL_FUNCTIONS = {
 	"list_users": list_users,
 	"get_budget_summary": get_budget_summary,
 	"get_actuals_summary": get_actuals_summary,
+	"get_monthly_mis_summary": get_monthly_mis_summary,
 	"search_records": search_records,
 	"get_record": get_record,
 	"create_record": create_record,
@@ -436,6 +567,42 @@ TOOL_SCHEMAS = [
 					"unit": {
 						"type": ["string", "null"],
 						"description": "Optional comma-separated unit name(s) to scope the total to. Omit or pass null for all units the current user can access.",
+					},
+				},
+				"required": ["month"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "get_monthly_mis_summary",
+			"description": (
+				"The ONLY correct source for Monthly MIS Operating/Capital/Total Expense figures (budget, actuals, "
+				"% of budget) for a financial year, reported year-to-date through a given month. Always call this "
+				"for any Monthly MIS question - never compute this yourself from search_records or get_record. "
+				"A month is required. If the user doesn't name a financial year, omit it to use the app's current "
+				"financial year. Use `section` for a human-named area of work (health/education/university/"
+				"livelihoods/enablers) - never guess at a raw table_name_filter value for these."
+			),
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"financial_year": {
+						"type": ["string", "null"],
+						"description": "e.g. '2026-27'. Omit or pass null to use the app's current financial year.",
+					},
+					"month": {
+						"type": "string",
+						"description": "Required. Full month name (e.g. 'September'). Figures are year-to-date through this month.",
+					},
+					"section": {
+						"type": ["string", "null"],
+						"description": "One of: health, education, university, livelihoods, enablers (case-insensitive). Omit or pass null for every section/table.",
+					},
+					"table_name_filter": {
+						"type": ["string", "null"],
+						"description": "Advanced: a specific raw table/unit name as shown in the page's own 'Foundation Overall' table (e.g. a specific unit name), comma-separated for several. Prefer `section` for a named area of work. Omit or pass null for every table.",
 					},
 				},
 				"required": ["month"],

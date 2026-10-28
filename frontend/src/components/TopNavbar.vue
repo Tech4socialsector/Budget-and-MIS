@@ -20,15 +20,18 @@
       <router-link
         v-if="!activeModule"
         :to="{ name: 'Home' }"
-        class="flex flex-shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 duration-150 ease-in-out hover:bg-surface-gray-1"
+        class="flex flex-shrink-0 items-center gap-2.5 rounded-lg px-2 py-1.5 duration-150 ease-in-out hover:bg-surface-gray-1"
       >
+        <!-- The full lockup (icon + "Azim Premji Foundation" wordmark baked
+        into one image, theme-aware - see defaultAppIcon in branding.js)
+        next to this app's own name. -->
         <img
           v-if="typeof logo === 'string'"
           :src="logo"
           class="h-8 max-w-[7.5rem] flex-shrink-0 object-contain object-left"
           alt="Logo"
         />
-        <span class="truncate text-base font-medium text-ink-gray-8">{{ appTitle }}</span>
+        <span class="navbar-brand-bold truncate text-sm text-ink-gray-8">{{ appTitle }}</span>
       </router-link>
       <span v-if="!activeModule" class="h-6 w-px flex-shrink-0 bg-outline-gray-3" />
       <Breadcrumbs class="topnavbar-breadcrumbs min-w-0" :items="breadcrumbItems">
@@ -72,8 +75,8 @@
           :aria-label="`Ask ${botName}`"
           @click="toggleAssistant"
         >
-          <span class="assistant-nav-badge relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white">
-            <AssistantIcon class="assistant-nav-icon relative h-3.5 w-3.5" />
+          <span class="assistant-nav-badge relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+            <AuditorIcon class="assistant-nav-icon relative h-3.5 w-3.5" />
           </span>
           <span class="text-sm font-medium">{{ botName }}</span>
         </button>
@@ -114,6 +117,17 @@ font-size prop the component doesn't have. */
   line-height: 1.375rem;
 }
 
+/* frappe-ui's Tailwind preset bundles its own font-weight into every
+text-size utility (text-sm here included - see its tailwind/plugin.js
+fontSize scale), so a plain `font-bold`/`font-semibold` utility loses to
+the same-specificity `text-sm` utility sitting right next to it in the
+compiled stylesheet (same issue already worked around this way on the
+login page - see Login.vue's own .login-app-name). A dedicated class
+sidesteps that cascade-order fight entirely. */
+.navbar-brand-bold {
+  font-weight: 700;
+}
+
 /* A breathing ring around the badge circle PLUS a gentle pulse on the
 icon glyph itself - the first pass (ring alone) was too subtle to notice
 in a quick glance at the navbar, so this pairs it with a second, slower
@@ -124,7 +138,7 @@ expand-and-fade is missed. */
   position: absolute;
   inset: -3px;
   border-radius: 9999px;
-  background: theme('colors.gray.900');
+  background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
   animation: assistant-nav-ping 1.8s ease-out infinite;
   pointer-events: none;
 }
@@ -167,7 +181,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Breadcrumbs, Button, Dropdown } from 'frappe-ui'
 import LucideIcon from '@/components/LucideIcon.vue'
 import AppTooltip from '@/components/AppTooltip.vue'
-import AssistantIcon from '@/components/AssistantIcon.vue'
+import AuditorIcon from '@/components/AuditorIcon.vue'
 import ProfileSettingsModal from '@/components/ProfileSettingsModal.vue'
 import AppCommandPalette from '@/components/AppCommandPalette.vue'
 import { pageTitle } from '@/data/pageTitle'

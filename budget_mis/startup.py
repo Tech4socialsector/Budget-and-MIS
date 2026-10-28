@@ -107,11 +107,15 @@ def warm_actuals_cache_on_login(login_manager=None):
 
 
 # on_logout hook target (see hooks.py) - drops every cached ERP actuals
-# entry this app created (budget_mis:erp_actuals_month_wise:<fiscal_year>:
-# <accounting_period>, any period), regardless of who's logging out: the
-# cache is shared across all users (keyed by period only, not per-user),
-# so this is a deliberate "start clean" reset rather than a per-user
-# cleanup - the next request for any period re-fetches fresh from the ERP
-# and re-populates its own entry, same as a cold cache.
+# entry this app created, both the raw fetch (budget_mis:
+# erp_actuals_month_wise:<fiscal_year>:<accounting_period>) and the derived
+# aggregation built on top of it (budget_mis:group_actuals_ytd:<fiscal_year>:
+# <accounting_period> - see api_1/grouped_actuals.py's own cache, shared by
+# Monthly MIS and Budget vs Actuals alike), any period, regardless of who's
+# logging out: the cache is shared across all users (keyed by period only,
+# not per-user), so this is a deliberate "start clean" reset rather than a
+# per-user cleanup - the next request for any period re-fetches/re
+# -aggregates fresh and re-populates its own entry, same as a cold cache.
 def clear_actuals_cache_on_logout(login_manager=None):
     frappe.cache().delete_keys("budget_mis:erp_actuals_month_wise:*")
+    frappe.cache().delete_keys("budget_mis:group_actuals_ytd:*")

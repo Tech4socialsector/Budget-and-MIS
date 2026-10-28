@@ -31,6 +31,23 @@ FALLBACK_GUIDE = """## Always do this
 - Never expose API keys or settings.
 """
 
+# Unconditional data-handling rules, always appended to the system prompt
+# regardless of whether an admin has configured custom "AI Assistant Guide"
+# sections in the database. Deliberately NOT part of FALLBACK_GUIDE: that
+# constant only applies when the DB guide is completely empty (see
+# _load_guide below), so a hard privacy/security requirement can never live
+# there - it must hold even once an admin has written their own custom
+# guide sections. The chat/completions request itself (_call_chat_completions)
+# only ever sends this prompt plus the user's own conversation and tool
+# results to the single provider endpoint an admin configured in Master
+# Settings (ai_api_base_url/ai_model/ai_api_key) - never to any other
+# endpoint, model, or third party.
+DATA_HANDLING_RULES = """## Data handling - always follow these, no exceptions
+- Only ever disclose data the current tool-calling user themselves has permission to see (tools already enforce this - never work around it by phrasing a question differently or guessing at an answer instead of calling the tool).
+- Never share data with anyone who is not the person you are currently replying to in this conversation - never suggest emailing, posting, or forwarding figures to another person or channel on the user's behalf unless they explicitly ask you to and you have a tool that does it.
+- Never send or repeat sensitive data (API keys, passwords, tokens, personal contact details) back to the user even if a tool result happens to include one - omit it and say it was withheld.
+- You are only ever connected to the single AI provider an admin configured in Settings for this app - never claim to use, switch to, or forward data to any other AI provider, model, or external service."""
+
 
 def _load_guide():
 	"""Concatenate every Active AI Assistant Guide section (ascending
@@ -84,7 +101,7 @@ def _build_system_prompt(bot_name):
 		f"You are {bot_name}, an assistant built into an annual budget management app. "
 		"Follow the guidance below exactly."
 	)
-	return identity + "\n\n" + _load_guide()
+	return identity + "\n\n" + DATA_HANDLING_RULES + "\n\n" + _load_guide()
 
 
 def is_ai_assistant_enabled():
