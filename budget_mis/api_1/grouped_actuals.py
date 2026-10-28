@@ -4,6 +4,7 @@ import frappe
 
 from budget_mis.utils import guest_api
 from budget_mis.api_1.erp_actuals import get_actuals_from_erp_month_wise
+from budget_mis.api_1.helper import get_actuals_cache_duration_seconds
 
 
 # Drops PeopleSoft's opening-balance period "0" and sums duplicate (unit, account, dept, operating_unit, period) rows into one.
@@ -159,9 +160,30 @@ def group_actuals_by_gl_mapping(fiscal_year, accounting_period):
     }
 
 
-# Collapses month_wise's per-month, per-GL-code rows into one YTD total per (unit, dept, operating_unit, head/sub-head/type).
+# Collapses month_wise's per-month, per-GL-code rows into one YTD total per
+# (unit, dept, operating_unit, head/sub-head/type) - cached server-side,
+# shared across every caller (Monthly MIS, Budget vs Actuals, etc), since
+# the real join/grouping work here (against GL code Mapping + Expenses)
+# re-runs on every call otherwise even though the underlying ERP data
+# itself is already cached one layer down (get_actuals_from_erp_month_wise)
+# - this result can never be any fresher than that raw fetch anyway, so it
+# shares the exact same TTL (ERP Credentials.actuals_cache_duration_minutes)
+# rather than inventing a second, independent cache lifetime for data that
+# is entirely derived from the first.
 @guest_api
 def group_actuals_ytd(fiscal_year, accounting_period):
+    cache_key = f"budget_mis:group_actuals_ytd:{fiscal_year}:{accounting_period}"
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached
+
+    result = _group_actuals_ytd_raw(fiscal_year, accounting_period)
+    if result.get("status") == "success":
+        frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
+    return result
+
+
+def _group_actuals_ytd_raw(fiscal_year, accounting_period):
     month_wise = group_actuals_by_gl_mapping(fiscal_year, accounting_period)
 
     if month_wise.get("status") != "success":
