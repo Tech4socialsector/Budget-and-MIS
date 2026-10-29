@@ -316,3 +316,52 @@ def get_theme_mappings(theme_name):
 		"cost_centers": cost_centers,
 		"location_codes": location_codes,
 	}
+
+
+@guest_api
+def get_user_mappings():
+	"""Every Finance user access mapping row, flattened one dict per
+	(user, mapping row) - used by the "Budget Import Template" Desk Page to
+	build its entity picker. An admin (is_finance_admin) sees every user's
+	mappings; anyone else sees only their own.
+
+	api_1's replacement for budget_mis.api.filter_options.get_user_mappings,
+	which queried a `user_nmae` field (a typo - the real field is
+	`user_name`) and has been silently broken (MySQLdb.OperationalError:
+	Unknown column 'user_nmae') since whenever that typo was introduced; the
+	admin check here also goes through is_finance_admin (same convention as
+	every other function in this file) instead of re-checking "System
+	Manager" in roles inline.
+	"""
+	current_user = frappe.session.user
+	is_admin = is_finance_admin(current_user)
+
+	if is_admin:
+		finance_docs = frappe.get_all("Finance user access", fields=["name", "user", "user_name"])
+	else:
+		finance_docs = frappe.get_all(
+			"Finance user access",
+			filters={"user": current_user},
+			fields=["name", "user", "user_name"],
+		)
+
+	results = []
+	for finance in finance_docs:
+		doc = frappe.get_doc("Finance user access", finance.name)
+
+		for row in doc.mapping:
+			results.append({
+				"full_name": finance.user_name or finance.user,
+				"user": finance.user,
+				"unit": row.unit,
+				"unit_description": row.unit_description,
+				"cost_center": row.cost_center_erp,
+				"cost_center_description": row.cost_center_description,
+				"cost_center_id": row.cost_center,
+				"location_code_id": row.location_code,
+				"location_code": row.location_code_erp,
+				"location_description": row.location_description,
+				"state": row.state,
+			})
+
+	return results

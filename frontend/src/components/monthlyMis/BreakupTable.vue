@@ -42,7 +42,13 @@
           <tr class="fc-row-head">
             <td class="fc-td fc-sticky-col bg-fc-blue-light text-left font-bold dark:bg-transparent" colspan="10">{{ sec.label }}</td>
           </tr>
-          <tr v-for="r in sec.rows" :key="r.label" class="cursor-pointer" @click="$emit('drill', r.label)">
+          <tr
+            v-for="r in sec.rows"
+            :key="r.label"
+            class="cursor-pointer"
+            :class="r.isSub ? 'fc-row-sub' : ''"
+            @click="$emit('drill', r.label)"
+          >
             <td class="fc-td fc-sticky-col bg-white text-left dark:bg-gray-900" :class="r.isSub ? 'pl-8' : 'pl-4'">{{ r.label }}</td>
             <td class="fc-td text-right"><MisAmount :value="r.v.ob * 1e7" :context="`${r.label} · Opex Budget`" /></td>
             <td class="fc-td text-right"><MisAmount :value="r.v.oa * 1e7" :context="`${r.label} · Opex Actuals`" /></td>

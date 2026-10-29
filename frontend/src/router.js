@@ -49,6 +49,16 @@ const routes = [
     component: () => import('@/pages/BudgetVsActual.vue'),
   },
   {
+    path: '/budget-import-template',
+    name: 'BudgetImportTemplate',
+    component: () => import('@/pages/BudgetImportTemplate.vue'),
+  },
+  {
+    path: '/combination-reconciliation',
+    name: 'CombinationReconciliation',
+    component: () => import('@/pages/CombinationReconciliation.vue'),
+  },
+  {
     path: '/:doctypeRoute',
     name: 'DoctypeList',
     component: () => import('@/pages/DoctypeList.vue'),

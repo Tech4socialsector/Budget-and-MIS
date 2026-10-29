@@ -10840,7 +10840,7 @@ frappe.pages["import-template"].on_page_load = function (wrapper) {
 		}
 
 		frappe.call({
-			method  : "budget_mis.api.export_reports.start_budget_template_generation",
+			method  : "budget_mis.api_1.budget_import_template.start_budget_template_generation",
 			args    : {
 				user        : userEmail,
 				entity_data : entityDataArg   /* null = full template; JSON string = selected rows with all fields */
@@ -10858,7 +10858,7 @@ frappe.pages["import-template"].on_page_load = function (wrapper) {
 					if (polling || stopped) return;
 					polling = true;
 					fetch(
-						"/api/method/budget_mis.api.export_reports.download_generated_template?user=" + encodeURIComponent(userEmail),
+						"/api/method/budget_mis.api_1.budget_import_template.download_generated_template?user=" + encodeURIComponent(userEmail),
 						{ headers: { "X-Frappe-CSRF-Token": frappe.csrf_token } }
 					)
 					.then(function (resp) {
@@ -11303,7 +11303,7 @@ frappe.pages["import-template"].on_page_load = function (wrapper) {
 	$container.html('<div class="loading-state"><i class="fa fa-spinner fa-spin"></i> Loading Data...</div>');
 
 	frappe.call({
-		method  : "budget_mis.api.filter_options.get_user_mappings",
+		method  : "budget_mis.api_1.filter_options.get_user_mappings",
 		callback: function (r) {
 			if (!r.message || !r.message.length) {
 				$container.html('<div class="empty-state"><i class="fa fa-inbox"></i> No Data Found</div>');

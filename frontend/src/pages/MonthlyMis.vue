@@ -54,8 +54,9 @@
           <!-- Refresh + the Cr/full-number toggle are controls ON the
           filters (they affect what's shown for the already-chosen FY/
           month), so they sit alongside Financial Year/Month in the same
-          filter row instead of being grouped with Export (a one-off
-          action, unrelated to the filter state itself). -->
+          filter row. Export lives in this row too now, right-aligned via
+          the wrapping flex, even though it's a one-off action rather than
+          a filter - keeping every control in one row saves vertical space. -->
           <div class="flex items-end gap-4">
             <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
               <template #prefix>
@@ -65,14 +66,14 @@
             </Button>
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-end gap-4">
-          <Button variant="solid" theme="gray" @click="exportMis">
-            <template #prefix>
-              <FeatherIcon name="download" class="h-4 w-4" />
-            </template>
-            Export
-          </Button>
+          <div class="flex items-end justify-end gap-4 lg:col-start-5">
+            <Button variant="solid" theme="gray" @click="exportMis">
+              <template #prefix>
+                <FeatherIcon name="download" class="h-4 w-4" />
+              </template>
+              Export
+            </Button>
+          </div>
         </div>
       </div>
 
