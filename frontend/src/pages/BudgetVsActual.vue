@@ -13,10 +13,12 @@
 -->
 <template>
   <AppLayout>
-    <div class="flex flex-col gap-4">
-      <!-- Filters -->
-      <div class="flex flex-col gap-3">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="flex flex-col gap-6">
+      <!-- Filters: plain, unframed row - no card surface. Get Report and the
+      Cr/full-number toggle sit in the same grid, right after the last
+      filter field, instead of their own separate row below. -->
+      <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect v-model="financialYearSelection" :options="financialYearOptions" placeholder="Select year" class="w-full" />
@@ -27,7 +29,10 @@
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Operating Units</label>
-            <MultiSelect v-model="themeSelection" :options="themeOptions" :loading="themeLoading" placeholder="All operating units" class="w-full" />
+            <MultiSelect v-model="themeSelection" :options="themeOptions" :loading="themeLoading || themeMappingLoading" placeholder="All operating units" class="w-full" />
+            <p v-if="themeMappingEmpty" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+              No units/cost centers are set up for this Operating Unit yet - showing all data instead.
+            </p>
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Unit</label>
@@ -42,94 +47,101 @@
             <MultiSelect v-model="baFilters.locationCodes" :options="locationCodeOptions" :disabled="!baFilters.units.length" placeholder="All location codes" class="w-full" />
           </div>
         </div>
-        <Button variant="solid" theme="gray" class="self-start" :loading="actualsLoading" @click="loadActuals">
-          <template #prefix><FeatherIcon name="search" class="h-4 w-4" /></template>
-          Get Report
-        </Button>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <Button variant="solid" theme="gray" :loading="actualsLoading" :disabled="themeMappingLoading" @click="loadActuals">
+            <template #prefix><FeatherIcon name="search" class="h-4 w-4" /></template>
+            Get Report
+          </Button>
+          <Switch v-if="actualsHeads.length" v-model="showFullNumbers" :label="showFullNumbers ? 'Show in Cr' : 'Show full numbers'" />
+        </div>
       </div>
 
       <ErrorMessage v-if="actualsError" :message="actualsErrorMessage" />
       <div v-else-if="actualsLoading">
         <AppLoader label="Loading budget vs actuals..." />
       </div>
-      <div v-else-if="!actualsHeads.length" class="p-16 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div v-else-if="!actualsHeads.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
         Choose filters and click "Get Report" to see the budget vs actuals breakdown.
       </div>
       <template v-else>
-        <div class="flex items-center justify-end">
-          <Switch v-model="showFullNumbers" label="Show full numbers" />
-        </div>
 
-        <!-- Grand Total + Expense Head + Sub Head KPI cards - ports the Desk
-        page's own card design exactly (left accent border, Budget/Actual
-        row, Variance/Util % row, progress bar), including its section
-        labels and grid widths (Grand Total full-width, Expense Heads 2-up,
-        each head's Sub Heads 3-up beneath their own tinted label). -->
-        <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Grand Total</div>
-        <BudgetActualKpiCard
-          large
-          clickable
-          label="Grand Total"
-          :budget="actualsGrandBudget"
-          :actual="actualsGrandActual"
-          accent-color="#0076B6"
-          :format-amount="formatAmount"
-          :utilization-color="utilizationColor"
-          @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
-        />
-
-        <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Expense Heads</div>
-        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <BudgetActualKpiCard
-            v-for="(head, i) in actualsHeads"
-            :key="head.name"
+        <!-- Grand Total, Expense Head, and Sub Head cards all share one
+        donut + stat-tile design (BudgetActualDonutCard) - a 2-segment
+        Actual-vs-Remaining donut plus Total/Actual/Remaining stat tiles,
+        scaled down at each tier (`large` / default / `small`) rather than
+        switching to a different card design for Sub Heads. -->
+        <div class="flex flex-col gap-2.5">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Grand Total</div>
+          <BudgetActualDonutCard
+            large
             clickable
-            :label="head.name"
-            :budget="treeTotal(head, nodeBudget)"
-            :actual="treeTotal(head, nodeActual)"
-            :accent-color="accentColor(i)"
+            label="Budget vs Actuals"
+            icon="bar-chart-2"
+            :budget="actualsGrandBudget"
+            :actual="actualsGrandActual"
             :format-amount="formatAmount"
             :utilization-color="utilizationColor"
-            @click="openDrilldown(head, 'actuals')"
+            @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
           />
         </div>
 
+        <div class="flex flex-col gap-2.5">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Expense Heads</div>
+          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            <template v-for="(head, i) in actualsHeads" :key="head.name">
+              <BudgetActualDonutCard
+                v-if="treeTotal(head, nodeBudget) || treeTotal(head, nodeActual)"
+                clickable
+                :label="head.name"
+                :icon="headIcon(head.name)"
+                :budget="treeTotal(head, nodeBudget)"
+                :actual="treeTotal(head, nodeActual)"
+                :format-amount="formatAmount"
+                :utilization-color="utilizationColor"
+                @click="openDrilldown(head, 'actuals')"
+              />
+            </template>
+          </div>
+        </div>
+
         <template v-for="(head, i) in actualsHeads" :key="'subs-' + head.name">
-          <template v-if="head.sub_heads?.length">
+          <div v-if="nonZeroActualsSubHeads(head).length" class="flex flex-col gap-2.5">
             <div class="text-[11px] font-bold uppercase tracking-wider" :style="{ color: accentColor(i) }">
               <span class="text-gray-400 opacity-60 dark:text-gray-500">Sub Heads —</span> {{ head.name }}
             </div>
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <BudgetActualKpiCard
-                v-for="sub in head.sub_heads"
+              <BudgetActualDonutCard
+                v-for="sub in nonZeroActualsSubHeads(head)"
                 :key="sub.name"
+                small
                 clickable
                 :label="sub.name"
+                :icon="headIcon(head.name)"
                 :budget="treeTotal(sub, nodeBudget)"
                 :actual="treeTotal(sub, nodeActual)"
-                :accent-color="accentColor(i)"
                 :format-amount="formatAmount"
                 :utilization-color="utilizationColor"
                 @click="openDrilldown(sub, 'actuals')"
               />
             </div>
-          </template>
+          </div>
         </template>
 
-        <InsightStrip :insights="actualsInsights" />
-
-        <!-- Budget/Actuals doughnuts - matches the Desk page's own chart
-        design (budget_actuals_phase.js) exactly, per explicit request, so
-        this page looks the same as the one Desk users already know. -->
+        <!-- Budget vs Actuals by category - a grouped horizontal bar chart
+        (replacing an earlier two-donut-chart pair that compared the same
+        two magnitudes as two separate pies, cross-referenced slice by
+        slice) so Budget and Actual read directly against each other, bar
+        for bar, per category. -->
         <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <BudgetActualDoughnuts :rows="doughnutRows" />
+          <BudgetActualBarChart :rows="doughnutRows" :format-amount="formatAmount" @bar-click="(row) => openDrilldown(row.node, 'actuals')" />
         </div>
 
         <!-- Detailed table: search + expand-all + Excel export, then the
         full Expense Head -> Sub Head -> Item tree - the piece the
-        Dashboard's own "Budget vs Actuals Breakdown" tab doesn't have. -->
+        Dashboard's own "Budget vs Actuals Breakdown" tab doesn't have.
+        No card surface - plain, unframed like the filter row above. -->
         <div>
-          <div class="flex flex-wrap items-center justify-between gap-3 pb-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
             <FormControl type="text" v-model="tableSearch" placeholder="Search Expense Head / Sub Head / Item..." class="fc-search-input">
               <template #prefix><FeatherIcon name="search" class="h-4 w-4 text-gray-400" /></template>
             </FormControl>
@@ -165,7 +177,7 @@
                     <td class="fc-td text-right">{{ formatAmount(treeTotal(head, nodeBudget)) }}</td>
                     <td class="fc-td text-right">{{ formatAmount(treeTotal(head, nodeActual)) }}</td>
                     <td class="fc-td text-right" :style="{ color: utilizationColor(utilizationPct(head)) }">{{ utilizationPct(head) }}%</td>
-                    <td class="fc-td text-right">{{ formatAmount(treeTotal(head, nodeBudget) - treeTotal(head, nodeActual)) }}</td>
+                    <td class="fc-td text-right" :style="{ color: varianceColor(treeTotal(head, nodeBudget) - treeTotal(head, nodeActual)) }">{{ formatAmount(treeTotal(head, nodeBudget) - treeTotal(head, nodeActual)) }}</td>
                   </tr>
 
                   <template v-if="isHeadOpen(head.name)">
@@ -180,7 +192,7 @@
                         <td class="fc-td text-right">{{ formatAmount(treeTotal(sub, nodeBudget)) }}</td>
                         <td class="fc-td text-right">{{ formatAmount(treeTotal(sub, nodeActual)) }}</td>
                         <td class="fc-td text-right" :style="{ color: utilizationColor(utilizationPct(sub)) }">{{ utilizationPct(sub) }}%</td>
-                        <td class="fc-td text-right">{{ formatAmount(treeTotal(sub, nodeBudget) - treeTotal(sub, nodeActual)) }}</td>
+                        <td class="fc-td text-right" :style="{ color: varianceColor(treeTotal(sub, nodeBudget) - treeTotal(sub, nodeActual)) }">{{ formatAmount(treeTotal(sub, nodeBudget) - treeTotal(sub, nodeActual)) }}</td>
                       </tr>
                       <tr
                         v-if="isSubOpen(head.name, sub.name)"
@@ -198,7 +210,7 @@
                         <td class="fc-td text-right">{{ formatAmount(itemBudget(item)) }}</td>
                         <td class="fc-td text-right">{{ formatAmount(itemActual(item)) }}</td>
                         <td class="fc-td text-right" :style="{ color: utilizationColor(itemUtil(item)) }">{{ itemUtil(item) }}%</td>
-                        <td class="fc-td text-right">{{ formatAmount(itemBudget(item) - itemActual(item)) }}</td>
+                        <td class="fc-td text-right" :style="{ color: varianceColor(itemBudget(item) - itemActual(item)) }">{{ formatAmount(itemBudget(item) - itemActual(item)) }}</td>
                       </tr>
                     </template>
                     <!-- A head with no sub_heads carries its own items directly. -->
@@ -218,7 +230,7 @@
                       <td class="fc-td text-right">{{ formatAmount(itemBudget(item)) }}</td>
                       <td class="fc-td text-right">{{ formatAmount(itemActual(item)) }}</td>
                       <td class="fc-td text-right" :style="{ color: utilizationColor(itemUtil(item)) }">{{ itemUtil(item) }}%</td>
-                      <td class="fc-td text-right">{{ formatAmount(itemBudget(item) - itemActual(item)) }}</td>
+                      <td class="fc-td text-right" :style="{ color: varianceColor(itemBudget(item) - itemActual(item)) }">{{ formatAmount(itemBudget(item) - itemActual(item)) }}</td>
                     </tr>
                   </template>
                 </template>
@@ -232,7 +244,7 @@
                   <td class="fc-td text-right">{{ formatAmount(actualsGrandBudget) }}</td>
                   <td class="fc-td text-right">{{ formatAmount(actualsGrandActual) }}</td>
                   <td class="fc-td text-right">{{ actualsGrandUtil }}%</td>
-                  <td class="fc-td text-right">{{ formatAmount(actualsGrandBudget - actualsGrandActual) }}</td>
+                  <td class="fc-td text-right" :style="{ color: varianceColor(actualsGrandBudget - actualsGrandActual) }">{{ formatAmount(actualsGrandBudget - actualsGrandActual) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -246,6 +258,14 @@
       :node="drilldownNode"
       total-mode="ytd"
       show-actuals
+      :financial-year="filters.financialYear"
+      :month="month"
+      :unit="baFilters.units.join(',')"
+      :cost-center="baFilters.costCenters.join(',')"
+      :location-code="baFilters.locationCodes.join(',')"
+      :erp-cost-center-value="erpCostCenterValues.join(',')"
+      :erp-loc-value="erpLocationValues.join(',')"
+      :theme-names="themeSelectionNames.join(',')"
     />
   </AppLayout>
 </template>
@@ -255,14 +275,13 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { MultiSelect, FormControl, FeatherIcon, ErrorMessage, Switch, Button } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
-import BudgetActualKpiCard from '@/components/BudgetActualKpiCard.vue'
-import InsightStrip from '@/components/InsightStrip.vue'
-import BudgetActualDoughnuts from '@/components/BudgetActualDoughnuts.vue'
+import BudgetActualDonutCard from '@/components/BudgetActualDonutCard.vue'
+import BudgetActualBarChart from '@/components/BudgetActualBarChart.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import { downloadXlsx } from '@/data/foundationConsolidatedData'
-import { accentColor, formatCr, formatINR } from '@/data/budgetTotals'
+import { accentColor, headIcon, formatCr, formatINR } from '@/data/budgetTotals'
 import { nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct } from '@/data/dashboardData'
 
 setPageTitle('Budget vs Actual')
@@ -304,10 +323,23 @@ async function loadUnits() {
 
 // --- Other filters ----------------------------------------------------
 const baFilters = reactive({ units: [], costCenters: [], locationCodes: [] })
-const month = ref('March')
+// Defaults to the current calendar month (e.g. "September" in September),
+// not a hardcoded month - matches financialYearOptions' own current-FY
+// default above, so the report opens already scoped to "now" instead of
+// always landing on March regardless of when it's actually opened.
+// Date.getMonth() is 0 = January ... 11 = December (calendar order); the
+// CALENDAR_MONTHS list below maps that index straight to its label, kept
+// separate from MONTH_OPTIONS which is deliberately in fiscal-year order
+// (April...March) for the dropdown itself.
+const CALENDAR_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+const CURRENT_MONTH_LABEL = CALENDAR_MONTHS[new Date().getMonth()]
+const month = ref(CURRENT_MONTH_LABEL)
 const monthSelection = computed({
   get: () => (month.value ? [month.value] : []),
-  set: (values) => { month.value = values.length ? values[values.length - 1] : 'March' },
+  set: (values) => { month.value = values.length ? values[values.length - 1] : CURRENT_MONTH_LABEL },
 })
 const costCenterOptions = ref([])
 const locationCodeOptions = ref([])
@@ -325,6 +357,19 @@ const erpLocationValues = ref([])
 // sees "theme" itself, only the resolved Unit/CC/Location filters.
 const themeOptions = ref([])
 const themeLoading = ref(false)
+// True while a theme-selection's unit/cost-center/location mapping is being
+// fetched - "Get Report" is disabled during this window so it can never
+// send the PREVIOUS (stale) filters while a just-picked Operating Unit's
+// real mapping is still in flight (the request would otherwise look
+// unaffected by the selection the user just made).
+const themeMappingLoading = ref(false)
+// True once a selected Operating Unit's mapping comes back with NO units/
+// cost-centers/locations at all (its "Cost Centre and Location Code
+// Grouping" rows are unconfigured) - without this, the filter silently
+// resolves to "all units" and the Unit/Cost Center/Location Code pickers
+// stay on their "All ..." placeholders with no sign anything happened,
+// which reads exactly like "the Operating Unit filter isn't working".
+const themeMappingEmpty = ref(false)
 const themeLabelToName = reactive({})
 const themeSelectionNames = ref([])
 const themeSelection = computed({
@@ -350,11 +395,47 @@ async function loadThemes() {
 }
 
 let suppressUnitWatch = false
+// Guards against two overlapping applyThemeSelection() calls (the user
+// changes the Operating Unit selection again before the first mapping
+// fetch has resolved) - only the call started LAST is allowed to write its
+// results, so a slow, now-stale response can never clobber a newer one.
+let themeMappingToken = 0
 async function applyThemeSelection() {
-  if (!themeSelectionNames.value.length) return
-  const results = await Promise.all(
-    themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
-  )
+  const token = ++themeMappingToken
+
+  // No Operating Units selected (including "cleared back to none") - reset
+  // to the unscoped/"all" state instead of leaving whatever the previous
+  // selection resolved to still sitting in baFilters.
+  if (!themeSelectionNames.value.length) {
+    themeMappingEmpty.value = false
+    suppressUnitWatch = true
+    baFilters.units = []
+    await nextTick()
+    suppressUnitWatch = false
+    costCenterOptions.value = []
+    locationCodeOptions.value = []
+    baFilters.costCenters = []
+    baFilters.locationCodes = []
+    erpCostCenterValues.value = []
+    erpLocationValues.value = []
+    return
+  }
+
+  themeMappingLoading.value = true
+  let results
+  try {
+    results = await Promise.all(
+      themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
+    )
+  } catch (e) {
+    if (token === themeMappingToken) themeMappingLoading.value = false
+    window.alert(e?.messages?.[0] || e?.message || 'Could not load the selected Operating Unit(s) - filters were not changed.')
+    return
+  }
+  // A newer selection has already started its own fetch - drop this
+  // (now-stale) result instead of overwriting baFilters with it.
+  if (token !== themeMappingToken) return
+
   const unitVals = new Map()
   const ccVals = new Map()
   const locVals = new Map()
@@ -386,6 +467,8 @@ async function applyThemeSelection() {
   baFilters.locationCodes = [...locVals.keys()]
   erpCostCenterValues.value = (results.flatMap((r) => r?.cost_centers || [])).map((c) => c.erp_cost_center_value).filter(Boolean)
   erpLocationValues.value = (results.flatMap((r) => r?.location_codes || [])).map((l) => l.erp_loc_value).filter(Boolean)
+  themeMappingEmpty.value = !unitVals.size && !ccVals.size && !locVals.size && !erpCostCenterValues.value.length && !erpLocationValues.value.length
+  themeMappingLoading.value = false
 }
 
 watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
@@ -425,7 +508,7 @@ async function openItemGlDrilldown(item) {
   if (!item?.sequence_id) return
   glDrilldownLoading.value = item.name
   try {
-    const rows = await call('budget_mis.api.phase_sheet.get_actual_gl_breakup', {
+    const rows = await call('budget_mis.api_1.budget_vs_actual.get_actual_gl_breakup', {
       financial_year: filters.financialYear,
       month: month.value,
       sequence_id: item.sequence_id,
@@ -434,13 +517,16 @@ async function openItemGlDrilldown(item) {
       location_code: baFilters.locationCodes.join(',') || undefined,
       erp_cost_center_value: erpCostCenterValues.value.join(',') || undefined,
       erp_loc_value: erpLocationValues.value.join(',') || undefined,
+      theme_names: themeSelectionNames.value.join(',') || undefined,
     })
     openDrilldown({
       name: item.name,
+      __isGlLevel: true,
       ytd: itemBudget(item),
       total_posted_amt_ytd: itemActual(item),
       items: (rows || []).map((r) => ({
         name: r.gl_code || 'Unspecified',
+        typeOfExpense: r.type_of_expense || '',
         ytd: 0,
         total_posted_amt: r.total_posted_amt,
       })),
@@ -463,6 +549,13 @@ function formatAmount(n) {
   return showFullNumbers.value ? formatINR(n) : formatCr(n)
 }
 
+// Variance (Budget - Actual) goes negative once Actual exceeds Budget - the
+// same over-budget signal the Util % column's own red threshold flags, so
+// this reuses that exact red rather than a separately-chosen color.
+function varianceColor(variance) {
+  return variance < 0 ? '#e34948' : undefined
+}
+
 async function loadActuals() {
   if (!filters.financialYear) return
   actualsLoading.value = true
@@ -476,6 +569,13 @@ async function loadActuals() {
       location_code: baFilters.locationCodes.join(',') || undefined,
       erp_cost_center_value: erpCostCenterValues.value.join(',') || undefined,
       erp_loc_value: erpLocationValues.value.join(',') || undefined,
+      // When an Operating Unit is selected, the backend re-resolves it into
+      // its own exact (unit, cost-center, location) row pairs and sums them
+      // separately, instead of independently AND-ing the flattened unit/
+      // cost_center/location_code sets above (which can cross-match
+      // combinations the Operating Unit never actually defined - see
+      // get_combined_actuals_report's own theme_names handling).
+      theme_names: themeSelectionNames.value.join(',') || undefined,
     })
     actualsHeads.value = result || []
   } catch (e) {
@@ -490,56 +590,12 @@ const actualsGrandBudget = computed(() => actualsHeads.value.reduce((sum, h) => 
 const actualsGrandActual = computed(() => actualsHeads.value.reduce((sum, h) => sum + treeTotal(h, nodeActual), 0))
 const actualsGrandUtil = computed(() => (actualsGrandBudget.value > 0 ? Math.round((actualsGrandActual.value / actualsGrandBudget.value) * 100) : 0))
 
-// Heads plus their sub-heads, each carrying its own utilization % - used to
-// rank by utilization instead of by document order.
-const actualsRankableRows = computed(() => {
-  const rows = []
-  for (const head of actualsHeads.value) {
-    if (treeTotal(head, nodeBudget) > 0) rows.push(head)
-    for (const sub of head.sub_heads || []) {
-      if (treeTotal(sub, nodeBudget) > 0) rows.push(sub)
-    }
-  }
-  return rows
-})
-
-const actualsInsights = computed(() => {
-  const rows = actualsRankableRows.value
-  if (!rows.length) return []
-  const ranked = [...rows].sort((a, b) => utilizationPct(b) - utilizationPct(a))
-  const highest = ranked[0]
-  const lowest = ranked[ranked.length - 1]
-  const overCount = rows.filter((r) => utilizationPct(r) > 100).length
-
-  const insights = [
-    {
-      label: 'Highest Utilization',
-      value: highest.name,
-      detail: `${utilizationPct(highest)}% of ${formatAmount(treeTotal(highest, nodeBudget))} budget spent`,
-      icon: 'alert-triangle',
-      color: utilizationColor(utilizationPct(highest)),
-      onClick: () => openDrilldown(highest),
-    },
-  ]
-  if (lowest !== highest) {
-    insights.push({
-      label: 'Lowest Utilization',
-      value: lowest.name,
-      detail: `${utilizationPct(lowest)}% of ${formatAmount(treeTotal(lowest, nodeBudget))} budget spent`,
-      icon: 'battery',
-      color: utilizationColor(utilizationPct(lowest)),
-      onClick: () => openDrilldown(lowest),
-    })
-  }
-  insights.push({
-    label: 'Over Budget',
-    value: `${overCount} of ${rows.length}`,
-    detail: overCount ? 'heads/sub-heads exceeding 100% utilization' : 'nothing over budget yet',
-    icon: 'alert-circle',
-    color: overCount ? '#e34948' : '#1baf7a',
-  })
-  return insights
-})
+// Zero-value cards (no budget AND no actual) carry no information worth a
+// whole card - skipped here rather than rendered as an empty "0%/₹0" tile
+// (e.g. an Expense Head or Sub Head with nothing allocated/spent this period).
+function nonZeroActualsSubHeads(head) {
+  return (head.sub_heads || []).filter((sub) => treeTotal(sub, nodeBudget) || treeTotal(sub, nodeActual))
+}
 
 // --- Budget/Actual doughnuts (Budget Breakdown / Actuals Breakdown) -------
 // Ports the Desk page's own flatten rule exactly (budget_actuals_phase.js,
@@ -563,6 +619,7 @@ const doughnutRows = computed(() => {
     label: row.name,
     budget: Math.round(treeTotal(row, nodeBudget)),
     actual: Math.round(treeTotal(row, nodeActual)),
+    node: row,
   }))
 })
 
@@ -631,7 +688,7 @@ async function exportExcel() {
   if (!actualsHeads.value.length) return
   exporting.value = true
   try {
-    const result = await call('budget_mis.api.export_reports.export_budget_vs_actual', {
+    const result = await call('budget_mis.api_1.export_reports.export_budget_vs_actual', {
       financial_year: filters.financialYear,
       month: month.value,
       heads_data: JSON.stringify(actualsHeads.value),

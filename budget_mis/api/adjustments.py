@@ -1,6 +1,25 @@
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.api.response_crypto import is_direct_http_call
 import frappe
 from collections import defaultdict
+
+
+# Neither function below takes a unit param to scope by - they always
+# return every unit's adjustment rows org-wide. Filtering the OUTPUT by
+# business_unit on a genuine direct HTTP call closes the same cross-tenant
+# leak the rest of this app's endpoints are scoped against, without
+# changing the function signature or breaking internal callers (e.g.
+# api/erp_actuals.py, which needs the full unscoped set to merge into its
+# own already-scoped actuals pipeline).
+def _scope_rows_to_allowed_units(rows, fn):
+    if not is_direct_http_call(fn):
+        return rows
+    allowed_units = get_allowed_units()
+    if allowed_units is None:
+        return rows
+    if not allowed_units:
+        return []
+    return [r for r in rows if str(r.get("business_unit")) in allowed_units]
 
 
 @guest_api
@@ -88,7 +107,7 @@ def get_adjustments_month_wise(financial_year=None, month=None):
             })
 
     frappe.logger().debug(f"Total month-wise records: {len(result)}")
-    return result
+    return _scope_rows_to_allowed_units(result, get_adjustments_month_wise)
 
 
 
@@ -176,5 +195,5 @@ def get_monthly_adjustments(financial_year=None, month=None):
         })
 
     frappe.logger().info(f"Total grouped records: {len(result)}")
-    return result
+    return _scope_rows_to_allowed_units(result, get_monthly_adjustments)
 

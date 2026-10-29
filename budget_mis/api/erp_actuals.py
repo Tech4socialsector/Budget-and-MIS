@@ -7,10 +7,33 @@ import frappe
 import requests
 
 from budget_mis.api.adjustments import get_adjustments_month_wise, get_monthly_adjustments
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api.erp_utils import get_peoplesoft_prod_credentials, financial_year_label
 
 ACTUALS_CACHE_TTL = 15 * 60
+
+
+# fetch_actuals_month_wise/fetch_actuals_ytd take no unit param at all and
+# are cached+shared across every caller - correct for internal callers
+# (which must keep seeing everything and filter it themselves afterward),
+# but these are also directly reachable from the live Vue "ERP Actuals"
+# page (ErpActuals.vue), so a direct HTTP call previously returned the
+# ENTIRE organization's raw ERP actuals to any logged-in user regardless of
+# their own Finance user access - the same cross-tenant leak already fixed
+# in api_1/grouped_actuals.py, in this older parallel module. Filtering the
+# already-computed/cached result on the way OUT (never mutating the cached
+# object itself) closes this without touching the shared-cache-then-filter
+# behavior internal callers depend on.
+def _scope_rows_to_allowed_units(rows, fn):
+    if not is_direct_http_call(fn):
+        return rows
+    allowed_units = get_allowed_units()
+    if allowed_units is None:
+        return rows
+    if not allowed_units:
+        return []
+    return [r for r in rows if str(r.get("business_unit")) in allowed_units]
 
 
 # * ==============================================================  PeopleSoft API - Testing server  =====================================================================================
@@ -27,6 +50,7 @@ def fetch_actuals_ytd_legacy(fiscal_year, accounting_period):
         return month_wise
 
     rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
+    rows = _scope_rows_to_allowed_units(rows, fetch_actuals_ytd_legacy)
 
     return {
         "status": "success",
@@ -63,7 +87,7 @@ def fetch_actuals_ytd(fiscal_year, accounting_period):
 
     erp_rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
     frappe_rows = get_monthly_adjustments(financial_year_label(fiscal_year), accounting_period)
-    combined_rows = erp_rows + frappe_rows
+    combined_rows = _scope_rows_to_allowed_units(erp_rows + frappe_rows, fetch_actuals_ytd)
 
     return {
         "status": "success",
@@ -80,11 +104,15 @@ def fetch_actuals_month_wise(fiscal_year, accounting_period):
     cache_key = f"budget_mis:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
     cached = frappe.cache().get_value(cache_key)
     if cached is not None:
+        if is_direct_http_call(fetch_actuals_month_wise):
+            return {**cached, "data": _scope_rows_to_allowed_units(cached.get("data", []), fetch_actuals_month_wise)}
         return cached
 
     result = _fetch_actuals_month_wise_raw(fiscal_year, accounting_period)
     if result.get("status") == "success":
         frappe.cache().set_value(cache_key, result, expires_in_sec=ACTUALS_CACHE_TTL)
+    if is_direct_http_call(fetch_actuals_month_wise):
+        return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), fetch_actuals_month_wise)}
     return result
 
 
@@ -494,6 +522,13 @@ def export_actuals_excel(fiscal_year, accounting_period, rows=None, method_key=N
             frappe.throw(result.get("error") or "ERP request failed")
 
         rows = result.get("data") or []
+        # fn() is an INTERNAL call here (export_actuals_excel is the one
+        # actually dispatched over HTTP, under its own cmd name) - fn's own
+        # is_direct_http_call check never fires for this call path, so the
+        # export would otherwise bypass the scoping just added to
+        # fetch_actuals_ytd/fetch_actuals_month_wise and download every
+        # unit's actuals regardless of the caller's own Finance user access.
+        rows = _scope_rows_to_allowed_units(rows, export_actuals_excel)
 
     # fiscal_year is dropped — same as the on-screen table, it just repeats
     # the fiscal_year/accounting_period already shown for the whole export.

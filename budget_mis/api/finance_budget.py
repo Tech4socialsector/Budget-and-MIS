@@ -1,4 +1,5 @@
-from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.utils import guest_api, get_allowed_units, require_unit_access
+from budget_mis.api.response_crypto import is_direct_http_call
 import frappe
 
 @frappe.whitelist()
@@ -25,7 +26,7 @@ def get_all_finance_budgets():
 
 
 @guest_api
-def get_consolidated_report(financial_year=None):
+def get_consolidated_report(financial_year=None, units=None):
     """
     Consolidated Budget Report grouped by:
     Entity → Cost Center → Expense Type
@@ -35,9 +36,24 @@ def get_consolidated_report(financial_year=None):
     - Each Entity (sum of all its cost centers)
     """
 
+    # Previously had no unit scoping at all - always returned every Finance
+    # Budget org-wide to any caller, unlike its sibling get_all_finance_
+    # Budgets above, which already scopes correctly via get_allowed_units.
+    if is_direct_http_call(get_consolidated_report):
+        if units:
+            require_unit_access(units)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"entities": []}
+                units = ",".join(sorted(allowed_units))
+
     filters = {}
     if financial_year:
         filters["financial_year"] = financial_year
+    if units:
+        filters["set_id"] = ["in", [u.strip() for u in units.split(",") if u.strip()]]
 
     # 1️⃣ Fetch all Finance Budgets
     budgets = frappe.get_all(

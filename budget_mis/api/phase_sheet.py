@@ -256,6 +256,24 @@ def get_combined_actuals(
     erp_loc_value=None,
     erp_cost_center_value=None
 ):
+    # Only scope on a genuine direct HTTP call - internal callers pass
+    # unit=None intentionally to get an unscoped result and must not be
+    # narrowed by whatever the current session user happens to be (same
+    # convention as get_consolidated_report_actual_ytd above, and
+    # api_1/budget_vs_actual.py's own get_combined_actuals_report). Without
+    # this, any logged-in user could call this endpoint directly with
+    # another unit's code (or omit it) and see that unit's - or the whole
+    # organization's - actuals, regardless of their own Finance user access.
+    if is_direct_http_call(get_combined_actuals):
+        if unit:
+            require_unit_access(unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return []
+                unit = ",".join(sorted(allowed_units))
+
     from decimal import Decimal, ROUND_HALF_UP
 
     def to_decimal(value):
@@ -490,6 +508,19 @@ def get_actual_gl_breakup(
     if not sequence_id:
         frappe.throw("sequence_id is required")
 
+    # Same unit-access scoping as get_combined_actuals above - previously
+    # had none at all, meaning any user could pull another unit's GL-code
+    # breakdown directly.
+    if is_direct_http_call(get_actual_gl_breakup):
+        if unit:
+            require_unit_access(unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return []
+                unit = ",".join(sorted(allowed_units))
+
     result = get_gl_breakup_for_item(
         month=month,
         financial_year=financial_year,
@@ -705,6 +736,19 @@ def get_consolidated_report_ytd(
 
     if not month:
         frappe.throw("month month is required")
+
+    # Same unit-access scoping as get_consolidated_report_actual_ytd above -
+    # this function had none at all.
+    if is_direct_http_call(get_consolidated_report_ytd):
+        if units:
+            require_unit_access(units)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return []
+                units = ",".join(sorted(allowed_units))
+
     filters = {"financial_year": financial_year}
 
     if units:

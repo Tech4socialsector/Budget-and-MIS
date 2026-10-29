@@ -162,13 +162,22 @@ page_renderer = ["budget_mis.website.sw_renderer.ServiceWorkerRenderer"]
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# "Overview number cards settings" docs drive get_combination_table_settings_test's
+# own short-TTL cache (api_1/number_card_settings.py) - cleared immediately on
+# save/delete so an admin's edit takes effect right away instead of waiting
+# out the TTL, rather than this being the only thing standing between an
+# edit and it showing up. "Expenses" rows drive get_combined_actuals's own
+# in-process skeleton cache (api_1/budget_actuals_combined.py) the same way.
+doc_events = {
+	"Overview number cards settings": {
+		"on_update": "budget_mis.startup.clear_combination_table_settings_cache",
+		"on_trash": "budget_mis.startup.clear_combination_table_settings_cache",
+	},
+	"Expenses": {
+		"on_update": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
+		"on_trash": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
+	},
+}
 
 # Scheduled Tasks
 # ---------------

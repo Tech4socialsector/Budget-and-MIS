@@ -141,8 +141,35 @@ def resolve_grouped_units_tree(doc, _visited=None):
 
 
 # Fetches every "Overview number cards settings" doc, resolves each into grouped_units, and groups the results by table_name (from each doc's combination_table_settings rows), optionally filtered to specific table names.
+#
+# Cached (short TTL, see CACHE_TTL_SECONDS below) and invalidated immediately
+# on any "Overview number cards settings" save/delete (see startup.py's
+# clear_combination_table_settings_cache, wired via hooks.py doc_events) -
+# this is pure admin-configured master data, re-derived from scratch via a
+# frappe.get_doc PER CARD (with child tables) every call otherwise, and was
+# previously called 3 TIMES per single Monthly MIS page load
+# (get_monthly_mis_break_up for current year, again for previous year, and
+# get_monthly_mis_drilldown_tree) with no sharing between those calls -
+# a 20-30 card settings table meant 60-90+ redundant frappe.get_doc calls
+# per page load, identical every time. Caching collapses that to one real
+# computation per table_name_filter, shared across every caller AND every
+# concurrent user, until the next edit invalidates it.
+CACHE_TTL_SECONDS = 5 * 60
+
+
 @guest_api
 def get_combination_table_settings_test(table_name_filter=None):
+    cache_key = f"budget_mis:combination_table_settings:{table_name_filter or ''}"
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached
+
+    result = _get_combination_table_settings_raw(table_name_filter)
+    frappe.cache().set_value(cache_key, result, expires_in_sec=CACHE_TTL_SECONDS)
+    return result
+
+
+def _get_combination_table_settings_raw(table_name_filter=None):
 
     results = {}
 

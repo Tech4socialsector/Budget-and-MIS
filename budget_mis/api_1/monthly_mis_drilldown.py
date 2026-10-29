@@ -1,6 +1,7 @@
 import frappe
 
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.helper import get_accounting_period_from_month, get_previous_financial_year
 from budget_mis.api_1.grouped_actuals import group_actuals_ytd
 from budget_mis.api_1.number_card_settings import get_combination_table_settings_test, resolve_grouped_units_tree
@@ -160,10 +161,10 @@ def _leaf_entity_node(gu, financial_year, month, grouped_actuals_data):
 
 
 # Walks a resolve_grouped_units_tree() node bottom-up, building a drill-down node at every level: a "Define by Card Mapping" node recurses into each child, then sums all descendants' actuals together via _consolidate_actuals into its own node's "actuals". A leaf ("Define by Cost Centre and Location Code") node is TWO levels: the leaf itself gets its own total from grouped_units (merged by unit - the same math get_monthly_mis_break_up already verifies), but its drill-down children come from grouped_rows (one real cost_center+location_code pair per row, NOT merged) so a card with e.g. 3 cost centers x 3 locations shows all 9 real combinations instead of one collapsed row - each with its own line items. Every level, from the top-level card down to a single raw row, carries both its own totals AND its children for the next drill-down step.
-def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data):
+def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data, allowed_units=None):
     if tree_node["children"]:
         children = [
-            _build_drilldown_node(child, financial_year, month, grouped_actuals_data)
+            _build_drilldown_node(child, financial_year, month, grouped_actuals_data, allowed_units)
             for child in tree_node["children"]
         ]
         actuals = _consolidate_actuals([c["actuals"] for c in children])
@@ -174,15 +175,25 @@ def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data
             "children": children,
         }
 
+    # allowed_units is None for an admin/internal caller (no restriction);
+    # for a scoped direct HTTP call it narrows this leaf-level card's own
+    # grouped_units/grouped_rows fan-out to only units the calling user can
+    # see - same convention as get_monthly_mis_break_up's own scoping.
+    grouped_units = tree_node["grouped_units"]
+    grouped_rows = tree_node["grouped_rows"]
+    if allowed_units is not None:
+        grouped_units = [gu for gu in grouped_units if str(gu.get("unit")) in allowed_units]
+        grouped_rows = [row for row in grouped_rows if str(row.get("unit")) in allowed_units]
+
     unit_nodes = [
         _leaf_entity_node(gu, financial_year, month, grouped_actuals_data)
-        for gu in tree_node["grouped_units"]
+        for gu in grouped_units
     ]
     actuals = _consolidate_actuals([n["actuals"] for n in unit_nodes])
 
     row_children = [
         _leaf_entity_node(row, financial_year, month, grouped_actuals_data)
-        for row in tree_node["grouped_rows"]
+        for row in grouped_rows
     ]
     return {
         "label": tree_node["label"],
@@ -194,12 +205,24 @@ def _build_drilldown_node(tree_node, financial_year, month, grouped_actuals_data
 
 # Top-level entry point: for every card tagged under table_name_filter, resolves its full sub-item hierarchy (card -> sub-items -> ... -> cost-center+location pairs) with EVERY level's own actuals computed bottom-up from the same per-leaf get_combined_actuals calls get_monthly_mis_break_up already makes - no actuals are re-queried per level, only summed in memory - so a Vue drill-down UI can navigate from a card's total down to a single cost-center+location's line items without any further API calls.
 @guest_api
-def get_monthly_mis_drilldown_tree(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None):
+def get_monthly_mis_drilldown_tree(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None, _force_scope_to_allowed_units=None):
 
     if is_previous == 1:
         financial_year = get_previous_financial_year(financial_year)
 
     raw_settings = get_combination_table_settings_test(table_name_filter)
+
+    # See get_monthly_mis_break_up's own (longer) comment on
+    # _force_scope_to_allowed_units - a public wrapper reaching this
+    # function (e.g. get_monthly_mis_page_data) must pass its own
+    # is_direct_http_call(<itself>) result down explicitly, since this
+    # function's cmd-name check would otherwise silently miss a genuine
+    # HTTP request dispatched under the wrapper's own name.
+    if _force_scope_to_allowed_units is not None:
+        scope_to_allowed_units = _force_scope_to_allowed_units
+    else:
+        scope_to_allowed_units = is_direct_http_call(get_monthly_mis_drilldown_tree)
+    allowed_units = get_allowed_units() if scope_to_allowed_units else None
 
     formatted = get_accounting_period_from_month(month, financial_year)
     if _grouped_actuals_data is not None:
@@ -223,7 +246,7 @@ def get_monthly_mis_drilldown_tree(financial_year, month, table_name_filter=None
                 continue
             doc = frappe.get_doc("Overview number cards settings", settings_doc_name)
             tree = resolve_grouped_units_tree(doc)
-            node = _build_drilldown_node(tree, financial_year, month, grouped_actuals_data)
+            node = _build_drilldown_node(tree, financial_year, month, grouped_actuals_data, allowed_units)
             node["table_name"] = table_name
             node["is_this_sub_item"] = entry.get("combination_settings", {}).get("is_this_sub_item")
             node["sequence_id"] = entry.get("combination_settings", {}).get("sequence_id")

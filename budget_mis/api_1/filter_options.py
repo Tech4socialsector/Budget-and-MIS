@@ -228,6 +228,32 @@ def get_theme_mappings(theme_name):
 
 	grouped_units = resolve_grouped_units(doc)
 
+	# Collect every cost-center/location-code NAME across all groups first
+	# (no queries yet), then batch-fetch their label fields in two queries
+	# total instead of one frappe.get_value per row - a theme with, say, 30
+	# cost-center rows and 30 location rows previously issued 60 separate
+	# single-row queries here.
+	all_cc_names = {cc for group in grouped_units for cc in (group.get("cost_centers") or []) if cc}
+	all_loc_names = {loc for group in grouped_units for loc in (group.get("locations") or []) if loc}
+
+	cc_lookup = {}
+	if all_cc_names:
+		for cc in frappe.get_all(
+			"Cost Center",
+			filters={"name": ["in", list(all_cc_names)]},
+			fields=["name", "cost_center", "cc_descr"],
+		):
+			cc_lookup[str(cc.name)] = cc
+
+	loc_lookup = {}
+	if all_loc_names:
+		for lc in frappe.get_all(
+			"Location Code",
+			filters={"name": ["in", list(all_loc_names)]},
+			fields=["name", "location_code", "decription"],
+		):
+			loc_lookup[str(lc.name)] = lc
+
 	units = []
 	cost_centers = []
 	location_codes = []
@@ -249,7 +275,7 @@ def get_theme_mappings(theme_name):
 			if allowed_cost_centers is not None and str(cc_name) not in allowed_cost_centers:
 				continue
 			seen_cc.add(cc_name)
-			cc = frappe.get_value("Cost Center", cc_name, ["cost_center", "cc_descr"], as_dict=True) or {}
+			cc = cc_lookup.get(str(cc_name)) or {}
 			cost_centers.append({
 				"value": str(cc_name),
 				"label": f"{cc.get('cost_center', '')} - {cc.get('cc_descr', '')}",
@@ -273,7 +299,7 @@ def get_theme_mappings(theme_name):
 			if allowed_location_codes is not None and str(loc_name) not in allowed_location_codes:
 				continue
 			seen_loc.add(loc_name)
-			lc = frappe.get_value("Location Code", loc_name, ["location_code", "decription"], as_dict=True) or {}
+			lc = loc_lookup.get(str(loc_name)) or {}
 			location_codes.append({
 				"value": str(loc_name),
 				"label": f"{lc.get('location_code', '')} - {lc.get('decription', '')}",
