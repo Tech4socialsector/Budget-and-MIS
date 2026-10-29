@@ -37,11 +37,13 @@ declare module 'vue' {
     MisAmount: typeof import('./src/components/monthlyMis/MisAmount.vue')['default']
     MobileNav: typeof import('./src/components/MobileNav.vue')['default']
     MobileShell: typeof import('./src/components/MobileShell.vue')['default']
+    NoTemplateModal: typeof import('./src/components/budgetImportTemplate/NoTemplateModal.vue')['default']
     NumberCard: typeof import('./src/components/NumberCard.vue')['default']
     PageHeader: typeof import('./src/components/PageHeader.vue')['default']
     PptTab: typeof import('./src/components/foundationConsolidated/PptTab.vue')['default']
     ProfileSettingsModal: typeof import('./src/components/ProfileSettingsModal.vue')['default']
     PwaUpdatePrompt: typeof import('./src/components/PwaUpdatePrompt.vue')['default']
+    ReviewSelectionModal: typeof import('./src/components/budgetImportTemplate/ReviewSelectionModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SectionLabel: typeof import('./src/components/SectionLabel.vue')['default']
@@ -53,5 +55,6 @@ declare module 'vue' {
     SummaryInrTab: typeof import('./src/components/foundationConsolidated/SummaryInrTab.vue')['default']
     TopNavbar: typeof import('./src/components/TopNavbar.vue')['default']
     UnitDetailGrid: typeof import('./src/components/monthlyMis/UnitDetailGrid.vue')['default']
+    UserTemplateCard: typeof import('./src/components/budgetImportTemplate/UserTemplateCard.vue')['default']
   }
 }

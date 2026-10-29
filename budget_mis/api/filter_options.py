@@ -286,49 +286,10 @@ def get_location_codes_by_unit(unit=None):
 #     )
 #     return theme
 # ! =======================================================  User permission level filter values =============================================================================
-@guest_api
-def get_user_mappings():
-
-    current_user = frappe.session.user
-    roles = frappe.get_roles(current_user)
-    is_admin = "System Manager" in roles
-
-    results = []
-
-    if is_admin:
-        finance_docs = frappe.get_all(
-            "Finance user access",
-            fields=["name", "user", "user_nmae"]
-        )
-    else:
-     finance_docs = frappe.get_all(
-            "Finance user access",
-            filters={"user": current_user},
-            fields=["name", "user", "user_nmae"]
-        )
-
-    for finance in finance_docs:
-
-        doc = frappe.get_doc("Finance user access", finance.name)
-
-        for row in doc.mapping:
-
-            results.append({
-                "full_name": finance.user_nmae or finance.user,
-                "user": finance.user,
-
-                "unit": row.unit,
-                "unit_description": row.unit_description,
-                "cost_center": row.cost_center_erp,
-                "cost_center_description": row.cost_center_description,
-                "cost_center_id": row.cost_center,
-                "location_code_id": row.location_code,
-                "location_code": row.location_code_erp,
-                "location_description": row.location_description,
-                "state":row.state
-            })
-
-    return results
+# get_user_mappings moved to budget_mis.api_1.filter_options (also fixes a
+# pre-existing bug there: this version queried a nonexistent `user_nmae`
+# field instead of `user_name`, so every call threw
+# MySQLdb.OperationalError: Unknown column 'user_nmae').
 
 
 

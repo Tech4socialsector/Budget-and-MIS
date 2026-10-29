@@ -192,7 +192,15 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   white-space: nowrap;
 }
 .fc-td {
-  padding: 8px 12px;
+  /* padding-block + padding-inline-end only (never padding-left/
+     padding-inline-start/the `padding` shorthand) - this rule comes after
+     @tailwind utilities in the cascade (same specificity, 0,1,0), so
+     setting the left side here would silently beat a row's own .pl-4/
+     .pl-8 indent utility. The :where() rule just below supplies a
+     zero-specificity default left padding instead, so pl-4/pl-8 always wins
+     regardless of source order. */
+  padding-block: 8px;
+  padding-inline-end: 12px;
   border-bottom: 1px solid #e2e6ea;
   border-left: 1px solid #e2e6ea;
   white-space: nowrap;
@@ -205,6 +213,9 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
      its text color was never set either - in a dark host that's
      unstyled-dark-text on an inherited-dark background, unreadable. */
   color: #1f2937;
+}
+:where(.fc-td) {
+  padding-left: 12px;
 }
 :root:not([data-theme='light']) .fc-td,
 [data-theme='dark'] .fc-td {
@@ -234,16 +245,16 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   filter: brightness(0.97);
 }
 
-/* Sub-head-level rows: near-white blue tint - matches BudgetSummaryTable's
-   bg-subhead-row (deliberately blue, not orange, in that design). */
+/* Sub-head-level rows: light blue tint, lighter than .fc-row-head's
+   #eaf1fb so sub-items still read as subordinate to their parent, plus the
+   indent (pl-8 on the label cell). */
 .fc-row-sub {
   background-color: #f5f8fd;
-  font-weight: 500;
   cursor: pointer;
 }
 :root:not([data-theme='light']) .fc-row-sub,
 [data-theme='dark'] .fc-row-sub {
-  background-color: rgb(31 41 55 / 0.5);
+  background-color: rgb(37 60 92 / 0.2);
 }
 .fc-row-sub:hover {
   filter: brightness(0.97);

@@ -14,7 +14,7 @@ app_license = "mit"
 add_to_apps_screen = [
 	{
 		"name": "budget_mis",
-		"logo": "/assets/budget_mis/frontend/favicon.png",
+		"logo": "/assets/budget_mis/frontend/app-icon.png",
 		"title": "Budget MIS",
 		"route": "/budget-mis",
 	}
