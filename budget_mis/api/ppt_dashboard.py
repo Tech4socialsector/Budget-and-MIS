@@ -1,4 +1,5 @@
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units, require_unit_access
+from budget_mis.api.response_crypto import is_direct_http_call
 import frappe
 from frappe import _
 from frappe.utils import flt
@@ -11,6 +12,22 @@ from budget_mis.api.actual_format import get_actuals_university_ppt
 def get_university_budget_summary(financial_year=None, month=None, entity=None):
     if not financial_year:
         frappe.throw("Financial year is required")
+
+    # Only scope on a genuine direct HTTP call - internal callers (e.g.
+    # get_both_methods_data) pass entity=None intentionally to get an
+    # unscoped result and must not be narrowed by the current session user.
+    # Previously had no scoping at all: any logged-in user could pass
+    # another unit's `entity` code, or omit it, and see that unit's - or
+    # every unit's - budget summary.
+    if is_direct_http_call(get_university_budget_summary):
+        if entity:
+            require_unit_access(entity)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return []
+                entity = ",".join(sorted(allowed_units))
 
     # -------------------------------------------------------
     # Cache for Cost Center lookups (to avoid repeated DB hits)
@@ -174,6 +191,24 @@ def get_school_budget_summary(financial_year=None, month=None, cost_center=None)
     if not financial_year:
         frappe.throw(_("Financial Year is required"))
 
+    # Previously had no unit/cost-center scoping at all - any logged-in
+    # user could pass another unit's cost_center, or omit it entirely, and
+    # see every cost center's budget summary org-wide. This endpoint scopes
+    # by cost_center directly (not unit), so it's validated against the
+    # allowed COST CENTER set, not allowed units.
+    from budget_mis.utils import get_allowed_cost_centers
+    if is_direct_http_call(get_school_budget_summary):
+        allowed_cost_centers = get_allowed_cost_centers()
+        if allowed_cost_centers is not None:
+            if not allowed_cost_centers:
+                return {"message": []}
+            if cost_center:
+                requested = {c.strip() for c in cost_center.split(",") if c.strip()}
+                if not requested.issubset(allowed_cost_centers):
+                    frappe.throw(_("You do not have access to one or more of the requested cost centers"), frappe.PermissionError)
+            else:
+                cost_center = ",".join(sorted(allowed_cost_centers))
+
     # Canonical month order (ERPNext fiscal year Apr–Mar)
     months_order = [
         "april", "may", "june",
@@ -249,6 +284,21 @@ import frappe
 
 @guest_api
 def get_both_methods_data(financial_year=None, month=None, entity=None):
+    # Only scope on a genuine direct HTTP call - get_combined_university_
+    # budget_and_actuals calls this internally and passes its OWN already-
+    # scoped `entity` through, so it must not be re-narrowed here a second
+    # time against whatever the session user's allowed set looks like
+    # (double-scoping would just be redundant, not wrong, but the explicit
+    # check keeps this function correct if ever called directly too).
+    if is_direct_http_call(get_both_methods_data):
+        if entity:
+            require_unit_access(entity)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"budget_data": [], "actuals_data": {}}
+                entity = ",".join(sorted(allowed_units))
 
     # Call budget method
     budget_data = get_university_budget_summary(
@@ -275,6 +325,20 @@ import frappe
 
 @guest_api
 def get_combined_university_budget_and_actuals(financial_year=None, month=None, entity=None):
+    # This is the real, live HTTP entry point (called from the "ppt_ytd"
+    # Desk page) - scope here so the request is narrowed before it ever
+    # reaches get_both_methods_data/get_university_budget_summary/
+    # get_actuals_university_ppt, all of which treat a non-empty `entity`
+    # as internal-caller-trusted and skip their own re-scoping.
+    if is_direct_http_call(get_combined_university_budget_and_actuals):
+        if entity:
+            require_unit_access(entity)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return []
+                entity = ",".join(sorted(allowed_units))
 
     # First call: this already returns both datasets
     data = get_both_methods_data(financial_year, month, entity)

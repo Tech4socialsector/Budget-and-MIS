@@ -152,6 +152,9 @@
                     <th class="border-b border-gray-200 px-4 py-2.5 text-left font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
                       {{ childLabel }}
                     </th>
+                    <th v-if="isGlLevel" class="border-b border-l border-gray-200 px-4 py-2.5 text-left font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                      Type of Expense
+                    </th>
                     <th class="border-b border-l border-gray-200 px-4 py-2.5 text-right font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
                       Share
                     </th>
@@ -181,6 +184,9 @@
                         <FeatherIcon v-if="glLoadingName === child.name" name="loader" class="h-3.5 w-3.5 animate-spin text-gray-400" />
                         <FeatherIcon v-else-if="isDrillable(child)" name="chevron-right" class="h-3.5 w-3.5 text-gray-400" />
                       </span>
+                    </td>
+                    <td v-if="isGlLevel" class="border-l border-gray-100 px-4 py-2.5 text-gray-700 dark:border-gray-800 dark:text-gray-300">
+                      {{ child.typeOfExpense || '—' }}
                     </td>
                     <td class="border-l border-gray-100 px-4 py-2.5 dark:border-gray-800">
                       <div class="flex items-center justify-end gap-2">
@@ -270,6 +276,13 @@ const props = defineProps({
   locationCode: { type: String, default: '' },
   erpCostCenterValue: { type: String, default: '' },
   erpLocValue: { type: String, default: '' },
+  // Comma-separated Operating Unit card name(s) the caller's own filters
+  // were resolved from, if any - re-resolved server-side into its exact
+  // per-row (unit, cost-center, location) triples instead of the flattened
+  // unit/costCenter/locationCode/erp* props above, which can cross-match
+  // combinations a "Define by Card Mapping" theme never actually defined
+  // (see get_actual_gl_breakup's own theme_names handling).
+  themeNames: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -431,7 +444,7 @@ async function drillInto(child) {
   if (!canGlDrill(child)) return
   glLoadingName.value = child.name
   try {
-    const rows = await call('budget_mis.api.phase_sheet.get_actual_gl_breakup', {
+    const rows = await call('budget_mis.api_1.budget_vs_actual.get_actual_gl_breakup', {
       financial_year: props.financialYear,
       month: props.month,
       sequence_id: child.sequence_id,
@@ -440,6 +453,7 @@ async function drillInto(child) {
       location_code: props.locationCode || undefined,
       erp_cost_center_value: props.erpCostCenterValue || undefined,
       erp_loc_value: props.erpLocValue || undefined,
+      theme_names: props.themeNames || undefined,
     })
     history.value.push({
       name: child.name,
@@ -456,6 +470,7 @@ async function drillInto(child) {
       // reads, so a GL row displays correctly either way.
       items: (rows || []).map((r) => ({
         name: r.gl_code || 'Unspecified',
+        typeOfExpense: r.type_of_expense || '',
         ytd: props.showActuals ? 0 : r.total_posted_amt,
         total_posted_amt: r.total_posted_amt,
       })),

@@ -1,9 +1,29 @@
-from budget_mis.utils import guest_api
+from concurrent.futures import ThreadPoolExecutor
+
+import frappe
+
+from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.helper import get_accounting_period_from_month, get_previous_financial_year
 from budget_mis.api_1.grouped_actuals import group_actuals_ytd
 from budget_mis.api_1.number_card_settings import get_combination_table_settings_test
 from budget_mis.api_1.budget_actuals_combined import get_combined_actuals
 from budget_mis.api_1.monthly_mis_drilldown import get_monthly_mis_drilldown_tree
+
+
+def _group_actuals_ytd_in_worker(site, fiscal_year, accounting_period):
+    """Runs group_actuals_ytd on its own thread, with its own Frappe site
+    connection - frappe.local is thread-local, so a plain thread has no DB/
+    cache access without this (the same frappe.init + frappe.connect setup
+    Frappe's own background-job workers use). Only ever used for a read-only
+    call (no document writes/commits), so there's nothing to roll back or
+    commit on this thread before it exits."""
+    frappe.init(site, force=True)
+    frappe.connect()
+    try:
+        return group_actuals_ytd(fiscal_year=fiscal_year, accounting_period=accounting_period).get("data", [])
+    finally:
+        frappe.destroy()
 
 
 def _safe_join(arr):
@@ -116,12 +136,38 @@ def _consolidate_actuals(all_unit_actuals):
 
 # Top-level Monthly MIS Breakup report: for each number-card table group, builds every entry's combined budget+actuals tree (one get_combined_actuals call per grouped unit), consolidates units together, appends a GRAND TOTAL row per entry and a CONSOLIDATED TOTAL (CAPEX/OPEX/overall) row per table group.
 @guest_api
-def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None):
+def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_previous=None, _grouped_actuals_data=None, _force_scope_to_allowed_units=None):
 
     if is_previous == 1:
         financial_year = get_previous_financial_year(financial_year)
 
     raw_settings = get_combination_table_settings_test(table_name_filter)
+
+    # get_combination_table_settings_test's grouped_units come from admin-
+    # configured report settings, not from anything the caller chose - on a
+    # genuine direct HTTP call this restricts each entry's own fan-out to
+    # only the units the calling user is allowed to see (same
+    # require_unit_access/get_allowed_units convention used everywhere else
+    # in this app), rather than always returning the full org-wide
+    # breakdown regardless of the caller's own Finance user access.
+    #
+    # is_direct_http_call(get_monthly_mis_break_up) alone is NOT enough:
+    # when this function is reached through a public wrapper (e.g.
+    # get_monthly_mis_break_up_with_prev_year, get_monthly_mis_page_data),
+    # frappe.local.form_dict.cmd holds the WRAPPER's dotted path, not this
+    # function's own - so that check silently returns False and the real
+    # HTTP request goes unscoped even though it IS one. Every public
+    # wrapper below passes its own is_direct_http_call(<itself>) result
+    # down via _force_scope_to_allowed_units instead of relying on this
+    # function to re-derive it from a cmd name it was never dispatched
+    # under. A plain internal caller (no wrapper in between, like
+    # get_monthly_mis_page_data's own direct fan-out) leaves this None and
+    # falls back to its own (correct, False) is_direct_http_call check.
+    if _force_scope_to_allowed_units is not None:
+        scope_to_allowed_units = _force_scope_to_allowed_units
+    else:
+        scope_to_allowed_units = is_direct_http_call(get_monthly_mis_break_up)
+    allowed_units = get_allowed_units() if scope_to_allowed_units else None
 
     formatted = get_accounting_period_from_month(month, financial_year)
     if _grouped_actuals_data is not None:
@@ -157,6 +203,8 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
             all_unit_actuals = []
 
             for gu in entry.get("grouped_units", []):
+                if allowed_units is not None and str(gu.get("unit")) not in allowed_units:
+                    continue
                 actuals = get_combined_actuals(
                     financial_year=financial_year,
                     month=month,
@@ -238,9 +286,10 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
 # trip instead of two.
 @guest_api
 def get_monthly_mis_break_up_with_prev_year(financial_year, month, table_name_filter=None):
-    current = get_monthly_mis_break_up(financial_year, month, table_name_filter)
+    scope = is_direct_http_call(get_monthly_mis_break_up_with_prev_year)
+    current = get_monthly_mis_break_up(financial_year, month, table_name_filter, _force_scope_to_allowed_units=scope)
     previous = get_monthly_mis_break_up(
-        get_previous_financial_year(financial_year), month, table_name_filter
+        get_previous_financial_year(financial_year), month, table_name_filter, _force_scope_to_allowed_units=scope
     )
     return {"current": current, "previous": previous}
 
@@ -267,22 +316,35 @@ def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, dri
     previous_financial_year = get_previous_financial_year(financial_year)
 
     current_formatted = get_accounting_period_from_month(month, financial_year)
-    current_actuals_data = group_actuals_ytd(
-        fiscal_year=current_formatted.get("fiscal_year"),
-        accounting_period=current_formatted.get("accounting_period")
-    ).get("data", [])
-
     previous_formatted = get_accounting_period_from_month(month, previous_financial_year)
-    previous_actuals_data = group_actuals_ytd(
-        fiscal_year=previous_formatted.get("fiscal_year"),
-        accounting_period=previous_formatted.get("accounting_period")
-    ).get("data", [])
 
+    # Current-year and previous-year actuals are two INDEPENDENT ERP fetches
+    # (different fiscal_year/accounting_period, so different cache keys) -
+    # on a cold cache each is a real, slow (up to 120s) external PeopleSoft
+    # HTTP call. Running them one after another made this single page load
+    # take the sum of both worst cases; running them concurrently in their
+    # own threads (each with its own frappe.init/connect - see
+    # _group_actuals_ytd_in_worker) cuts the worst case to whichever of the
+    # two is slower, not their sum. Still exactly one request from the
+    # browser's own point of view, and still at most one ERP call per period
+    # (group_actuals_ytd's own cache check still applies inside each thread).
+    site = frappe.local.site
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        current_future = pool.submit(
+            _group_actuals_ytd_in_worker, site, current_formatted.get("fiscal_year"), current_formatted.get("accounting_period")
+        )
+        previous_future = pool.submit(
+            _group_actuals_ytd_in_worker, site, previous_formatted.get("fiscal_year"), previous_formatted.get("accounting_period")
+        )
+        current_actuals_data = current_future.result()
+        previous_actuals_data = previous_future.result()
+
+    scope = is_direct_http_call(get_monthly_mis_page_data)
     current_break_up = get_monthly_mis_break_up(
-        financial_year, month, table_name_filter, _grouped_actuals_data=current_actuals_data
+        financial_year, month, table_name_filter, _grouped_actuals_data=current_actuals_data, _force_scope_to_allowed_units=scope
     )
     previous_break_up = get_monthly_mis_break_up(
-        previous_financial_year, month, table_name_filter, _grouped_actuals_data=previous_actuals_data
+        previous_financial_year, month, table_name_filter, _grouped_actuals_data=previous_actuals_data, _force_scope_to_allowed_units=scope
     )
 
     drilldown_tree = get_monthly_mis_drilldown_tree(
@@ -290,6 +352,7 @@ def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, dri
         month,
         drilldown_table_filter if drilldown_table_filter is not None else table_name_filter,
         _grouped_actuals_data=current_actuals_data,
+        _force_scope_to_allowed_units=scope,
     )
 
     return {

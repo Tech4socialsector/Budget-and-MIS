@@ -5,6 +5,72 @@ from budget_mis.api.response_crypto import is_direct_http_call, require_login
 from budget_mis.api_1.helper import to_number, normalize
 
 
+# Process-local caches for two Expenses-derived lookups get_budget_ytd_by_
+# sequence rebuilds from scratch on EVERY call despite neither depending on
+# financial_year/units/cost_center/location_code - sequence_map (name/head/
+# sub-head/type_of_expense -> sequence_id) and expense_gl_lookup (Expenses
+# doc name -> gl_code). This function is called once per grouped_units row
+# via get_combined_actuals, so a single Monthly MIS page load previously
+# rebuilt both ~1900 times (confirmed via profiling: this function alone
+# accounted for ~11s of a 12s warm-cache page load, mostly in these two
+# Expenses re-queries). Same caching convention as budget_actuals_combined.
+# py's own _expense_structure_cache: plain module-level dict (not frappe.
+# cache(), no cross-worker sharing needed), invalidated by the same
+# Expenses on_update/on_trash hook (hooks.py) via clear_expense_lookup_caches
+# below. Both lookups are read-only dicts here (never mutated after
+# building), so no deep-copy-per-call is needed the way the mutable
+# skeleton in budget_actuals_combined.py requires.
+_sequence_map_cache = {}
+_expense_gl_lookup_cache = {}
+
+
+def _get_sequence_map():
+    site = frappe.local.site
+    cached = _sequence_map_cache.get(site)
+    if cached is not None:
+        return cached
+
+    expense_rows = frappe.db.get_all(
+        "Expenses",
+        fields=["head_of_expense", "sub_head_of_expense", "type_of_expense", "sequence_id"]
+    )
+    sequence_map = {}
+    for e in expense_rows:
+        seq = int(e.sequence_id) if e.sequence_id else 9999
+        for field in [e.head_of_expense, e.sub_head_of_expense, e.type_of_expense]:
+            key = normalize(field)
+            if key:
+                sequence_map[key] = seq
+
+    _sequence_map_cache[site] = sequence_map
+    return sequence_map
+
+
+def _get_expense_gl_lookup():
+    site = frappe.local.site
+    cached = _expense_gl_lookup_cache.get(site)
+    if cached is not None:
+        return cached
+
+    lookup = {e.name: e.gl_code for e in frappe.get_all("Expenses", fields=["name", "gl_code"])}
+    _expense_gl_lookup_cache[site] = lookup
+    return lookup
+
+
+# doc_events on_update/on_trash hook target for "Expenses" (see hooks.py) -
+# drops both lookup caches above so the next get_budget_ytd_by_sequence call
+# on this worker rebuilds them from the now-current Expenses doctype. Also
+# clears budget_actuals_combined.py's own Expenses-derived skeleton cache,
+# since both are invalidated by the same underlying doctype change and a
+# single Expenses edit should invalidate every cache derived from it at once.
+def clear_expense_lookup_caches(doc=None, method=None):
+    site = frappe.local.site
+    _sequence_map_cache.pop(site, None)
+    _expense_gl_lookup_cache.pop(site, None)
+    from budget_mis.api_1.budget_actuals_combined import clear_expense_structure_cache
+    clear_expense_structure_cache()
+
+
 # Builds the head/sub-head/item budget tree for a financial year by merging Finance Budget Amounts into the Import Templates schema.
 @guest_api
 def get_budget_summary(financial_year=None, units=None, cost_center=None, location_code=None, template_name="Budget Templat Master"):
@@ -306,29 +372,7 @@ def get_budget_ytd_by_sequence(
     # ---------------------------------------------------
     # Load Sequence Mapping
     # ---------------------------------------------------
-    expense_rows = frappe.db.get_all(
-        "Expenses",
-        fields=[
-            "head_of_expense",
-            "sub_head_of_expense",
-            "type_of_expense",
-            "sequence_id"
-        ]
-    )
-
-    sequence_map = {}
-
-    for e in expense_rows:
-        seq = int(e.sequence_id) if e.sequence_id else 9999
-
-        for field in [
-            e.head_of_expense,
-            e.sub_head_of_expense,
-            e.type_of_expense
-        ]:
-            key = normalize(field)
-            if key:
-                sequence_map[key] = seq
+    sequence_map = _get_sequence_map()
 
     # ---------------------------------------------------
     # Filters
@@ -373,10 +417,7 @@ def get_budget_ytd_by_sequence(
     if not rows:
         return []
 
-    expense_gl_lookup = {
-        e.name: e.gl_code
-        for e in frappe.get_all("Expenses", fields=["name", "gl_code"])
-    }
+    expense_gl_lookup = _get_expense_gl_lookup()
 
     # ---------------------------------------------------
     # Grouping Structure
