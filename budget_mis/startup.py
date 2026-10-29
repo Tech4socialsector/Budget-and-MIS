@@ -107,15 +107,28 @@ def warm_actuals_cache_on_login(login_manager=None):
 
 
 # on_logout hook target (see hooks.py) - drops every cached ERP actuals
-# entry this app created, both the raw fetch (budget_mis:
-# erp_actuals_month_wise:<fiscal_year>:<accounting_period>) and the derived
-# aggregation built on top of it (budget_mis:group_actuals_ytd:<fiscal_year>:
-# <accounting_period> - see api_1/grouped_actuals.py's own cache, shared by
-# Monthly MIS and Budget vs Actuals alike), any period, regardless of who's
-# logging out: the cache is shared across all users (keyed by period only,
-# not per-user), so this is a deliberate "start clean" reset rather than a
-# per-user cleanup - the next request for any period re-fetches/re
-# -aggregates fresh and re-populates its own entry, same as a cold cache.
+# entry this app created: the raw fetch (budget_mis:
+# erp_actuals_month_wise:<fiscal_year>:<accounting_period>) and both derived
+# aggregations built on top of it (budget_mis:group_actuals_ytd:... and
+# budget_mis:group_actuals_by_gl_code:... - see api_1/grouped_actuals.py's
+# own cache, shared by Monthly MIS and Budget vs Actuals alike), any period,
+# regardless of who's logging out: the cache is shared across all users
+# (keyed by period only, not per-user), so this is a deliberate "start
+# clean" reset rather than a per-user cleanup - the next request for any
+# period re-fetches/re-aggregates fresh and re-populates its own entry,
+# same as a cold cache.
 def clear_actuals_cache_on_logout(login_manager=None):
     frappe.cache().delete_keys("budget_mis:erp_actuals_month_wise:*")
     frappe.cache().delete_keys("budget_mis:group_actuals_ytd:*")
+    frappe.cache().delete_keys("budget_mis:group_actuals_by_gl_code:*")
+
+
+# doc_events on_update/on_trash hook target (see hooks.py) for "Overview
+# number cards settings" - drops get_combination_table_settings_test's own
+# short-TTL cache (api_1/number_card_settings.py) immediately whenever any
+# card's settings change, rather than leaving a stale, already-wrong result
+# (another admin's unsaved edit) cached for up to its own TTL. Keyed by
+# table_name_filter, so there's no single key to target - every variant is
+# cleared via the same wildcard pattern the actuals cache above already uses.
+def clear_combination_table_settings_cache(doc=None, method=None):
+    frappe.cache().delete_keys("budget_mis:combination_table_settings:*")

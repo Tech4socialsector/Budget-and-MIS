@@ -1,6 +1,18 @@
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units
+from budget_mis.api.response_crypto import is_direct_http_call
 import frappe
 from collections import defaultdict
+
+
+def _scope_rows_to_allowed_units(rows, fn):
+    if not is_direct_http_call(fn):
+        return rows
+    allowed_units = get_allowed_units()
+    if allowed_units is None:
+        return rows
+    if not allowed_units:
+        return []
+    return [r for r in rows if str(r.get("business_unit")) in allowed_units]
 
 
 # Reads Monthly Adjustment docs for the given financial_year (up to month, if given) and returns one row per (unit, gl_code, location, cost_center, period) combination.
@@ -89,4 +101,4 @@ def get_adjustments_month_wise(financial_year=None, month=None):
             })
 
     frappe.logger().debug(f"Total month-wise records: {len(result)}")
-    return result
+    return _scope_rows_to_allowed_units(result, get_adjustments_month_wise)

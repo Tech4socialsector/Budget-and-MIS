@@ -1,3 +1,4 @@
+import copy
 from decimal import Decimal, ROUND_HALF_UP
 
 import frappe
@@ -26,30 +27,37 @@ def _to_list(value):
     return None
 
 
-# The merge point: builds one head/sub-head/item tree from the Expenses schema, fills "ytd" from get_budget_ytd_by_sequence (budget) and "total_posted_amt"/"total_posted_amt_ytd" from grouped_actuals_data (real ERP actuals, e.g. group_actuals_ytd's own output, pre-filtered to this unit/cost-center/location slice) side by side on the same nodes.
-def get_combined_actuals(
-    financial_year=None,
-    month=None,
-    unit=None,
-    cost_center=None,
-    location_code=None,
-    erp_loc_value=None,
-    erp_cost_center_value=None,
-    grouped_actuals_data=None
-):
-    MOVE_UNDER_OPERATING = [
-        "OTHER  OPERATING EXPENSES",
-        "Medical Expenses"
-    ]
+_MOVE_UNDER_OPERATING = [
+    "OTHER  OPERATING EXPENSES",
+    "Medical Expenses"
+]
 
-    CAPITAL_HEAD = "CAPITAL  EXPENSES"
-    OPERATING_HEAD = "OPERATING  EXPENSES"
-    COVID_HEAD = "COVID SUPPORT"
+_CAPITAL_HEAD = "CAPITAL  EXPENSES"
+_OPERATING_HEAD = "OPERATING  EXPENSES"
+_COVID_HEAD = "COVID SUPPORT"
 
-    # --------------------------------------------------
-    # Build Base Structure (from Expenses, every node starts at zero)
-    # --------------------------------------------------
+# Process-local cache for the head/sub-head/item skeleton built from the
+# Expenses doctype - pure master data with no dependency on financial_year/
+# unit/cost_center/etc, but get_combined_actuals previously rebuilt it from
+# scratch (a frappe.get_all + nested dict construction + sort) on EVERY
+# call, and this function is called once per grouped_units row - a single
+# Monthly MIS page load fans out to ~1900 get_combined_actuals calls
+# (confirmed via profiling: ~12s of a warm-cache page load was this
+# function, ~8s of that in redundant Expenses queries alone). Cached in a
+# plain module-level dict (not frappe.cache(), since this never needs to be
+# shared across workers/processes - each worker rebuilds it once on first
+# use and keeps it for the worker's lifetime) and invalidated whenever an
+# Expenses doc is saved/deleted (see startup.py's
+# clear_expense_structure_cache, wired via hooks.py doc_events), so an edit
+# to the Expenses master takes effect immediately rather than waiting for a
+# worker restart. Every caller gets its OWN deep copy before mutating it
+# (item["ytd"]/item["total_posted_amt"] etc below) - the cached skeleton
+# itself is never mutated, so concurrent/sequential calls can never see
+# each other's partially-filled totals.
+_expense_structure_cache = {}
 
+
+def _build_expense_structure():
     expense_rows = frappe.get_all(
         "Expenses",
         fields=[
@@ -74,9 +82,9 @@ def get_combined_actuals(
         if not head_name or not expense_name:
             continue
 
-        if head_name in MOVE_UNDER_OPERATING:
+        if head_name in _MOVE_UNDER_OPERATING:
             sub_name = head_name
-            head_name = OPERATING_HEAD
+            head_name = _OPERATING_HEAD
 
         head_obj = heads.setdefault(head_name, {
             "name": head_name,
@@ -95,7 +103,7 @@ def get_combined_actuals(
             "total_posted_amt": Decimal("0")
         }
 
-        if head_name in [CAPITAL_HEAD, COVID_HEAD]:
+        if head_name in [_CAPITAL_HEAD, _COVID_HEAD]:
             head_obj["items"].append(item_data)
         else:
             if sub_name:
@@ -118,6 +126,42 @@ def get_combined_actuals(
             key=lambda x: x["sequence_id"]
         )
         structure.append(head)
+
+    return structure
+
+
+def _get_expense_structure():
+    site = frappe.local.site
+    cached = _expense_structure_cache.get(site)
+    if cached is not None:
+        return cached
+    structure = _build_expense_structure()
+    _expense_structure_cache[site] = structure
+    return structure
+
+
+# doc_events on_update/on_trash hook target for "Expenses" (see hooks.py) -
+# drops the in-process skeleton cache above so the next get_combined_actuals
+# call on this worker rebuilds it from the now-current Expenses doctype.
+def clear_expense_structure_cache(doc=None, method=None):
+    _expense_structure_cache.pop(frappe.local.site, None)
+
+
+# The merge point: builds one head/sub-head/item tree from the Expenses schema, fills "ytd" from get_budget_ytd_by_sequence (budget) and "total_posted_amt"/"total_posted_amt_ytd" from grouped_actuals_data (real ERP actuals, e.g. group_actuals_ytd's own output, pre-filtered to this unit/cost-center/location slice) side by side on the same nodes.
+def get_combined_actuals(
+    financial_year=None,
+    month=None,
+    unit=None,
+    cost_center=None,
+    location_code=None,
+    erp_loc_value=None,
+    erp_cost_center_value=None,
+    grouped_actuals_data=None
+):
+    # Each call gets its own deep copy - the cached skeleton is never
+    # mutated, so no two calls (sequential or concurrent) can ever see each
+    # other's in-progress totals.
+    structure = copy.deepcopy(_get_expense_structure())
 
     # --------------------------------------------------
     # Budget Lookup

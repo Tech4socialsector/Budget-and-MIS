@@ -1,4 +1,5 @@
-from budget_mis.utils import guest_api
+from budget_mis.utils import guest_api, get_allowed_units, require_unit_access
+from budget_mis.api.response_crypto import is_direct_http_call
 
 import frappe
 from budget_mis.api.erp_actuals import fetch_actuals_ytd_legacy
@@ -8,6 +9,22 @@ from budget_mis.api.erp_actuals import group_actuals_by_gl_code
 
 @guest_api
 def get_actuals_university_ppt(fiscal_year, accounting_period, Unit):
+    # Previously, an empty/omitted Unit meant "no filter at all" (the
+    # `not unit_list or ...` condition below passes every row through) -
+    # any logged-in user could see every unit's actuals org-wide just by
+    # leaving Unit blank. Only scope on a genuine direct HTTP call -
+    # internal callers (e.g. get_both_methods_data) pass their own already-
+    # resolved Unit through and must not be re-narrowed here.
+    if is_direct_http_call(get_actuals_university_ppt):
+        if Unit:
+            require_unit_access(Unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"status": "success", "count": 0, "data": []}
+                Unit = ",".join(sorted(allowed_units))
+
     expenses = frappe.get_list(
         "Expenses",
         fields=["gl_code", "head_of_expense"],
@@ -124,6 +141,20 @@ def get_previous_financial_year(financial_year):
 
 @guest_api
 def get_filtered_actuals(month,financial_year,unit=None,cost_center=None,location_code=None):
+    # Previously unscoped: an omitted `unit` meant "no filter" and returned
+    # every unit's actuals org-wide to any logged-in user. Only scope on a
+    # genuine direct HTTP call - internal callers (sum_of_actuals_by_
+    # sequence, etc.) pass their own already-resolved unit through.
+    if is_direct_http_call(get_filtered_actuals):
+        if unit:
+            require_unit_access(unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"status": "success", "data": [], "filtered_record_count": 0}
+                unit = ",".join(sorted(allowed_units))
+
     formatted = get_accounting_period_from_month(
         month,
         financial_year
@@ -168,6 +199,19 @@ def get_gl_breakup_for_item(month, financial_year, sequence_id, unit=None, cost_
     for the drill-down modal - the item-level rows in get_combined_actuals
     only carry a totalled `total_posted_amt`, this exposes the underlying
     per-GL-code amounts that get summed into it."""
+    # Same unit-access scoping as get_filtered_actuals above - previously
+    # had none, so an omitted/blank unit returned every unit's GL-code
+    # breakdown for this sequence_id org-wide.
+    if is_direct_http_call(get_gl_breakup_for_item):
+        if unit:
+            require_unit_access(unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"status": "success", "fiscal_year": financial_year, "data": []}
+                unit = ",".join(sorted(allowed_units))
+
     formatted = get_accounting_period_from_month(month, financial_year)
     accounting_period = formatted.get("accounting_period")
     fiscal_year = formatted.get("fiscal_year")
@@ -223,6 +267,19 @@ def get_gl_breakup_for_item(month, financial_year, sequence_id, unit=None, cost_
 
 @guest_api
 def sum_of_actuals_by_sequence(month, financial_year, unit=None, cost_center=None, location_code=None):
+    # Same unit-access scoping as get_filtered_actuals/get_gl_breakup_for_
+    # item above - this function calls get_filtered_actuals INTERNALLY
+    # (a different dispatched cmd name), so get_filtered_actuals' own check
+    # does not fire for this call path - this function must scope itself.
+    if is_direct_http_call(sum_of_actuals_by_sequence):
+        if unit:
+            require_unit_access(unit)
+        else:
+            allowed_units = get_allowed_units()
+            if allowed_units is not None:
+                if not allowed_units:
+                    return {"status": "success", "data": []}
+                unit = ",".join(sorted(allowed_units))
 
     response = get_filtered_actuals(month, financial_year, unit, cost_center, location_code)
 

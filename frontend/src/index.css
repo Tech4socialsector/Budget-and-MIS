@@ -248,6 +248,14 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
 .fc-row-sub:hover {
   filter: brightness(0.97);
 }
+/* A little breathing room where a parent row's sub-items begin - the FIRST
+   sub-row right after a non-sub row gets extra top padding on its cells
+   (rather than the table's usual tight 8px), so the parent/children
+   boundary reads as a visual gap, not just the existing tint/indent. Later
+   sub-rows (each following ANOTHER sub-row) keep the normal tight padding. */
+tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
+  padding-top: 16px;
+}
 
 /* Grand-total rows: same blue as the main header, white text, pinned to
    the bottom of the scroll area - matches BudgetSummaryTable's tfoot row,
