@@ -98,7 +98,7 @@
    "fieldtype": "Select",
    "label": "Page",
    "mandatory_depends_on": "eval:doc.direct_item_type == 'Page'",
-   "options": "BudgetSummary\nBudgetDashboard\nFoundationConsolidated\nMonthlyMis\nErpActuals\nBudgetVsActual"
+   "options": "BudgetSummary\nBudgetDashboard\nFoundationConsolidated\nMonthlyMis\nErpActuals\nBudgetVsActual\nBudgetImportTemplate\nCombinationReconciliation"
   },
   {
    "depends_on": "eval:doc.direct_item_type == 'DocType'",
