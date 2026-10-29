@@ -94,6 +94,26 @@ def get_allowed_location_codes(user=None):
 	return _get_allowed_values(user, "location_code")
 
 
+def get_allowed_cost_centers_erp(user=None):
+	"""ERP cost-center codes (Finance user access mapping row's own
+	cost_center_erp, a fetch_from snapshot of the linked Cost Center doc's
+	ERP code) the given user may access. Returns None for admins (unscoped).
+	Needed alongside get_allowed_cost_centers because a mapping row's
+	reference_for can be "Actual"-only, in which case resolve_grouped_units
+	only ever carries the ERP-code form (cost_centers_erp), never the doc
+	-name form (cost_centers) - scoping actuals-side data against doc names
+	would silently miss those rows."""
+	return _get_allowed_values(user, "cost_center_erp")
+
+
+def get_allowed_location_codes_erp(user=None):
+	"""ERP location codes (Finance user access mapping row's own
+	location_code_erp) the given user may access. Returns None for admins
+	(unscoped). See get_allowed_cost_centers_erp's docstring for why this
+	ERP-code-keyed sibling of get_allowed_location_codes is needed."""
+	return _get_allowed_values(user, "location_code_erp")
+
+
 def require_unit_access(units):
 	"""Throw a PermissionError unless the current user is allowed to see
 	every unit in `units` (a string, comma-separated string, or iterable of
