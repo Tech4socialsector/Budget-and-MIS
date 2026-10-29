@@ -1,5 +1,13 @@
 import frappe
-from budget_mis.utils import guest_api, get_allowed_units, require_unit_access
+from budget_mis.utils import (
+	guest_api,
+	get_allowed_units,
+	require_unit_access,
+	get_allowed_cost_centers,
+	get_allowed_location_codes,
+	get_allowed_cost_centers_erp,
+	get_allowed_location_codes_erp,
+)
 from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.helper import get_accounting_period_from_month
 from budget_mis.api_1.grouped_actuals import group_actuals_ytd, group_actuals_by_gl_code
@@ -103,6 +111,17 @@ def _consolidate_actuals_trees(trees):
 # exactly what monthly_mis.py's own get_monthly_mis_break_up already does
 # for the same "Define by Card Mapping" cards - preserves each row's real
 # pairing instead of flattening it away.
+def _filter_allowed(values, allowed):
+	"""None allowed = unscoped (admin), pass through unmodified. Otherwise
+	keep only values this user's Finance user access mapping actually
+	grants - same semantics as get_theme_mappings' own per-entry filtering,
+	just applied here (the report computation) instead of only at dropdown-
+	population time."""
+	if allowed is None:
+		return values
+	return [v for v in (values or []) if v and v in allowed]
+
+
 def _get_combined_actuals_by_theme(theme_names, financial_year, month, grouped_actuals_data, scope_to_allowed_units):
 	# resolve_grouped_units reads the raw card doc, unscoped - rows for units
 	# the current user isn't allowed to see are skipped here on a genuine
@@ -110,7 +129,24 @@ def _get_combined_actuals_by_theme(theme_names, financial_year, month, grouped_a
 	# when it built the unit/cost-center/location options this selection
 	# came from (api_1/filter_options.py) - an internal caller (unit=None
 	# intentionally) gets every row, same convention as the rest of this file.
+	#
+	# A card's own configured cost-center/location list can be WIDER than
+	# what this specific user's Finance user access actually grants (e.g. a
+	# card covering 10 location codes for a unit, where this user's own
+	# mapping only lists 4 of them) - resolve_grouped_units has no concept
+	# of "this particular user," so each row's cost_centers/locations (doc
+	# -name form) and cost_centers_erp/locations_erp (ERP-code form,
+	# carried for "Actual"-only rows where the doc-name form is never
+	# populated - see resolve_grouped_units' own reference_for gating) are
+	# filtered down to this user's own allowed sets here, the same way
+	# get_theme_mappings already does for the dropdown/filter UI - without
+	# this, selecting an Operating Unit theme would silently include actuals
+	# for cost centers/locations outside what this user was ever granted.
 	allowed_units = get_allowed_units() if scope_to_allowed_units else None
+	allowed_cost_centers = get_allowed_cost_centers() if scope_to_allowed_units else None
+	allowed_locations = get_allowed_location_codes() if scope_to_allowed_units else None
+	allowed_cost_centers_erp = get_allowed_cost_centers_erp() if scope_to_allowed_units else None
+	allowed_locations_erp = get_allowed_location_codes_erp() if scope_to_allowed_units else None
 
 	trees = []
 	for theme_name in theme_names:
@@ -118,14 +154,31 @@ def _get_combined_actuals_by_theme(theme_names, financial_year, month, grouped_a
 		for gu in resolve_grouped_units(doc):
 			if allowed_units is not None and str(gu.get("unit")) not in allowed_units:
 				continue
+
+			cost_centers = _filter_allowed(gu.get("cost_centers"), allowed_cost_centers)
+			locations = _filter_allowed(gu.get("locations"), allowed_locations)
+			cost_centers_erp = _filter_allowed(gu.get("cost_centers_erp"), allowed_cost_centers_erp)
+			locations_erp = _filter_allowed(gu.get("locations_erp"), allowed_locations_erp)
+
+			# A row with SOME cost-center/location value configured that is
+			# entirely filtered away (none of it allowed for this user) must
+			# be dropped, not passed through as "no filter" - get_combined_
+			# actuals treats an empty cost_center/location_code string as
+			# "match any," which would silently widen the query back out to
+			# everything instead of correctly matching nothing for this row.
+			if (gu.get("cost_centers") and not cost_centers) or (gu.get("locations") and not locations):
+				continue
+			if (gu.get("cost_centers_erp") and not cost_centers_erp) or (gu.get("locations_erp") and not locations_erp):
+				continue
+
 			trees.append(get_combined_actuals(
 				financial_year=financial_year,
 				month=month,
 				unit=gu.get("unit"),
-				cost_center=_safe_join(gu.get("cost_centers")),
-				location_code=_safe_join(gu.get("locations")),
-				erp_cost_center_value=_safe_join(gu.get("cost_centers_erp")),
-				erp_loc_value=_safe_join(gu.get("locations_erp")),
+				cost_center=_safe_join(cost_centers),
+				location_code=_safe_join(locations),
+				erp_cost_center_value=_safe_join(cost_centers_erp),
+				erp_loc_value=_safe_join(locations_erp),
 				grouped_actuals_data=grouped_actuals_data,
 			))
 	return _consolidate_actuals_trees(trees) if trees else []
@@ -213,8 +266,15 @@ def _theme_unit_cc_loc_triples(theme_names, scope_to_allowed_units):
 	same over-matching bug fixed in _get_combined_actuals_by_theme above,
 	one level deeper (a single item's GL-code breakdown). A row for a unit
 	the current user isn't allowed to see is skipped on a genuine direct
-	HTTP call, matching get_theme_mappings' own scoping."""
+	HTTP call, matching get_theme_mappings' own scoping - and, same as
+	_get_combined_actuals_by_theme, a row's own cost_centers_erp/
+	locations_erp values that fall outside this user's Finance user access
+	mapping are dropped too (ERP-code form only here since this triple set
+	is matched against actuals data, which is keyed by ERP code, not doc
+	name)."""
 	allowed_units = get_allowed_units() if scope_to_allowed_units else None
+	allowed_cost_centers_erp = get_allowed_cost_centers_erp() if scope_to_allowed_units else None
+	allowed_locations_erp = get_allowed_location_codes_erp() if scope_to_allowed_units else None
 
 	triples = set()
 	for theme_name in theme_names:
@@ -223,8 +283,14 @@ def _theme_unit_cc_loc_triples(theme_names, scope_to_allowed_units):
 			unit_val = gu.get("unit")
 			if allowed_units is not None and str(unit_val) not in allowed_units:
 				continue
-			ccs = gu.get("cost_centers_erp") or [None]
-			locs = gu.get("locations_erp") or [None]
+
+			ccs = _filter_allowed(gu.get("cost_centers_erp"), allowed_cost_centers_erp) or [None]
+			locs = _filter_allowed(gu.get("locations_erp"), allowed_locations_erp) or [None]
+			if gu.get("cost_centers_erp") and ccs == [None]:
+				continue
+			if gu.get("locations_erp") and locs == [None]:
+				continue
+
 			for cc in ccs:
 				for loc in locs:
 					triples.add((unit_val, cc, loc))
