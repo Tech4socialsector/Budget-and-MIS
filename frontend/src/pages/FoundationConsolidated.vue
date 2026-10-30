@@ -23,12 +23,14 @@
         </Button>
       </div>
 
-      <!-- Tabs -->
-      <div class="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800">
+      <!-- Tabs - horizontal scroll (not flex-wrap) so this page's 6 tabs
+      never wrap into several cramped lines on a narrow phone - a swipe/
+      scroll reveals the rest instead. -->
+      <div class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           v-for="tab in TABS"
           :key="tab.key"
-          class="border-b-2 px-4 py-2.5 text-sm font-medium transition"
+          class="flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition"
           :class="activeTab === tab.key
             ? 'border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-100'
             : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"

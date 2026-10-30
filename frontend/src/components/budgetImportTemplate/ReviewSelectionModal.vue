@@ -8,7 +8,7 @@
   to the caller via the 'confirm' event.
 -->
 <template>
-  <Dialog v-model="show" :options="{ size: '4xl', title: 'Review Selected Items' }">
+  <Dialog v-model="show" :options="{ size: '6xl', title: 'Review Selected Items' }">
     <template #body>
       <div class="flex max-h-[85vh] flex-col">
         <div class="border-b px-5 py-4 dark:border-gray-800">

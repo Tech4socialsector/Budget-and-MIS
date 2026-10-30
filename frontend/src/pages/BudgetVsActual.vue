@@ -30,7 +30,7 @@
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Operating Units</label>
             <MultiSelect v-model="themeSelection" :options="themeOptions" :loading="themeLoading || themeMappingLoading" placeholder="All operating units" class="w-full" />
-            <p v-if="themeMappingEmpty" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+            <p v-if="themeMappingEmpty" class="mt-1 text-[0.6875rem] text-amber-600 dark:text-amber-400">
               No units/cost centers are set up for this Operating Unit yet - showing all data instead.
             </p>
           </div>
@@ -71,7 +71,7 @@
         scaled down at each tier (`large` / default / `small`) rather than
         switching to a different card design for Sub Heads. -->
         <div class="flex flex-col gap-2.5">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Grand Total</div>
+          <div class="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Grand Total</div>
           <BudgetActualDonutCard
             large
             clickable
@@ -86,7 +86,7 @@
         </div>
 
         <div class="flex flex-col gap-2.5">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Expense Heads</div>
+          <div class="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Expense Heads</div>
           <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
             <template v-for="(head, i) in actualsHeads" :key="head.name">
               <BudgetActualDonutCard
@@ -106,7 +106,7 @@
 
         <template v-for="(head, i) in actualsHeads" :key="'subs-' + head.name">
           <div v-if="nonZeroActualsSubHeads(head).length" class="flex flex-col gap-2.5">
-            <div class="text-[11px] font-bold uppercase tracking-wider" :style="{ color: accentColor(i) }">
+            <div class="text-[0.6875rem] font-bold uppercase tracking-wider" :style="{ color: accentColor(i) }">
               <span class="text-gray-400 opacity-60 dark:text-gray-500">Sub Heads —</span> {{ head.name }}
             </div>
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

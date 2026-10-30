@@ -11,8 +11,12 @@
     <div class="login-panel relative hidden flex-shrink-0 flex-col overflow-hidden bg-gradient-to-br from-fc-blue-light via-white to-fc-blue-light px-6 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 sm:px-10 sm:py-8 lg:flex lg:w-[56%] lg:justify-between lg:px-16 lg:py-12">
       <!-- Single logo + app name treatment, matching the janadhikara app's
       own login page: one block, no separate repeated "eyebrow" label
-      underneath carrying the same name a second time. -->
-      <div class="flex items-center gap-4">
+      underneath carrying the same name a second time. lg:mt-10 (40px)
+      nudges the whole lockup down from the panel's own top edge for better
+      breathing room on desktop widths specifically - this panel is
+      lg:flex-only (hidden below lg), so a bare mt-10 would needlessly
+      affect the mobile header lockup further down too. -->
+      <div class="flex items-center gap-4 lg:mt-10">
         <img :src="brandingResource.data?.app_logo || defaultAppIcon" class="login-logo-in h-10 object-contain sm:h-12 lg:h-14" />
         <span class="login-fade-in login-app-name text-lg tracking-tight text-gray-900 dark:text-gray-100 sm:text-xl lg:text-2xl" style="animation-delay: 80ms">
           {{ brandingResource.data?.app_title || 'Budget & MIS' }}
@@ -60,15 +64,15 @@
               an actual budget number on a page that renders before any
               session or real data exists. -->
               <div>
-                <div class="text-[10px] uppercase tracking-wide text-gray-400">Budget</div>
+                <div class="text-[0.625rem] uppercase tracking-wide text-gray-400">Budget</div>
                 <div class="login-stat-in text-sm font-semibold text-gray-800 dark:text-gray-100" style="animation-delay: 700ms">₹ XX.X Cr</div>
               </div>
               <div>
-                <div class="text-[10px] uppercase tracking-wide text-gray-400">Actuals</div>
+                <div class="text-[0.625rem] uppercase tracking-wide text-gray-400">Actuals</div>
                 <div class="login-stat-in text-sm font-semibold text-gray-800 dark:text-gray-100" style="animation-delay: 780ms">₹ XX.X Cr</div>
               </div>
               <div>
-                <div class="text-[10px] uppercase tracking-wide text-gray-400">Utilisation</div>
+                <div class="text-[0.625rem] uppercase tracking-wide text-gray-400">Utilisation</div>
                 <div class="login-stat-in text-sm font-semibold text-emerald-600 dark:text-emerald-400" style="animation-delay: 860ms">XX%</div>
               </div>
             </div>

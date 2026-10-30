@@ -66,7 +66,13 @@
             </Button>
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
-          <div class="flex items-end justify-end gap-4 lg:col-start-5">
+          <!-- justify-end only once this cell actually sits in its own
+          rightmost grid column (lg:col-start-5) - below that, the grid
+          collapses to 1 column and every cell stacks full-width in
+          document order, so justify-end would otherwise right-align this
+          button alone at the end of a long vertical filter stack instead
+          of lining up with every other left-aligned control above it. -->
+          <div class="flex items-end gap-4 lg:justify-end lg:col-start-5">
             <Button variant="solid" theme="gray" @click="exportMis">
               <template #prefix>
                 <FeatherIcon name="download" class="h-4 w-4" />
@@ -77,7 +83,10 @@
         </div>
       </div>
 
-      <ErrorMessage v-if="error" :message="errorMessage" />
+      <div v-if="error" class="flex items-center gap-3">
+        <ErrorMessage :message="errorMessage" />
+        <button class="text-sm text-fc-blue-mid underline" @click="loadAll(true)">Retry</button>
+      </div>
       <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <AppLoader label="Loading Monthly MIS..." />
       </div>
@@ -360,7 +369,19 @@ async function loadAll(force) {
   }
 }
 
-const errorMessage = computed(() => error.value?.messages?.[0] || error.value?.message || 'Something went wrong loading Monthly MIS.')
+// A raw "Failed to fetch"/"NetworkError..." TypeError (no HTTP response at
+// all - connection dropped or timed out, e.g. a hosted proxy's own request
+// ceiling cutting off this page's slow cold-cache ERP fetch, see
+// api_1/erp_actuals.py's own timeout) reads as a dead end to a user with no
+// idea what to do about it. Rephrased into something actionable instead of
+// surfacing the browser's own terse wording verbatim.
+const errorMessage = computed(() => {
+  const raw = error.value?.messages?.[0] || error.value?.message || ''
+  if (/failed to fetch|networkerror/i.test(raw)) {
+    return 'Could not reach the server - this can happen when the data is still loading from the ERP for the first time. Please wait a moment and try again.'
+  }
+  return raw || 'Something went wrong loading Monthly MIS.'
+})
 
 watch(() => [filters.financialYear, filters.month], () => loadAll())
 

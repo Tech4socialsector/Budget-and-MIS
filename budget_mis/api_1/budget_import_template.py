@@ -70,6 +70,19 @@ def start_budget_template_generation(entity_data=None):
 
 	user = frappe.session.user
 
+	# Clear any previous generation's cache entry synchronously, before
+	# enqueueing the new job - otherwise a still-live entry from an earlier
+	# request (the cache key is the same for every generation this user
+	# starts, with a 1-hour TTL) gets served instantly to the FIRST poll of
+	# THIS request, even though the new job hasn't started yet. The frontend
+	# then treats that stale file as "ready" and downloads old/wrong data
+	# with zero polling delay - confirmed live: start_budget_template_
+	# generation and the very next download_generated_template call landed
+	# in the same second, with no matching generate_budget_template entry
+	# in the worker log yet, because what actually got served was a leftover
+	# cache entry from an earlier generation, not this one.
+	frappe.cache().delete_value(f"budget_template_{user}")
+
 	frappe.enqueue(
 		"budget_mis.api_1.budget_import_template.generate_budget_template",
 		queue="long",
@@ -263,9 +276,31 @@ def generate_budget_template(user=None, entity_data=None):
 
 
 @frappe.whitelist()
-def download_generated_template():
+def download_generated_template(user=None):
+	# Must accept and use the SAME `user` the frontend passes as a query
+	# param (confirmed: frontend/src/data/budgetImportTemplate.js always
+	# sends ?user=<targetEmail>) - not just frappe.session.user, which is
+	# whoever is CURRENTLY LOGGED IN, not necessarily the person whose
+	# template was generated. An admin browsing another user's card (e.g.
+	# "Budi" downloading "Salary and Benefit"'s template) kicks off
+	# generation keyed by that target user's email
+	# (start_budget_template_generation/generate_budget_template both take
+	# an explicit `user` arg and write to frappe.cache() under
+	# budget_template_{user}), but this function was reading
+	# frappe.session.user instead - looking up budget_template_{admin's own
+	# email}, a cache key that was never written to, so it polled "still
+	# processing" forever even after the real file had already finished
+	# generating under the other key. Falls back to frappe.session.user only
+	# when no user param is given (the self-service case, where they're the
+	# same anyway) rather than requiring every call site to pass it.
+	#
+	# Same cross-user access rule as has_import_template_linked: a non-admin
+	# can only ever ask about their own user.
+	current_user = frappe.session.user
+	user = user or current_user
 
-	user = frappe.session.user
+	if user != current_user and not is_finance_admin(current_user):
+		frappe.throw("You do not have access to this user's data.", frappe.PermissionError)
 
 	path = frappe.cache().get_value(f"budget_template_{user}")
 

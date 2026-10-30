@@ -67,10 +67,10 @@ def fetch_actuals_ytd_legacy(fiscal_year, accounting_period):
 def fetch_actuals_ytd(fiscal_year, accounting_period):
     try:
         month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         return {
             "status": "failed",
-            "error": "Request timeout while connecting to ERP"
+            "error": "The ERP system did not respond in time. Please try again in a few minutes."
         }
     except Exception:
         frappe.log_error(
@@ -148,7 +148,7 @@ def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
             api_url,
             headers={"Accept": "application/xml"},
             auth=(username, password),
-            timeout=120
+            timeout=90
         )
 
         if response.status_code != 200:
@@ -179,11 +179,11 @@ def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
             "data": combined_rows
         }
 
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         frappe.log_error("ERP Timeout", "Request timed out")
         return {
             "status": "failed",
-            "error": "Request timeout while connecting to ERP"
+            "error": "The ERP system did not respond in time. Please try again in a few minutes."
         }
 
     except Exception:
@@ -228,9 +228,9 @@ def _fetch_actuals_month_wise_demo(demo_path, fiscal_year, accounting_period):
 def group_actuals_by_dimension(fiscal_year, accounting_period):
     try:
         month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         frappe.log_error("PeopleSoft Timeout", "ERP request timed out")
-        return {"status": "failed", "error": "Request timeout while connecting to ERP"}
+        return {"status": "failed", "error": "The ERP system did not respond in time. Please try again in a few minutes."}
     except Exception:
         frappe.log_error("PeopleSoft API Unexpected Error", frappe.get_traceback())
         return {"status": "failed", "error": "Unexpected server error"}

@@ -89,15 +89,27 @@ export async function generateAndDownloadTemplate({ user, entityData, onProgress
     const contentType = res.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
       const body = await res.json()
-      // The only JSON shape the backend actually returns mid-flight is
-      // {status: "processing"} - anything else JSON-shaped (an error
-      // object, an unexpected message) is treated as a real failure
-      // instead of silently looped on forever (the legacy page's bug).
-      if (body?.status === 'processing') {
+      // This is a raw fetch(), not frappe-ui's call() - Frappe wraps every
+      // whitelisted method's return value under a top-level "message" key
+      // (confirmed directly: GET /api/method/ping returns
+      // {"message": "pong"}, not "pong" at the top level), so the real
+      // shape here is {message: {status: "processing"}}, not
+      // {status: "processing"} at the top level. Reading body.status
+      // directly always read undefined and fell through to the throw
+      // below on every single poll - and since body.message is the whole
+      // {status: "processing"} OBJECT (not a string), `new Error(body
+      // .message)` coerced it to the literal text "[object Object]",
+      // which is exactly the error text this bug surfaced to users.
+      const payload = body?.message ?? body
+      if (payload?.status === 'processing') {
         onProgress?.('waiting')
         continue
       }
-      throw new Error(body?.message || body?.exception || 'Template generation failed.')
+      throw new Error(
+        (typeof payload?.message === 'string' && payload.message) ||
+        (typeof payload?.exception === 'string' && payload.exception) ||
+        'Template generation failed.'
+      )
     }
 
     onProgress?.('ready')

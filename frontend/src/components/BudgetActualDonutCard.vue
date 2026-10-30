@@ -184,11 +184,18 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
 </script>
 
 <style scoped>
+/* Sizing throughout this file is rem, not px (px ÷ 16 at the original
+16px-root values) - this component's font-sizes/padding/icon dimensions
+otherwise sit outside index.css's OS/DPI-aware root font-size clamp()
+entirely (that clamp only affects things sized in rem), so these donut
+summary cards would stay pixel-fixed while every other rem-based element
+on the page scales around them - the same bug index.css's own .fc-th/
+.fc-td rules had before being converted the same way. */
 .donut-card {
   background: var(--dc-card-bg, #fff);
   border: 1px solid var(--dc-card-border, #e8e8e6);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
   display: flex;
   flex-direction: column;
   transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
@@ -200,50 +207,50 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
   transform: scale(0.995);
 }
 .donut-card--grand {
-  padding: 10px 12px;
+  padding: 0.625rem 0.75rem;
 }
 .donut-card--small {
-  padding: 7px 9px;
+  padding: 0.4375rem 0.5625rem;
 }
 
 .dc-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .dc-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.375rem;
   flex-shrink: 0;
 }
 .dc-icon-svg {
-  width: 11px;
-  height: 11px;
+  width: 0.6875rem;
+  height: 0.6875rem;
 }
 .donut-card--grand .dc-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.4375rem;
 }
 .donut-card--grand .dc-icon-svg {
-  width: 13px;
-  height: 13px;
+  width: 0.8125rem;
+  height: 0.8125rem;
 }
 .donut-card--small .dc-icon {
-  width: 17px;
-  height: 17px;
-  border-radius: 5px;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  border-radius: 0.3125rem;
 }
 .donut-card--small .dc-icon-svg {
-  width: 9px;
-  height: 9px;
+  width: 0.5625rem;
+  height: 0.5625rem;
 }
 .dc-title {
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   font-weight: 700;
   color: var(--dc-title-color, #111);
   overflow: hidden;
@@ -251,37 +258,37 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
   white-space: nowrap;
 }
 .donut-card--grand .dc-title {
-  font-size: 13.5px;
+  font-size: 0.84375rem;
 }
 .donut-card--small .dc-title {
-  font-size: 10.5px;
+  font-size: 0.65625rem;
 }
 .dc-subtitle {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--dc-subtitle-color, #8a8a8a);
   margin-top: 0;
 }
 
 .dc-body {
-  margin-top: 6px;
+  margin-top: 0.375rem;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 .dc-donut-wrap {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 2.75rem;
+  height: 2.75rem;
   flex-shrink: 0;
 }
 .donut-card--grand .dc-donut-wrap {
-  width: 64px;
-  height: 64px;
+  width: 3.25rem;
+  height: 3.25rem;
 }
 .donut-card--small .dc-donut-wrap {
-  width: 40px;
-  height: 40px;
+  width: 2.125rem;
+  height: 2.125rem;
 }
 .dc-donut-center {
   position: absolute;
@@ -293,19 +300,19 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
   pointer-events: none;
 }
 .dc-donut-pct {
-  font-size: 13px;
+  font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: proportional-nums;
   line-height: 1.1;
 }
 .donut-card--grand .dc-donut-pct {
-  font-size: 17px;
+  font-size: 0.875rem;
 }
 .donut-card--small .dc-donut-pct {
-  font-size: 10.5px;
+  font-size: 0.5625rem;
 }
 .dc-donut-label {
-  font-size: 8px;
+  font-size: 0.5rem;
   color: var(--dc-stat-detail-color, #8a8a8a);
   margin-top: 0;
 }
@@ -315,18 +322,18 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
 
 .dc-stats {
   flex: 1;
-  min-width: 140px;
+  min-width: 8.75rem;
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .donut-card--grand .dc-stats {
-  min-width: 220px;
-  gap: 10px;
+  min-width: 13.75rem;
+  gap: 0.625rem;
 }
 .donut-card--small .dc-stats {
   min-width: 0;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .dc-stat {
   flex: 1;
@@ -337,33 +344,33 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
 .dc-stat-top {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 0.3125rem;
   min-width: 0;
 }
 .dc-stat-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  border-radius: 0.25rem;
   flex-shrink: 0;
 }
 .dc-stat-icon-svg {
-  width: 9px;
-  height: 9px;
+  width: 0.5625rem;
+  height: 0.5625rem;
 }
 .donut-card--small .dc-stat-icon {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.1875rem;
 }
 .donut-card--small .dc-stat-icon-svg {
-  width: 7px;
-  height: 7px;
+  width: 0.4375rem;
+  height: 0.4375rem;
 }
 .dc-stat-label {
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   font-weight: 700;
   color: var(--dc-stat-label-color, #555);
   white-space: nowrap;
@@ -372,28 +379,28 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
   min-width: 0;
 }
 .donut-card--grand .dc-stat-label {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .donut-card--small .dc-stat-label {
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .dc-stat-value {
-  margin-top: 1px;
-  font-size: 12.5px;
+  margin-top: 0.0625rem;
+  font-size: 0.78125rem;
   font-weight: 700;
   color: var(--dc-title-color, #111);
   font-variant-numeric: proportional-nums;
   line-height: 1.15;
 }
 .donut-card--grand .dc-stat-value {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .donut-card--small .dc-stat-value {
-  font-size: 10.5px;
+  font-size: 0.65625rem;
 }
 .dc-stat-detail {
   margin-top: 0;
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--dc-stat-detail-color, #8a8a8a);
   line-height: 1.2;
 }

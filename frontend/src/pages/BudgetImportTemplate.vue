@@ -28,30 +28,45 @@
       </div>
 
       <!-- Global admin search -->
-      <div v-if="isAdmin && userGroups.length" class="flex items-center gap-2">
-        <div class="flex min-w-0 flex-1 items-center gap-2">
-          <FormControl
-            type="text"
-            v-model="adminSearch"
-            placeholder="Search by name or email..."
-            class="fc-search-input"
-          />
-          <FeatherIcon name="users" class="h-4 w-4 flex-shrink-0 text-gray-400" />
-          <span class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-            {{ visibleGroups.length }} user{{ visibleGroups.length === 1 ? '' : 's' }} found
-          </span>
-        </div>
+      <div v-if="isAdmin && userGroups.length" class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/60">
+        <FeatherIcon name="users" class="h-4 w-4 flex-shrink-0 text-gray-400" />
+        <FormControl
+          type="text"
+          v-model="adminSearch"
+          placeholder="Search by name or email..."
+          class="fc-search-input"
+        />
+        <span class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+          {{ visibleGroups.length }} user{{ visibleGroups.length === 1 ? '' : 's' }} found
+        </span>
       </div>
 
       <div v-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <AppLoader label="Loading Data..." />
       </div>
-      <ErrorMessage v-else-if="error" :message="error" />
-      <div v-else-if="!userGroups.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+      <!-- A download-flow error (startDownload's catch block) must show up
+      even once userGroups has already loaded and the cards below are
+      rendering - it used to be gated behind this same v-if/v-else-if chain
+      as the "Loading Data" and "No Data Found" states, so once cards were
+      showing, this branch could never be reached and a download failure
+      (e.g. the polling timeout, a download-failed HTTP error) was silently
+      swallowed with no visible feedback at all. Now always shown above the
+      cards, independent of loading/userGroups state, and dismissible so it
+      doesn't linger after the user retries successfully. -->
+      <div v-if="error" class="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
+        <ErrorMessage :message="error" />
+        <button
+          class="flex-shrink-0 text-xs font-medium text-red-700 underline hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+          @click="error = null"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div v-if="!loading && !userGroups.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
         No Data Found
       </div>
 
-      <div v-else class="flex flex-col gap-4">
+      <div v-if="!loading && userGroups.length" class="flex flex-col gap-4">
         <UserTemplateCard
           v-for="group in visibleGroups"
           :key="group.email"
@@ -194,6 +209,7 @@ async function startDownload(user, selectedRows) {
 
   downloadingEmail.value = targetEmail
   progressStage.value = 'starting'
+  error.value = null
   try {
     await generateAndDownloadTemplate({
       user: targetEmail,

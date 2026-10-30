@@ -42,13 +42,18 @@
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-transparent select-none">Filter</label>
+          <!-- The invisible label purely aligns this control's own baseline
+          with the real Financial Year/Month labels above it when this cell
+          sits in the same wide grid row (sm and up) - on a 1-column mobile
+          stack it would otherwise waste a full line of vertical space for
+          nothing, so it's hidden below sm instead. -->
+          <label class="mb-1 hidden text-xs font-medium text-transparent select-none sm:block">Filter</label>
           <div class="flex h-8 items-center">
             <Switch v-model="filters.enablersIgnoreLocation" label="Only for Enablers, ignore location code" />
           </div>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-transparent select-none">Action</label>
+          <label class="mb-1 hidden text-xs font-medium text-transparent select-none sm:block">Action</label>
           <Button variant="solid" theme="gray" :loading="loading" @click="runCheck">
             <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
             Check

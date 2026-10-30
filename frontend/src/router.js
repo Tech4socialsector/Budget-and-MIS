@@ -54,6 +54,16 @@ const routes = [
     component: () => import('@/pages/BudgetImportTemplate.vue'),
   },
   {
+    path: '/budget-import-upload',
+    name: 'BudgetImportUpload',
+    component: () => import('@/pages/BudgetImportUpload.vue'),
+  },
+  {
+    path: '/data-import',
+    name: 'DataImport',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
     path: '/combination-reconciliation',
     name: 'CombinationReconciliation',
     component: () => import('@/pages/CombinationReconciliation.vue'),

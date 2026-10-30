@@ -10,6 +10,39 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Budget MIS</title>
+    <script>
+      // Sets --os-scale before first paint (a blocking inline script here,
+      // not a Vue-mounted composable) so there's no flash of one size
+      // followed by a jump to another. index.css's html{font-size} clamp()
+      // multiplies by this variable.
+      //
+      // window.devicePixelRatio reveals OS-level display scaling (125%/
+      // 150% "Make text bigger" on Windows, Linux HiDPI scaling, etc.) in a
+      // way viewport width alone can't: a laptop running 125% scaling
+      // reports a SMALLER CSS viewport width for the exact same physical
+      // screen than it would at 100%, so index.css's own width-based
+      // clamp() alone still renders everything visibly bigger there than
+      // on an unscaled screen of the same physical size - reported in
+      // practice as "the sidebar/text looks bigger on this Windows laptop
+      // than on this Linux one" even after that width-based clamp was
+      // already in place. 1.0 (no scaling, most Linux/external-monitor
+      // setups) keeps the width-based clamp's own output untouched; each
+      // 0.25 of scaling above that (1.25, 1.5, ...) pulls the effective
+      // root size back down by 8%, which in testing was enough to offset
+      // a 125%/150%-scaled laptop back to roughly what the same layout
+      // looks like on an unscaled screen, without overcorrecting a
+      // non-scaled 1.0 display that just happens to be physically small
+      // (a real narrow window, which the width-based clamp alone already
+      // handles on its own).
+      (function () {
+        try {
+          var dpr = window.devicePixelRatio || 1
+          var steps = Math.max(0, (dpr - 1) / 0.25)
+          var scale = Math.pow(0.92, steps)
+          document.documentElement.style.setProperty('--os-scale', scale.toFixed(4))
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
