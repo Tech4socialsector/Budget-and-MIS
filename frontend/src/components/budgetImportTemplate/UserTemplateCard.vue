@@ -56,17 +56,22 @@
 
       <div class="p-4">
         <!-- Action bar -->
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
-          <div class="flex min-w-0 flex-1 items-center gap-2">
+        <!-- Search on its own row, controls on a second row below it - a
+        single flex-wrap row cramming the search box plus 4 separate
+        controls (select-all, badge, deselect, Download) read as a busy,
+        unplanned-looking stack once it wrapped on a narrow phone. Two
+        clearly separated rows read as designed at every width instead. -->
+        <div class="mb-3 flex flex-col gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
+          <div class="flex min-w-0 items-center gap-2">
             <FormControl
               type="text"
               v-model="search"
               placeholder="Search units, cost centers, locations..."
-              class="fc-search-input"
+              class="fc-search-input min-w-0 flex-1"
             />
-            <span v-if="search" class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ filteredRows.length }} match{{ filteredRows.length === 1 ? '' : 'es' }}</span>
+            <span v-if="search" class="flex-shrink-0 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ filteredRows.length }} match{{ filteredRows.length === 1 ? '' : 'es' }}</span>
           </div>
-          <div class="flex flex-shrink-0 items-center gap-3">
+          <div class="flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <input
                 type="checkbox"
@@ -88,6 +93,7 @@
               Deselect all
             </button>
             <Button
+              class="ml-auto"
               :variant="selectedKeys.size ? 'solid' : 'solid'"
               :theme="selectedKeys.size ? 'green' : 'blue'"
               :loading="downloading"
@@ -177,8 +183,19 @@ const initials = computed(() => {
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
 })
 
+// (cost_center_id, location_code_id) is NOT guaranteed unique - a user's
+// Finance user access mapping can legitimately have two separate rows
+// pairing the same cost center with the same location (confirmed live:
+// one such duplicate pair existed in real test data). Using that pair as
+// the Set key collapsed both rows into one: checking one silently
+// (de)selected the other too, and "Select all" under-reported the true
+// selected count by one per collision - the reported bug of "selected
+// nearly everything, but the downloaded file came out short" traces to
+// exactly this. The row's own position in props.user.rows (a stable array
+// for this card's lifetime) is always unique, unlike any combination of
+// its own data fields.
 function rowKey(row) {
-  return `${row.cost_center_id}__${row.location_code_id}`
+  return props.user.rows.indexOf(row)
 }
 
 const filteredRows = computed(() => {

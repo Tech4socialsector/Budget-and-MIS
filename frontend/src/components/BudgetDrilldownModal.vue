@@ -1,7 +1,12 @@
 <template>
   <Dialog v-model="show" :options="{ size: '6xl', title: 'budget-drilldown' }">
     <template #body>
-      <div class="flex max-h-[90vh] min-h-[40rem] flex-col">
+      <!-- min-h only from sm up - a flat 40rem (640px) minimum on a short
+      mobile viewport (portrait phones under ~700px tall, or any phone in
+      landscape) can push the header/close button below the fold on first
+      open, relying entirely on the page scrolling to reach it. Mobile gets
+      no minimum, so the dialog sizes to its actual content instead. -->
+      <div class="flex max-h-[90vh] flex-col sm:min-h-[40rem]">
         <!-- Header: icon + breadcrumb trail + close -->
         <div class="border-b px-5 py-4 dark:border-gray-800">
           <div class="flex items-start justify-between gap-3">

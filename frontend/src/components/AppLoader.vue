@@ -9,16 +9,20 @@
       class="app-loader-pulse h-14 max-w-[9rem] object-contain"
     />
 
-    <!-- export: the logo sits inside a tray and a chevron drops into it on
-    loop - a download motion, since this variant is for "generating a file
-    you're about to receive," not just reading data back. -->
-    <div v-else-if="variant === 'export'" class="app-loader-export relative flex h-16 w-16 items-center justify-center">
-      <img :src="logo" alt="" class="h-10 max-w-[7rem] object-contain" />
-      <svg class="app-loader-export-chevron absolute" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 4v12" />
-        <path d="M6 12l6 6 6-6" />
-      </svg>
-      <div class="app-loader-export-tray absolute bottom-0 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+    <!-- export: the logo stays fully visible, uncovered - the download
+    motion (chevron dropping into a tray) sits in its own space BELOW the
+    logo instead of overlapping it, since covering the logo with animated
+    elements makes it unreadable (the wordmark's own detail gets lost under
+    the chevron/tray). -->
+    <div v-else-if="variant === 'export'" class="flex flex-col items-center gap-2">
+      <img :src="logo" alt="" class="h-14 max-w-[9rem] object-contain" />
+      <div class="app-loader-export relative flex h-8 w-10 items-end justify-center overflow-visible">
+        <svg class="app-loader-export-chevron absolute" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4v12" />
+          <path d="M6 12l6 6 6-6" />
+        </svg>
+        <div class="app-loader-export-tray absolute bottom-0 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+      </div>
     </div>
 
     <!-- build: the logo stays put while a progress bar underneath fills and

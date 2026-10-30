@@ -56,7 +56,7 @@ def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):
             api_url,
             headers={"Accept": "application/xml"},
             auth=(username, password),
-            timeout=120
+            timeout=90
         )
 
         if response.status_code != 200:
@@ -87,11 +87,11 @@ def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):
             "data": combined_rows
         }
 
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         frappe.log_error("ERP Timeout", "Request timed out")
         return {
             "status": "failed",
-            "error": "Request timeout while connecting to ERP"
+            "error": "The ERP system did not respond in time. Please try again in a few minutes."
         }
 
     except Exception:

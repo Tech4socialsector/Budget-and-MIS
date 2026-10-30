@@ -187,37 +187,39 @@ watch(currentTheme, () => nextTick(() => requestAnimationFrame(render)))
 </script>
 
 <style scoped>
+/* rem, not px (px ÷ 16 at the original 16px-root values) - see
+BudgetActualDonutCard.vue's own style-block comment for why. */
 .bac-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 0.875rem;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .bac-title {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--bac-title-color, #444);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.0375rem;
 }
 .bac-legend {
   display: flex;
-  gap: 16px;
+  gap: 1rem;
 }
 .bac-legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--bac-legend-color, #555);
 }
 .bac-legend-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 0.1875rem;
   flex-shrink: 0;
 }
 .bac-canvas-wrap {

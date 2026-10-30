@@ -4,6 +4,7 @@ from budget_mis.api.erp_actuals import fetch_actuals_month_wise, group_actuals_y
 from budget_mis.api.phase_sheet import  get_consolidated_report, get_consolidated_report_actual_ytd, get_number_card_settings
 import frappe
 import re
+import requests
 import traceback
 from decimal import Decimal
 
@@ -267,6 +268,15 @@ def get_grouped_actuals_quarter_and_month_wise_total(fiscal_year, accounting_per
             "status":"success",
             "fiscal_year":fiscal_year,
             "data":final
+        }
+
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+
+        frappe.log_error("ERP Timeout", "Request timed out")
+
+        return {
+            "status": "error",
+            "message": "The ERP system did not respond in time. Please try again in a few minutes."
         }
 
     except Exception:

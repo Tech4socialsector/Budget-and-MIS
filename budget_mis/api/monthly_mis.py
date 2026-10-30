@@ -5,6 +5,7 @@
 
 import frappe
 import io
+import requests
 from frappe.utils import flt
 
 
@@ -102,10 +103,14 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
     from budget_mis.api.erp_actuals import group_actuals_ytd
     from budget_mis.api.actual_format import get_accounting_period_from_month as _acct_period
     _period = _acct_period(month, financial_year)
-    shared_grouped_actuals = group_actuals_ytd(
-        fiscal_year=_period.get("fiscal_year"),
-        accounting_period=_period.get("accounting_period"),
-    ).get("data", [])
+    try:
+        shared_grouped_actuals = group_actuals_ytd(
+            fiscal_year=_period.get("fiscal_year"),
+            accounting_period=_period.get("accounting_period"),
+        ).get("data", [])
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        frappe.log_error("ERP Timeout", "Request timed out")
+        frappe.throw("The ERP system did not respond in time. Please try again in a few minutes.")
 
     cur_raw  = get_unit_wise_plan(financial_year, month,
                                    table_name_filter="Monthly MIS Capex & Opex",
