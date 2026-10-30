@@ -26,3 +26,16 @@ export const defaultAppIcon = computed(() =>
     ? `${import.meta.env.BASE_URL}app-logo-dark.png`
     : `${import.meta.env.BASE_URL}app-logo-light.png`
 )
+
+// app-icon.png is the icon mark ALONE (square, solid-blue background, no
+// embedded wordmark text) - for spots that already show this app's own
+// name as a separate text label right next to the image (Login.vue's logo
+// +name lockup). Using defaultAppIcon's wide 960x450 wordmark lockup there
+// instead doubled up on branding (that image's own baked-in "Azim Premji
+// Foundation" text sitting right beside a second, separate "Budget & MIS"
+// label) and, being height-constrained only, rendered its icon-mark
+// portion small relative to the adjacent app-name text. The square mark
+// alone reads as a properly sized, balanced lockup instead. Solid
+// background (not transparent-glyph-only), so unlike defaultAppIcon this
+// doesn't need a separate dark-mode variant.
+export const defaultAppMark = `${import.meta.env.BASE_URL}app-icon.png`

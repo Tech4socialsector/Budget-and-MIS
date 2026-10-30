@@ -53,7 +53,7 @@ defineEmits(['click'])
 const SIZE_CLASSES = {
   lg: { padding: 'p-4', label: 'text-xs', value: 'mt-1.5 text-2xl', detailGap: 'mt-1.5' },
   md: { padding: 'p-4', label: 'text-xs', value: 'mt-1.5 text-2xl', detailGap: 'mt-1' },
-  sm: { padding: 'p-3', label: 'text-[11px]', value: 'mt-1 text-sm', detailGap: 'mt-1' },
+  sm: { padding: 'p-3', label: 'text-[0.6875rem]', value: 'mt-1 text-sm', detailGap: 'mt-1' },
 }
 
 const sizeClasses = computed(() => SIZE_CLASSES[props.size] || SIZE_CLASSES.md)

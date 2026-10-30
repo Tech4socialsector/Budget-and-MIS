@@ -343,5 +343,49 @@
   "restrict_by_role": 0,
   "roles": [],
   "sort_order": 9
+ },
+ {
+  "direct_doctype_name": null,
+  "direct_item_type": "Page",
+  "direct_page_route": "BudgetImportUpload",
+  "direct_route": null,
+  "direct_url": null,
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [],
+  "enabled": 1,
+  "icon": "upload",
+  "is_sidebar_module": 0,
+  "label": "Budget Import",
+  "modified": "2026-10-30 09:06:48.513928",
+  "module_name": "budget_import_upload",
+  "name": "budget_import_upload",
+  "restrict_by_role": 0,
+  "roles": [],
+  "sort_order": 10
+ },
+ {
+  "direct_doctype_name": null,
+  "direct_item_type": "Page",
+  "direct_page_route": "DataImport",
+  "direct_route": null,
+  "direct_url": null,
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [],
+  "enabled": 1,
+  "icon": "import",
+  "is_sidebar_module": 0,
+  "label": "Data Import",
+  "modified": "2026-10-30 14:56:41.928879",
+  "module_name": "data_import",
+  "name": "data_import",
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "sort_order": 11
  }
 ]

@@ -2,6 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Every Tailwind rem-based utility (text-sm, p-2, w-60, icon sizes, ...)
+resolves off the HTML element's own font-size, not body's - so scaling
+*this* one value scales the whole app's type/spacing/icon/sidebar-width
+scale together, proportionally, without touching every component that
+uses a rem class. Without this, the app renders at a fixed physical size
+everywhere (the OS browser default's 16px root), so the exact same layout
+takes up a smaller fraction of a high-resolution/low-DPI screen and a
+bigger fraction of a lower-resolution one - reported in practice as "the
+sidebar/text looks bigger on this Windows laptop than on this Linux one"
+even though the CSS itself never differed between them, only the physical
+screen did. clamp() ties the root size to viewport width so the whole UI
+occupies a more similar proportion of the window across very different
+screen sizes, while still never shrinking below 87.5% (14px) or growing
+past 100% (16px - Tailwind's own designed-for default, beyond which
+utilities start looking oversized rather than just "bigger"). 1200-1920px
+is this app's normal desktop range - outside it the clamp just holds at
+its nearest bound rather than continuing to extrapolate. */
+html {
+  /* --os-scale is set by an inline script in index.html, before first
+  paint, from window.devicePixelRatio - see that script's own comment for
+  why viewport width alone (the clamp() below) can't fully account for OS
+  display scaling on its own. Defaulted to 1 here so this still renders
+  sanely if that script ever didn't run. */
+  font-size: calc(clamp(14px, calc(10.667px + 0.2778vw), 16px) * var(--os-scale, 1));
+}
+
+/* frappe-ui's Tailwind plugin compiles .text-xs (and its own separate
+text-p-2xs/p-xs/p-sm/p-base paragraph scale) as FLAT px font-sizes, not
+rem - unlike text-sm/text-base/text-lg, they never respond to the root
+font-size's own OS-scale-aware clamp() above. On an unscaled screen (root
+~16px) that flat 12px happens to look roughly proportionate, which is why
+this goes unnoticed normally - but on a Windows laptop with 125%/150%
+display scaling (root shrinks to ~14px or less), every other size tier
+shrinks to match while these stay pinned at a now-oversized flat px value
+right next to correctly-scaled text. Ratios reproduce each tier's own
+original px-at-16px-root value, just rem-based so they finally scale with
+everything else. */
+.text-xs {
+  font-size: 0.75rem;
+}
+.text-p-2xs {
+  font-size: 0.6875rem;
+}
+.text-p-xs {
+  font-size: 0.75rem;
+}
+.text-p-sm {
+  font-size: 0.8125rem;
+}
+.text-p-base {
+  font-size: 0.875rem;
+}
+
+/* App-wide density tightening - frappe-ui's own components (Select,
+MultiSelect, FormControl, Button, Dialog, ItemList ...) use a MIX of
+text-sm (0.875rem) and text-base (1rem) depending on the component, so
+on a wide screen (root clamp resolving near its 16px upper bound) a
+filter dropdown's trigger field and its own option list both render at a
+noticeably larger, more loosely-spaced size than the rest of this app's
+dense report/table UI calls for - confirmed live: the YTD Month dropdown's
+option list (ItemListRow's sm/md sizes, text-base + min-h-7/8) visibly
+towers over the "October" value shown in the closed trigger field right
+above it, even though both use the same text-base class, because combined
+with the option rows' own min-height/padding it reads as oversized next to
+this app's tighter filter-row/table conventions. One shared, tighter step
+for both tiers keeps every frappe-ui component (and this app's own .fc-*
+report tables, filters, cards) reading as one consistent density instead
+of several slightly-mismatched scales side by side. text-lg/xl (genuine
+page titles) are deliberately left alone. */
+.text-sm,
+.text-base,
+.form-input,
+.form-textarea,
+.form-select {
+  font-size: 0.8125rem;
+}
+
 /* App-wide thin scrollbar - applies to every scrollable element (page body,
 modals/dialogs, dropdowns, any overflow-auto container), not just the few
 spots that previously opted in with their own .fc-scroll-wrapper/:deep()
@@ -86,11 +163,11 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
 
 .fc-scroll-wrapper {
   border: 1px solid #d5dbe1;
-  border-radius: 6px;
+  border-radius: 0.375rem;
   max-height: 72vh;
   overflow: auto;
   isolation: isolate;
-  margin-bottom: 20px;
+  margin-bottom: 1.25rem;
   /* Thinner scrollbar (both axes - this wrapper scrolls horizontally and
      vertically) than the browser default, which otherwise eats a
      noticeable strip of an already-tight table area. scrollbar-width is
@@ -167,7 +244,11 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   background-color: #1e5fa8;
   color: #fff;
   font-weight: 600;
-  padding: 10px 12px;
+  /* rem, not px, so this padding scales with the OS/DPI-aware root
+     font-size clamp() above instead of staying pixel-fixed while the rest
+     of the page scales around it - values reproduce the original
+     10px/12px at the default 16px root exactly. */
+  padding: 0.625rem 0.75rem;
   border-left: 1px solid #1a5493;
   white-space: nowrap;
 }
@@ -175,7 +256,7 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   background-color: #e8792a;
   color: #fff;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   border-left: 1px solid #c46620;
   text-align: right;
   white-space: nowrap;
@@ -186,7 +267,7 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   background-color: #e8792a;
   color: #fff;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
   border-left: 1px solid #c46620;
   text-align: right;
   white-space: nowrap;
@@ -198,9 +279,10 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
      setting the left side here would silently beat a row's own .pl-4/
      .pl-8 indent utility. The :where() rule just below supplies a
      zero-specificity default left padding instead, so pl-4/pl-8 always wins
-     regardless of source order. */
-  padding-block: 8px;
-  padding-inline-end: 12px;
+     regardless of source order. rem, not px, for the same root-scaling
+     reason as .fc-th above. */
+  padding-block: 0.5rem;
+  padding-inline-end: 0.75rem;
   border-bottom: 1px solid #e2e6ea;
   border-left: 1px solid #e2e6ea;
   white-space: nowrap;
@@ -215,7 +297,7 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   color: #1f2937;
 }
 :where(.fc-td) {
-  padding-left: 12px;
+  padding-left: 0.75rem;
 }
 :root:not([data-theme='light']) .fc-td,
 [data-theme='dark'] .fc-td {
@@ -261,11 +343,11 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
 }
 /* A little breathing room where a parent row's sub-items begin - the FIRST
    sub-row right after a non-sub row gets extra top padding on its cells
-   (rather than the table's usual tight 8px), so the parent/children
+   (rather than the table's usual tight 8px/0.5rem), so the parent/children
    boundary reads as a visual gap, not just the existing tint/indent. Later
    sub-rows (each following ANOTHER sub-row) keep the normal tight padding. */
 tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
-  padding-top: 16px;
+  padding-top: 1rem;
 }
 
 /* Grand-total rows: same blue as the main header, white text, pinned to
@@ -393,7 +475,16 @@ tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
 }
 
 .fc-search-input {
-  width: 240px;
+  /* Full width on mobile - a flat 15rem (240px) alongside even one sibling
+     control (a count label, a button) left too little room on a ~375px
+     phone and forced the row into a cramped flex-wrap stack. 15rem is
+     still the cap everywhere at sm and above. */
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .fc-search-input {
+    width: 15rem;
+  }
 }
 
 /* Below the sm breakpoint, every data table in the app should scroll

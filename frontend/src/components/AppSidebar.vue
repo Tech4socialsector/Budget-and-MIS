@@ -38,7 +38,7 @@
                 <div class="truncate text-sm font-medium leading-none text-ink-gray-8">
                   {{ header.title }}
                 </div>
-                <div class="mt-1 truncate text-[11px] leading-none text-ink-gray-6">
+                <div class="mt-1 truncate text-[0.6875rem] leading-none text-ink-gray-6">
                   {{ header.subtitle }}
                 </div>
               </div>
@@ -205,7 +205,7 @@ wrapper above) - a bit of extra margin-top gives "Settings & Master Data"
 some breathing room below the sidebar's own top edge instead of sitting
 flush against it. */
 :deep(.flex.flex-col.mt-2:nth-of-type(1) h3) {
-  margin-top: 10px;
+  margin-top: 0.625rem;
 }
 
 /* SidebarSection.vue wraps its <nav> item list in a <transition> meant to

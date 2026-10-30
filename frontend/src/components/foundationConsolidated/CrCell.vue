@@ -36,8 +36,8 @@
   <AppTooltip v-else placement="top" :delay="150">
     <span class="cursor-help border-b border-dotted border-gray-400 tabular-nums">{{ display }}</span>
     <template #content>
-      <div class="text-[13px] font-semibold">{{ tooltipMain }}</div>
-      <div v-if="context" class="mt-0.5 text-[11px] font-normal text-gray-300">{{ context }}</div>
+      <div class="text-[0.8125rem] font-semibold">{{ tooltipMain }}</div>
+      <div v-if="context" class="mt-0.5 text-[0.6875rem] font-normal text-gray-300">{{ context }}</div>
     </template>
   </AppTooltip>
 </template>

@@ -479,8 +479,8 @@ button was never styled for. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
-  border-radius: 4px;
+  padding: 0.125rem;
+  border-radius: 0.25rem;
   color: #dbeeff;
   cursor: pointer;
 }

@@ -31,7 +31,7 @@
           class="h-8 max-w-[7.5rem] flex-shrink-0 object-contain object-left"
           alt="Logo"
         />
-        <span class="navbar-brand-bold truncate text-sm text-ink-gray-8">{{ appTitle }}</span>
+        <span class="navbar-brand-bold navbar-brand-title truncate text-ink-gray-8">{{ appTitle }}</span>
       </router-link>
       <span v-if="!activeModule" class="h-6 w-px flex-shrink-0 bg-outline-gray-3" />
       <Breadcrumbs class="topnavbar-breadcrumbs min-w-0" :items="breadcrumbItems">
@@ -126,6 +126,16 @@ login page - see Login.vue's own .login-app-name). A dedicated class
 sidesteps that cascade-order fight entirely. */
 .navbar-brand-bold {
   font-weight: 700;
+}
+
+/* The app name is the primary brand label on this bar - a plain text-sm/
+text-base utility class here would now resolve to index.css's own tightened
+0.8125rem density step, same as every other secondary bit of chrome text,
+reading as too thin/small next to the "Budi" AI-assistant label at the same
+visual position on an adjacent page. Sized explicitly instead of riding
+whatever the shared text-sm/text-base step happens to be. */
+.navbar-brand-title {
+  font-size: 0.9375rem;
 }
 
 /* A breathing ring around the badge circle PLUS a gentle pulse on the
