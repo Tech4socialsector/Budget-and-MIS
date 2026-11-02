@@ -104,6 +104,65 @@ def get_my_access():
 	}
 
 
+PROPOSED_GUIDE_SECTION_TITLE = "AI-Proposed Instructions (pending review)"
+
+
+def propose_guide_point(point, reason):
+	"""Lets the assistant suggest a new instruction for itself, based on
+	something it actually ran into in a real conversation (it had to guess,
+	got corrected by the user, or found its own instructions incomplete/
+	wrong) - never a general-purpose "remember this fact" tool.
+
+	The suggestion is NEVER immediately active: it is always created with
+	status=Pending on the "AI-Proposed Instructions (pending review)" guide
+	section (auto-created the first time this is called, Inactive by
+	default so even an accidentally-approved stray point can't reach the
+	live prompt without an admin also switching the whole section on), and
+	_load_guide() only ever reads status=Approved points. An admin reviews
+	every proposal (point text + reason + which user's conversation
+	prompted it) via the doctype/admin review page and explicitly approves
+	or rejects it - this function itself has no path to make a suggestion
+	live on its own.
+	"""
+	point = (point or "").strip()
+	reason = (reason or "").strip()
+	if not point:
+		frappe.throw(_("A point is required."))
+	if not reason:
+		frappe.throw(_("A reason is required - explain what prompted this suggestion."))
+
+	if frappe.db.exists("AI Assistant Guide", PROPOSED_GUIDE_SECTION_TITLE):
+		section = frappe.get_doc("AI Assistant Guide", PROPOSED_GUIDE_SECTION_TITLE)
+	else:
+		section = frappe.get_doc({
+			"doctype": "AI Assistant Guide",
+			"title": PROPOSED_GUIDE_SECTION_TITLE,
+			# Inactive by default: belt-and-suspenders alongside each point's
+			# own status=Pending gate - an admin must turn BOTH the section
+			# and the individual point on before anything here reaches the
+			# live prompt, matching how every other guide section already
+			# needs is_active=1 at the section level too.
+			"is_active": 0,
+			"sort_order": 200,
+		})
+		section.insert(ignore_permissions=True)
+
+	section.append("points", {
+		"point": point,
+		"is_active": 1,
+		"sort_order": len(section.points),
+		"status": "Pending",
+		"proposed_by": frappe.session.user,
+		"proposed_reason": reason,
+	})
+	section.save(ignore_permissions=True)
+
+	return {
+		"status": "submitted_for_review",
+		"note": "This suggestion has been recorded for an admin to review and approve - it is not active yet and will not affect this or any other conversation until approved.",
+	}
+
+
 def list_users(filters=None, limit=20):
 	"""Look up which users exist and their roles - restricted to users who
 	can read the User doctype (System Manager / HR-type roles in Frappe's
@@ -386,6 +445,81 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 	return result
 
 
+MAX_EXPORT_ROWS = 5000
+
+
+def export_to_excel(title, columns, rows):
+	"""Builds a real .xlsx file from a flat table the model itself assembles
+	(a column header list + a list of row value lists) and saves it as a
+	private File attached to a throwaway 'AI Assistant Export' log document
+	owned by the calling user - Frappe's own File/permission system is what
+	actually protects it (only the owner, plus anyone with read on that log
+	doctype, can ever fetch the URL), not any bespoke access check here.
+
+	Deliberately generic rather than tool-result-shape-aware: every data
+	tool's own response shape differs (get_budget_summary's heads list vs
+	get_monthly_mis_summary's per-table rows vs search_records' arbitrary
+	fields), so asking the model to flatten whatever result it already has
+	into columns/rows itself is far simpler and more robust than writing
+	(and maintaining, as new tools are added) a separate auto-flattener per
+	tool shape here.
+
+	No unit/role re-scoping happens in this function itself - by the time
+	the model calls this, the DATA already came from an earlier tool call
+	that applied its own access scoping (get_budget_summary/
+	get_actuals_summary's own get_allowed_units checks, search_records'
+	own frappe.get_list permission filtering, etc) - this only turns
+	already-permitted data into a downloadable file, it is not itself a
+	new data-access point.
+	"""
+	import openpyxl
+	from frappe.utils.file_manager import save_file
+
+	if not columns or not isinstance(columns, (list, tuple)):
+		frappe.throw(_("columns must be a non-empty list of column header strings."))
+	if not isinstance(rows, (list, tuple)):
+		frappe.throw(_("rows must be a list of row value lists."))
+	if len(rows) > MAX_EXPORT_ROWS:
+		frappe.throw(_("Too many rows to export ({0}) - ask a narrower question first.").format(len(rows)))
+
+	wb = openpyxl.Workbook()
+	ws = wb.active
+	ws.title = (str(title or "Export"))[:31] or "Export"
+	ws.append([str(c) for c in columns])
+	for row in rows:
+		ws.append(list(row) if isinstance(row, (list, tuple)) else [row])
+	for i, _col in enumerate(columns, start=1):
+		ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = 22
+
+	import io
+	buf = io.BytesIO()
+	wb.save(buf)
+
+	# A lightweight log doctype (not a real business record) purely to give
+	# the saved File something to attach to and be permission-scoped
+	# against - frappe.get_doc(ignore_permissions) here is the same pattern
+	# Frappe's own background/system-generated attachments use (e.g. a
+	# scheduled report's output), not a bypass of the calling user's own
+	# access: the log doc's own permissions still gate who can later open
+	# the File through it, and it is always created as/for the current
+	# session user, never on anyone else's behalf.
+	log = frappe.get_doc({
+		"doctype": "AI Assistant Export",
+		"user": frappe.session.user,
+		"title": title or "Export",
+	})
+	log.insert(ignore_permissions=True)
+
+	file_name = f"{(title or 'export').strip().replace(' ', '_')}.xlsx"
+	file_doc = save_file(file_name, buf.getvalue(), "AI Assistant Export", log.name, is_private=1)
+
+	return {
+		"file_url": file_doc.file_url,
+		"file_name": file_doc.file_name,
+		"row_count": len(rows),
+	}
+
+
 def search_records(doctype, filters=None, fields=None, limit=20):
 	"""List records the current user can read, permission-filtered by
 	frappe.get_list exactly as the app's own list views are."""
@@ -448,10 +582,12 @@ TOOL_FUNCTIONS = {
 	"list_doctypes": list_doctypes,
 	"get_doctype_meta": get_doctype_meta,
 	"get_my_access": get_my_access,
+	"propose_guide_point": propose_guide_point,
 	"list_users": list_users,
 	"get_budget_summary": get_budget_summary,
 	"get_actuals_summary": get_actuals_summary,
 	"get_monthly_mis_summary": get_monthly_mis_summary,
+	"export_to_excel": export_to_excel,
 	"search_records": search_records,
 	"get_record": get_record,
 	"create_record": create_record,
@@ -491,6 +627,35 @@ TOOL_SCHEMAS = [
 				"or infer their access from other tool results."
 			),
 			"parameters": {"type": "object", "properties": {}},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "propose_guide_point",
+			"description": (
+				"Suggest a new instruction for yourself for an admin to review and approve - use this ONLY when you "
+				"actually hit a real gap in your own instructions during this conversation: you had to guess at "
+				"something your instructions don't cover, the user corrected a mistake you made, or you noticed a "
+				"recurring type of question you don't have clear guidance for. Do NOT call this for routine questions "
+				"you already answered correctly, and do not call it more than once or twice in a conversation. The "
+				"suggestion is never active immediately - it only takes effect after an admin approves it, so tell the "
+				"user (if relevant) that you've noted this for review, not that you've already learned it."
+			),
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"point": {
+						"type": "string",
+						"description": "The proposed instruction itself, written the same way an existing guide point would be (a single, self-contained statement).",
+					},
+					"reason": {
+						"type": "string",
+						"description": "What in this conversation prompted the suggestion - be specific (e.g. 'User asked about X and I had no guidance on which tool to use').",
+					},
+				},
+				"required": ["point", "reason"],
+			},
 		},
 	},
 	{
@@ -606,6 +771,38 @@ TOOL_SCHEMAS = [
 					},
 				},
 				"required": ["month"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "export_to_excel",
+			"description": (
+				"Build a downloadable Excel (.xlsx) file from data you already have (from an earlier tool call in this "
+				"same conversation) and get back a link the user can click to download it. Use this whenever the user "
+				"asks to export, download, or 'send as excel/spreadsheet', or whenever a result you are about to show "
+				"has many rows (more than about 15-20) and would be easier as a file than a long chat message - in "
+				"that case, still give a short one- or two-sentence summary in your reply AND call this tool, rather "
+				"than pasting every row into the chat. You must flatten the data yourself into a plain column header "
+				"list and a list of row value lists - do not pass a tool's raw JSON result as-is."
+			),
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"title": {"type": "string", "description": "Short file/sheet title, e.g. 'Budget Summary 2026-27'."},
+					"columns": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "Column header names, in order.",
+					},
+					"rows": {
+						"type": "array",
+						"items": {"type": "array"},
+						"description": "One array per row, values in the same order as columns.",
+					},
+				},
+				"required": ["title", "columns", "rows"],
 			},
 		},
 	},

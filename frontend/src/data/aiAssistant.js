@@ -35,7 +35,17 @@ export async function sendAssistantMessage(message) {
   conversation.value = [...priorMessages, { role: 'user', content: message }]
 
   const result = await sendMessageCall.submit({ messages: priorMessages, message })
-  conversation.value = result.messages
+  const messages = result.messages
+  // Attachments (currently only export_to_excel's download link) belong to
+  // the reply this turn just produced, which is always the last message in
+  // the array send_message returns - attached directly onto that message
+  // object (not kept as a separate parallel array) so AiAssistant.vue's own
+  // v-for over `conversation` can render them inline without needing a
+  // second lookup/index to correlate the two.
+  if (result.attachments?.length && messages.length) {
+    messages[messages.length - 1].attachments = result.attachments
+  }
+  conversation.value = messages
   return result
 }
 

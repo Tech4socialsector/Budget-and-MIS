@@ -69,6 +69,11 @@ const routes = [
     component: () => import('@/pages/CombinationReconciliation.vue'),
   },
   {
+    path: '/ai-guide-review',
+    name: 'AiGuideReview',
+    component: () => import('@/pages/AiGuideReview.vue'),
+  },
+  {
     path: '/:doctypeRoute',
     name: 'DoctypeList',
     component: () => import('@/pages/DoctypeList.vue'),
