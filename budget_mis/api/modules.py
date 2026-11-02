@@ -38,14 +38,41 @@ def module_visible_to_user(module_doc, user_roles):
 	return bool(allowed_roles & user_roles)
 
 
-def _direct_payload(module_doc):
+# A Finance Unit Coordinator's own Home tile click for the "Dashboard"
+# module opens Budget vs Actual instead of the real Dashboard page - this
+# role is meant to work from unit-level budget-vs-actual figures day to
+# day, not the foundation-wide Dashboard view. Scoped to this one module's
+# `name` (not every "Page" direct-module) so it can never accidentally
+# redirect some other current or future direct-page tile just because a
+# Finance Unit Coordinator happens to view it. Deliberately a tile-level
+# redirect only (not a route guard) - a direct /budget-dashboard visit by
+# this role still opens the real Dashboard, matching what was actually
+# asked for.
+#
+# Never applied to Administrator: frappe.get_roles("Administrator") returns
+# EVERY role in the system (Administrator implicitly holds all of them), so
+# a plain "is this role in the user's roles" check would silently redirect
+# Administrator's own Dashboard tile too - confirmed as a real bug, not
+# hypothetical, when Administrator reported the real Dashboard missing.
+DASHBOARD_REDIRECT_BY_ROLE = {
+	"budget_dashboard": {"Finance Unit Coordinator": "BudgetVsActual"},
+}
+
+
+def _direct_payload(module_doc, user_roles, user=None):
 	"""The single destination a non-sidebar module's own Home tile opens,
 	in the same {type, ...} shape for all three direct_item_type options so
 	the frontend can switch on `type` alone."""
 	if module_doc.direct_item_type == "Page":
 		if not module_doc.direct_page_route:
 			return None
-		return {"type": "Page", "page_route": module_doc.direct_page_route}
+		page_route = module_doc.direct_page_route
+		if user != "Administrator":
+			for role, redirect_route in DASHBOARD_REDIRECT_BY_ROLE.get(module_doc.name, {}).items():
+				if role in user_roles:
+					page_route = redirect_route
+					break
+		return {"type": "Page", "page_route": page_route}
 	if module_doc.direct_item_type == "DocType":
 		if not module_doc.direct_doctype_name:
 			return None
@@ -83,7 +110,7 @@ def get_app_modules():
 		module_icon = _valid_icon(module_doc.icon)
 
 		if not module_doc.is_sidebar_module:
-			direct = _direct_payload(module_doc)
+			direct = _direct_payload(module_doc, user_roles, user=frappe.session.user)
 			if not direct:
 				continue
 			modules.append({

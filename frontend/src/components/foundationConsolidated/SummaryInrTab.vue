@@ -12,7 +12,10 @@
   load(), so it's dead code and intentionally NOT replicated here.
 -->
 <template>
-  <ErrorMessage v-if="error" :message="errorMessage" />
+  <div v-if="error" class="flex items-center gap-3">
+    <ErrorMessage :message="errorMessage" />
+    <button class="text-sm text-fc-blue-mid underline" @click="$emit('retry')">Retry</button>
+  </div>
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
     <AppLoader variant="build" label="Building Summary in INR..." />
   </div>
@@ -257,7 +260,7 @@ import AppLoader from '@/components/AppLoader.vue'
 import SectionLabel from '@/components/SectionLabel.vue'
 import CrCell from './CrCell.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
-import { normName, isConsolidatedEntry, isGrandTotalSection, prevFY as prevFyOf } from '@/data/foundationConsolidatedData'
+import { normName, isConsolidatedEntry, isGrandTotalSection, prevFY as prevFyOf, tabErrorMessage } from '@/data/foundationConsolidatedData'
 import { rowTotal as annualRowTotal, QUARTERS } from '@/data/budgetTotals'
 import { actualsQuarterTotal } from '@/data/foundationConsolidatedData'
 
@@ -273,7 +276,7 @@ const props = defineProps({
 })
 defineEmits(['retry', 'export'])
 
-const errorMessage = computed(() => props.error?.messages?.[0] || props.error?.message || 'Something went wrong loading Summary in INR.')
+const errorMessage = computed(() => tabErrorMessage(props.error, 'Something went wrong loading Summary in INR.'))
 
 // --- Drill-down ----------------------------------------------------------
 // Only sections A and B have rows that map to one addressable unit's real
@@ -734,10 +737,15 @@ const QuarterPhasingBlock = {
     }
     function pctRow(arr) {
       const total = arr.reduce((a, b) => a + b, 0)
-      return h('tr', { class: 'text-xs italic text-gray-500' }, [
-        h('td', { class: 'fc-td text-left' }, '% Phasing'),
-        ...arr.map((v, i) => h('td', { key: i, class: 'fc-td text-right' }, pctCell(v, total))),
-        h('td', { class: 'fc-td text-right' }, '100.0%'),
+      // Visually subordinate to its own value row above: a light tint plus
+      // tighter vertical padding (fc-td's own 0.5rem padding made this row
+      // read as a peer of the value row, not an annotation of it - same
+      // text size/weight, same row height, nothing but italics telling
+      // them apart).
+      return h('tr', { class: 'bg-gray-50 text-xs italic text-gray-500 dark:bg-gray-800/40' }, [
+        h('td', { class: 'fc-td !py-1 text-left' }, '% Phasing'),
+        ...arr.map((v, i) => h('td', { key: i, class: 'fc-td !py-1 text-right' }, pctCell(v, total))),
+        h('td', { class: 'fc-td !py-1 text-right' }, '100.0%'),
       ])
     }
     return () => {

@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 import frappe
 
@@ -336,8 +336,24 @@ def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, dri
         previous_future = pool.submit(
             _group_actuals_ytd_in_worker, site, previous_formatted.get("fiscal_year"), previous_formatted.get("accounting_period")
         )
-        current_actuals_data = current_future.result()
-        previous_actuals_data = previous_future.result()
+        # requests.get's own timeout (erp_actuals.py) only bounds a single
+        # socket read/connect, not the full call - DNS, auth, or a slow
+        # trickling response can all push a worker thread's wall-clock time
+        # past that. Without a bound here, .result() waits on that thread
+        # forever, so the HTTP response never returns and the connection is
+        # eventually killed by gunicorn/the hosting proxy with no JSON body
+        # at all - the browser sees a raw connection drop ("Failed to
+        # fetch"), never the clean error erp_actuals.py's own except clauses
+        # are meant to produce. A hard ceiling here, slightly above the
+        # ERP request's own 90s timeout, guarantees this call always either
+        # returns real data or a clean, actionable error within a bounded
+        # time - never an open-ended hang.
+        try:
+            current_actuals_data = current_future.result(timeout=100)
+            previous_actuals_data = previous_future.result(timeout=100)
+        except FutureTimeoutError:
+            frappe.log_error("ERP Timeout", "Monthly MIS actuals fetch exceeded the worker timeout")
+            frappe.throw("The ERP system did not respond in time. Please try again in a few minutes.")
 
     scope = is_direct_http_call(get_monthly_mis_page_data)
     current_break_up = get_monthly_mis_break_up(

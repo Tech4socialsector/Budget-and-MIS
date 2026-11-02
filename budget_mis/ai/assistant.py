@@ -70,9 +70,15 @@ def _load_guide():
 	)
 	points_by_section = {}
 	if sections:
+		# status=Approved excludes any point the assistant itself proposed via
+		# propose_guide_point (see tools.py) that an admin hasn't reviewed yet
+		# - is_active alone isn't enough, since a freshly-proposed point
+		# defaults to is_active=1/status=Pending so it's visible to an admin
+		# browsing the doctype, but must never reach the live system prompt
+		# before being approved.
 		rows = frappe.get_all(
 			"AI Assistant Guide Point",
-			filters={"parent": ["in", [s.name for s in sections]], "is_active": 1},
+			filters={"parent": ["in", [s.name for s in sections]], "is_active": 1, "status": "Approved"},
 			fields=["parent", "point"],
 			order_by="parent asc, sort_order asc, idx asc",
 		)
@@ -368,6 +374,14 @@ def send_message(messages, message):
 	system_prompt = _build_system_prompt(bot_name)
 	api_messages = [{"role": "system", "content": system_prompt}] + messages
 
+	# Collects every file_url a tool call produces this turn (currently only
+	# export_to_excel returns one) so the frontend can render a real download
+	# link alongside the model's own prose reply - relying on the model to
+	# faithfully reproduce a raw URL inside its own generated text would be
+	# fragile (it could paraphrase, truncate, or omit it entirely), so this
+	# is collected directly from the tool result instead.
+	attachments = []
+
 	try:
 		for _iteration in range(MAX_TOOL_ITERATIONS):
 			data = _call_chat_completions(base_url, api_key, model, api_messages)
@@ -377,11 +391,16 @@ def send_message(messages, message):
 			if not tool_calls:
 				reply = choice.get("content") or ""
 				messages.append({"role": "assistant", "content": reply})
-				return {"reply": reply, "messages": messages}
+				return {"reply": reply, "messages": messages, "attachments": attachments}
 
 			api_messages.append(choice)
 			for tool_call in tool_calls:
 				result = _execute_tool_call(tool_call)
+				if isinstance(result, dict) and result.get("file_url"):
+					attachments.append({
+						"file_url": result["file_url"],
+						"file_name": result.get("file_name") or "export.xlsx",
+					})
 				api_messages.append({
 					"role": "tool",
 					"tool_call_id": tool_call.get("id"),
@@ -390,7 +409,7 @@ def send_message(messages, message):
 
 		reply = _("I wasn't able to finish that - could you try rephrasing or breaking it into smaller steps?")
 		messages.append({"role": "assistant", "content": reply})
-		return {"reply": reply, "messages": messages}
+		return {"reply": reply, "messages": messages, "attachments": attachments}
 
 	except frappe.ValidationError:
 		raise

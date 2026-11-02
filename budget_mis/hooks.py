@@ -177,6 +177,10 @@ doc_events = {
 		"on_update": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
 		"on_trash": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
 	},
+	"AI Assistant Guide": {
+		"on_update": "budget_mis.startup.clear_ai_guide_cache",
+		"on_trash": "budget_mis.startup.clear_ai_guide_cache",
+	},
 }
 
 # Scheduled Tasks

@@ -159,17 +159,67 @@ CACHE_TTL_SECONDS = 5 * 60
 
 @guest_api
 def get_combination_table_settings_test(table_name_filter=None):
+    by_doc = _get_cached_combination_table_settings_by_doc(table_name_filter)
+
+    results = {}
+    for entry in by_doc.values():
+        for combo in entry["combination_settings"]:
+            table_name = combo["table_name"]
+            results.setdefault(table_name, []).append({
+                "settings_doc": entry["settings_doc"],
+                "label": entry["label"],
+                "grouped_units": entry["grouped_units"],
+                "combination_settings": combo,
+            })
+    return results
+
+
+# Same settings/grouped_units resolution as get_combination_table_settings_test
+# above, reshaped into the per-DOC list shape get_unit_wise_plan/
+# get_unit_wise_plan_budget/get_foundation_overall need (one entry per
+# "Overview number cards settings" doc, with ALL of that doc's own
+# combination_table_settings rows matching table_name_filter kept together
+# as a list) rather than _test's per-TABLE-NAME grouping (one entry per row,
+# bucketed by table_name, each with a single combination_settings dict).
+# Built from the SAME cached _get_cached_combination_table_settings_by_doc()
+# call _test itself uses - never re-runs the frappe.get_doc-per-card fan-out
+# a second time just because the caller wants a different shape. (Previously
+# this called the UNCACHED raw builder directly - a real gap, since the
+# function's own comment already claimed this reuse but the cache in fact
+# only lived one level up, inside _test's old wrapper, never read by this
+# function. Fixed by moving the cache down to the shared raw-by-doc builder
+# itself, below, so both shapes always hit the same cache entry.)
+@guest_api
+def get_combination_table_settings_1(table_name_filter=None):
+    by_doc = _get_cached_combination_table_settings_by_doc(table_name_filter)
+    return list(by_doc.values())
+
+
+# Cache sits HERE (not in get_combination_table_settings_test, where it used
+# to live) so both _test and _1 above - and any future caller of this raw
+# shape - genuinely share one cached computation per table_name_filter,
+# instead of _1 silently re-running the full frappe.get_doc-per-card fan-out
+# on every call while only _test benefited from caching.
+def _get_cached_combination_table_settings_by_doc(table_name_filter=None):
     cache_key = f"budget_mis:combination_table_settings:{table_name_filter or ''}"
     cached = frappe.cache().get_value(cache_key)
     if cached is not None:
         return cached
 
-    result = _get_combination_table_settings_raw(table_name_filter)
+    result = _get_combination_table_settings_raw_by_doc(table_name_filter)
     frappe.cache().set_value(cache_key, result, expires_in_sec=CACHE_TTL_SECONDS)
     return result
 
 
-def _get_combination_table_settings_raw(table_name_filter=None):
+# One frappe.get_doc (with child tables) per "Overview number cards settings"
+# card, resolved into grouped_units ONCE - shared by both
+# get_combination_table_settings_test (bucketed by table_name) and
+# get_combination_table_settings_1 (kept per-doc) above, so the two different
+# output shapes this page's callers need never cost two separate fan-outs
+# over the same underlying docs. Keyed by doc name, preserving the
+# frappe.get_all("...", order_by="creation desc") ordering the original
+# per-shape implementations both relied on.
+def _get_combination_table_settings_raw_by_doc(table_name_filter=None):
 
     results = {}
 
@@ -212,6 +262,8 @@ def _get_combination_table_settings_raw(table_name_filter=None):
 
         grouped_units = resolve_grouped_units(doc)
 
+        doc_combination_settings = []
+
         for row in doc.combination_table_settings:
 
             if not row.table_name:
@@ -224,18 +276,24 @@ def _get_combination_table_settings_raw(table_name_filter=None):
                 if normalized_table_name not in table_filter_map:
                     continue
 
-            if original_table_name not in results:
-                results[original_table_name] = []
-
-            results[original_table_name].append({
-                "settings_doc": doc.name,
-                "label": doc.number_card_title,
-                "grouped_units": grouped_units,
-                "combination_settings": {
-                    "table_name": row.table_name,
-                    "sequence_id": row.sequence_id,
-                    "is_this_sub_item": row.is_this_sub_item
-                }
+            doc_combination_settings.append({
+                "table_name": row.table_name,
+                "sequence_id": row.sequence_id,
+                "is_this_sub_item": row.is_this_sub_item,
             })
+
+        # Matches get_combination_table_settings_1's own skip rule: a doc
+        # with zero rows matching an active table_name_filter contributes
+        # nothing at all, rather than an entry with an empty
+        # combination_settings list.
+        if table_filters and not doc_combination_settings:
+            continue
+
+        results[doc.name] = {
+            "settings_doc": doc.name,
+            "label": doc.number_card_title,
+            "grouped_units": grouped_units,
+            "combination_settings": doc_combination_settings,
+        }
 
     return results

@@ -157,12 +157,12 @@
   "icon": "database",
   "is_sidebar_module": 1,
   "label": "Settings & Master Data",
-  "modified": "2026-10-23 16:44:14.633081",
+  "modified": "2026-11-02 10:11:13.649815",
   "module_name": "budget_master",
   "name": "budget_master",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 1
+  "sort_order": 11
  },
  {
   "direct_doctype_name": null,
@@ -177,12 +177,12 @@
   "icon": "calendar",
   "is_sidebar_module": 0,
   "label": "Monthly MIS",
-  "modified": "2026-10-23 16:44:41.711046",
+  "modified": "2026-11-02 10:11:13.644962",
   "module_name": "mis_reports",
   "name": "mis_reports",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 6
+  "sort_order": 4
  },
  {
   "direct_doctype_name": null,
@@ -197,7 +197,7 @@
   "icon": "chart-pie",
   "is_sidebar_module": 0,
   "label": "Dashboard",
-  "modified": "2026-10-23 16:44:14.672178",
+  "modified": "2026-11-02 10:11:13.243330",
   "module_name": "budget_dashboard",
   "name": "budget_dashboard",
   "restrict_by_role": 0,
@@ -217,12 +217,12 @@
   "icon": "chart-column",
   "is_sidebar_module": 0,
   "label": "Budget Summary",
-  "modified": "2026-10-23 16:44:14.679219",
+  "modified": "2026-11-02 10:11:13.642802",
   "module_name": "budget_summary",
   "name": "budget_summary",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 2
+  "sort_order": 1
  },
  {
   "direct_doctype_name": null,
@@ -237,12 +237,12 @@
   "icon": "trending-up",
   "is_sidebar_module": 0,
   "label": "Budget vs Actual",
-  "modified": "2026-10-23 16:44:14.680909",
+  "modified": "2026-11-02 10:11:13.643476",
   "module_name": "budget_vs_actual",
   "name": "budget_vs_actual",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 3
+  "sort_order": 2
  },
  {
   "direct_doctype_name": null,
@@ -257,12 +257,12 @@
   "icon": "file-text",
   "is_sidebar_module": 0,
   "label": "Foundation - Consolidated Budget",
-  "modified": "2026-10-23 16:44:14.681742",
+  "modified": "2026-11-02 10:11:13.644031",
   "module_name": "foundation_consolidated",
   "name": "foundation_consolidated",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 4
+  "sort_order": 3
  },
  {
   "direct_doctype_name": null,
@@ -277,7 +277,7 @@
   "icon": "database",
   "is_sidebar_module": 0,
   "label": "ERP Actuals",
-  "modified": "2026-10-23 16:44:14.682556",
+  "modified": "2026-11-02 10:11:13.645692",
   "module_name": "erp_actuals",
   "name": "erp_actuals",
   "restrict_by_role": 0,
@@ -297,12 +297,12 @@
   "icon": "life-buoy",
   "is_sidebar_module": 0,
   "label": "Help & Support",
-  "modified": "2026-10-23 16:44:41.742961",
+  "modified": "2026-11-02 10:11:13.648628",
   "module_name": "help_support",
   "name": "help_support",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 7
+  "sort_order": 9
  },
  {
   "direct_doctype_name": null,
@@ -317,12 +317,12 @@
   "icon": "download",
   "is_sidebar_module": 0,
   "label": "Budget Import Template",
-  "modified": "2026-10-29 18:08:04.500546",
+  "modified": "2026-11-02 10:11:13.646428",
   "module_name": "budget_import_template",
   "name": "budget_import_template",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 8
+  "sort_order": 6
  },
  {
   "direct_doctype_name": null,
@@ -337,12 +337,12 @@
   "icon": "git-compare",
   "is_sidebar_module": 0,
   "label": "Combination Reconciliation",
-  "modified": "2026-10-29 18:26:03.655157",
+  "modified": "2026-11-02 10:11:13.649256",
   "module_name": "combination_reconciliation",
   "name": "combination_reconciliation",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 9
+  "sort_order": 10
  },
  {
   "direct_doctype_name": null,
@@ -357,12 +357,12 @@
   "icon": "upload",
   "is_sidebar_module": 0,
   "label": "Budget Import",
-  "modified": "2026-10-30 09:06:48.513928",
+  "modified": "2026-11-02 10:11:13.647150",
   "module_name": "budget_import_upload",
   "name": "budget_import_upload",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 10
+  "sort_order": 7
  },
  {
   "direct_doctype_name": null,
@@ -377,7 +377,7 @@
   "icon": "import",
   "is_sidebar_module": 0,
   "label": "Data Import",
-  "modified": "2026-10-30 14:56:41.928879",
+  "modified": "2026-11-02 10:11:13.647779",
   "module_name": "data_import",
   "name": "data_import",
   "restrict_by_role": 1,
@@ -386,6 +386,6 @@
     "role": "System Manager"
    }
   ],
-  "sort_order": 11
+  "sort_order": 8
  }
 ]

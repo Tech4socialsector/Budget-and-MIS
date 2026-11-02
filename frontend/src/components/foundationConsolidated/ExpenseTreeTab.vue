@@ -16,7 +16,10 @@
   so this DOM-order difference isn't accidentally lost.
 -->
 <template>
-  <ErrorMessage v-if="error" :message="errorMessage" />
+  <div v-if="error" class="flex items-center gap-3">
+    <ErrorMessage :message="errorMessage" />
+    <button class="text-sm text-fc-blue-mid underline" @click="$emit('retry')">Retry</button>
+  </div>
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
     <AppLoader :label="kind === 'annual' ? 'Loading Annual Budget Consolidated...' : 'Loading Actuals Consolidated...'" />
   </div>
@@ -212,6 +215,7 @@ import {
   actualsQuarterTotal,
   actualsQuarterMonths,
   actualsRowTotal,
+  tabErrorMessage,
 } from '@/data/foundationConsolidatedData'
 import { rowTotal as annualRowTotal, QUARTERS } from '@/data/budgetTotals'
 
@@ -225,8 +229,10 @@ const props = defineProps({
 })
 defineEmits(['retry', 'export'])
 
-const errorMessage = computed(() => props.error?.messages?.[0] || props.error?.message ||
-  `Something went wrong loading ${props.kind === 'annual' ? 'Annual Budget Consolidated' : 'Actuals Consolidated'}.`)
+const errorMessage = computed(() => tabErrorMessage(
+  props.error,
+  `Something went wrong loading ${props.kind === 'annual' ? 'Annual Budget Consolidated' : 'Actuals Consolidated'}.`,
+))
 
 const Q_DEFS = [
   { key: 'q1', label: 'Quarter 1', months: ['Apr', 'May', 'Jun'] },

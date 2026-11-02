@@ -10,6 +10,7 @@ from budget_mis.api.adjustments import get_adjustments_month_wise, get_monthly_a
 from budget_mis.utils import guest_api, get_allowed_units
 from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api.erp_utils import get_peoplesoft_prod_credentials, financial_year_label
+from budget_mis.api_1.helper import cache_with_single_flight
 
 ACTUALS_CACHE_TTL = 15 * 60
 
@@ -101,16 +102,18 @@ def fetch_actuals_ytd(fiscal_year, accounting_period):
 # * ==============================================================  PeopleSoft API - Prod, month-wise (the one live HTTP call)  =====================================================================================
 @guest_api
 def fetch_actuals_month_wise(fiscal_year, accounting_period):
+    # Same cache key api_1/erp_actuals.py's get_actuals_from_erp_month_wise
+    # uses - the two modules already share one underlying cache entry per
+    # period, so both need the SAME single-flight lock around it; otherwise
+    # one module's lock-aware caller and the other's plain check-then-set
+    # could still race each other into a duplicate ERP call.
     cache_key = f"budget_mis:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
-    cached = frappe.cache().get_value(cache_key)
-    if cached is not None:
-        if is_direct_http_call(fetch_actuals_month_wise):
-            return {**cached, "data": _scope_rows_to_allowed_units(cached.get("data", []), fetch_actuals_month_wise)}
-        return cached
-
-    result = _fetch_actuals_month_wise_raw(fiscal_year, accounting_period)
-    if result.get("status") == "success":
-        frappe.cache().set_value(cache_key, result, expires_in_sec=ACTUALS_CACHE_TTL)
+    result = cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: _fetch_actuals_month_wise_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda r: r.get("status") == "success",
+        expires_in_sec=ACTUALS_CACHE_TTL,
+    )
     if is_direct_http_call(fetch_actuals_month_wise):
         return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), fetch_actuals_month_wise)}
     return result

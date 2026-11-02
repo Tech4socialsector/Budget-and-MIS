@@ -19,10 +19,8 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
     except ImportError:
         frappe.throw("openpyxl required. Run: bench pip install openpyxl")
 
-    from budget_mis.api.foundation_consolidated_report import (
-        get_unit_wise_plan,
-        get_monthly_mis_break_up,
-    )
+    from budget_mis.api_1.foundation_consolidated import get_unit_wise_actuals_breakup as get_unit_wise_plan
+    from budget_mis.api_1.monthly_mis import get_monthly_mis_break_up
 
     # ── Palette ───────────────────────────────────────────────────────────────
     C_BLUE   = "1565C0"

@@ -8,7 +8,10 @@
  "field_order": [
   "point",
   "is_active",
-  "sort_order"
+  "sort_order",
+  "status",
+  "proposed_by",
+  "proposed_reason"
  ],
  "fields": [
   {
@@ -31,6 +34,32 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Sort Order"
+  },
+  {
+   "default": "Approved",
+   "description": "A point written directly by an admin is Approved immediately. A point the AI assistant proposed on its own (see the ai_guide_suggestions module) starts as Pending and is excluded from the live assistant prompt until an admin changes this to Approved.",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nApproved\nRejected"
+  },
+  {
+   "depends_on": "eval:doc.status != 'Approved' || doc.proposed_by",
+   "description": "Set automatically when the AI assistant proposes this point - blank for a point an admin wrote directly.",
+   "fieldname": "proposed_by",
+   "fieldtype": "Link",
+   "label": "Proposed By (User)",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.status != 'Approved' || doc.proposed_reason",
+   "description": "The AI assistant's own explanation of why it proposed this point.",
+   "fieldname": "proposed_reason",
+   "fieldtype": "Small Text",
+   "label": "Proposed Reason",
+   "read_only": 1
   }
  ],
  "grid_page_length": 100,

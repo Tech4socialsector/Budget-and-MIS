@@ -139,8 +139,6 @@ import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import {
   downloadXlsx,
-  fyToPrevBareYear,
-  getFYLabels,
   normName,
   isGrandTotalSection,
 } from '@/data/foundationConsolidatedData'
@@ -430,19 +428,13 @@ async function loadPpt(force) {
   pptLoading.value = true
   pptError.value = null
   try {
-    const [d, raw] = await Promise.all([
-      call('budget_mis.api.foundation_consolidated_report.get_foundation_overall', {
-        financial_year: fy, month: 'March', table_name_filter: 'Foundation Overall',
-      }),
-      call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month: 'March', table_name_filter: 'Opex Capex', is_previous: 1,
-      }),
-    ])
+    const page = await call('budget_mis.api_1.foundation_consolidated.get_ppt_page_data', { financial_year: fy })
     // A newer request for this tab (e.g. the user changed FY again while
     // this one was still in flight) has already started - discard this
     // now-stale response instead of overwriting the newer one.
     if (gen !== requestGen.ppt) return
-    const data = d || []
+    const data = page?.foundation_overall || []
+    const raw = page?.opex_capex_previous || []
     if (!data.length) {
       pptRows.value = []
       pptPrevRows.value = []
@@ -505,23 +497,13 @@ async function loadSummaryInr(force) {
   summaryInrLoading.value = true
   summaryInrError.value = null
   try {
-    const prevYear = fyToPrevBareYear(fy)
-    const [summary, hc, cr, ga] = await Promise.all([
-      call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan', is_previous: 1,
-      }),
-      call('budget_mis.api.foundation_consolidated_report.get_headcount', {
-        financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
-      }),
-      call('budget_mis.api.phase_sheet.get_consolidated_report', { financial_year: fy }),
-      call('budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
-        fiscal_year: prevYear, accounting_period: '12',
-      }),
-    ])
+    const page = await call('budget_mis.api_1.foundation_consolidated.get_summary_inr_page_data', { financial_year: fy })
     if (gen !== requestGen.summary_inr) return
-    summaryInrRaw.value = summary || []
+    const hc = page?.headcount
+    const ga = page?.actuals_quarter_month_total
+    summaryInrRaw.value = page?.unit_wise_plan_previous || []
     headcountRaw.value = hc?.status === 'success' ? hc : { headcount_data: hc?.headcount_data || [], plan_data: hc?.plan_data || [] }
-    consolidatedReportTree.value = cr || []
+    consolidatedReportTree.value = page?.consolidated_report || []
     const gaData = ga?.status === 'success' ? ga.data : (Array.isArray(ga) ? ga : ga?.data || [])
     groupedActualsTree.value = gaData || []
   } catch (e) {
@@ -550,9 +532,7 @@ async function loadHeadcount(force) {
   headcountLoading.value = true
   headcountError.value = null
   try {
-    const hc = await call('budget_mis.api.foundation_consolidated_report.get_headcount', {
-      financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
-    })
+    const hc = await call('budget_mis.api_1.foundation_consolidated.get_headcount_page_data', { financial_year: fy })
     if (gen !== requestGen.headcount) return
     headcountRecords.value = hc?.headcount_data || []
     headcountPlanData.value = hc?.plan_data || []
@@ -582,7 +562,7 @@ async function loadAnnual(force) {
   annualLoading.value = true
   annualError.value = null
   try {
-    const result = await call('budget_mis.api.phase_sheet.get_consolidated_report', { financial_year: fy })
+    const result = await call('budget_mis.api_1.foundation_consolidated.get_annual_budget_page_data', { financial_year: fy })
     if (gen !== requestGen.annual_budget) return
     annualData.value = result || []
     if (!annualData.value.length) delete loadedFor.annual_budget
@@ -612,10 +592,7 @@ async function loadActuals(force) {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const prevYear = fyToPrevBareYear(fy)
-    const result = await call('budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
-      fiscal_year: prevYear, accounting_period: '12',
-    })
+    const result = await call('budget_mis.api_1.foundation_consolidated.get_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.actuals) return
     const data = result?.status === 'success' ? result.data : (Array.isArray(result) ? result : result?.data || [])
     actualsData.value = data || []
@@ -647,9 +624,7 @@ async function loadBudgetActuals(force) {
   budgetActualsLoading.value = true
   budgetActualsError.value = null
   try {
-    const d = await call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan', {
-      financial_year: fy, month: 'March', table_name_filter: 'Budget & Estimate', is_previous: 1,
-    })
+    const d = await call('budget_mis.api_1.foundation_consolidated.get_budget_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.budget_actuals) return
     const all = d || []
     const consolidatedBlock = all.find((e) => normName(e.table_name) === 'CONSOLIDATED')

@@ -19,6 +19,18 @@ STRUCTURE_SECTION_TITLE = "App Data Structure (auto-generated)"
 # looks like".
 STRUCTURE_SECTION_SORT_ORDER = 100
 
+# Hand-written (not derived from doctype metadata, unlike the structure
+# section above) - tells the model what backend surface exists and how
+# fresh/cached the numbers it reports actually are, so it can answer a
+# user's own questions about either ("which APIs back this?", "why does
+# this look a few minutes stale?") accurately instead of guessing or
+# inventing an explanation. Still just a seed: an admin can edit/disable
+# individual points afterward via the AI Assistant Guide doctype same as
+# any other guide content - re-running seed_api_and_caching_guide() only
+# overwrites this one record, identified by its own title below.
+API_AND_CACHING_SECTION_TITLE = "Backend APIs and Caching (reference)"
+API_AND_CACHING_SECTION_SORT_ORDER = 50
+
 SKIP_FIELDTYPES = {"Section Break", "Column Break", "Tab Break", "HTML", "Heading", "Button"}
 
 # Doctypes worth calling out by name as "master data" vs "budget/transaction
@@ -100,6 +112,36 @@ def _monthly_mis_response_shape_points():
 	]
 
 
+SELF_IMPROVEMENT_SECTION_TITLE = "Self-Improvement via propose_guide_point"
+SELF_IMPROVEMENT_SECTION_SORT_ORDER = 10
+
+
+def build_self_improvement_points():
+	return [
+		"You have a propose_guide_point tool to suggest a new instruction for yourself when you genuinely hit a gap in your own instructions during a real conversation - you had to guess, the user corrected a mistake, or you noticed a question type you have no clear guidance for.",
+		"Never call propose_guide_point for a question you already answered correctly using existing instructions - it is for genuine gaps only, not a routine logging mechanism.",
+		"A proposal you submit is never active immediately and never affects the current or any other conversation right away - an admin must review and approve it first. If you mention the proposal to the user, say you've noted it for review, never that you've already learned or remembered it.",
+		"Do not call propose_guide_point more than once or twice in a single conversation, even if several gaps come up - prefer the single clearest/most useful one.",
+	]
+
+
+def build_api_and_caching_points():
+	"""Hand-written facts about the three tools' own backend data sources
+	and cache lifetimes - the model should cite these when a user asks
+	"where does this number come from" or "how fresh is this", rather than
+	speculating."""
+	return [
+		"This assistant has exactly three data-reporting tools: get_budget_summary (budgeted/allocated/sanctioned amounts), get_actuals_summary (actual/spent/posted expenditure), and get_monthly_mis_summary (Monthly MIS section breakdown, budget vs actuals together). Every number they return is read from this app's own backend APIs - the assistant never computes a total by itself from raw records.",
+		"get_budget_summary reads from Finance Budget records (via budget_mis.api_1.budget_summary) - a document-based doctype, not an external system, so its numbers are always exactly as current as the latest saved Finance Budget record, with no caching delay at all.",
+		"get_actuals_summary and get_monthly_mis_summary both ultimately read from one shared, server-side cached PeopleSoft ERP fetch (budget_mis.api_1.erp_actuals.get_actuals_from_erp_month_wise and budget_mis.api_1.grouped_actuals.group_actuals_ytd) - the SAME cached data the Monthly MIS and Budget vs Actuals pages in this app also read, not a separate or duplicate pull.",
+		"That ERP cache's lifetime is controlled by the 'ERP Credentials' doctype's actuals_cache_duration_minutes setting (an admin-configurable value, read fresh on every request) - if a user asks how fresh actuals data is, say it is cached for up to that many minutes and shared across every user asking about the same financial year/month, not fetched fresh on every single question.",
+		"A logged-in user's own first page view (or login) pre-warms this same ERP cache for the two periods the app's own Monthly MIS page defaults to (the current financial year's most recently completed month, and the same month one financial year earlier) - so those two specific periods are very likely to already be cached and fast; any other period may trigger a slower first fetch (the underlying PeopleSoft call itself can take up to about 90 seconds) that is then cached for every subsequent asker.",
+		"If two different users (or this assistant and a page load) ask for the exact same uncached financial-year/month at the same moment, the backend is built so only ONE real request to PeopleSoft is made - the other caller automatically waits for and reuses that same in-flight result, rather than triggering a second redundant external call. This means a brief delay on an uncached question is normal and does not mean anything is broken.",
+		"get_monthly_mis_summary additionally keeps its own short-lived cached copy of its already-formatted response (same TTL as the ERP cache above), separate from the raw ERP cache - so a second, similarly-phrased Monthly MIS question can return instantly without re-deriving the section breakdown from scratch.",
+		"None of this assistant's tools make a live network call while you are waiting for a reply if the relevant period is already cached - only a genuinely new/uncached financial-year/month combination can take noticeably longer to answer.",
+	]
+
+
 def build_structure_points():
 	"""Flat, ordered list of point strings covering master doctypes, budget
 	doctypes, and the get_budget_summary response shape - each entry becomes
@@ -164,4 +206,87 @@ def regenerate_ai_guide_structure():
 	if not frappe.has_permission("AI Assistant Guide", "write"):
 		frappe.throw("You do not have permission to update the AI Assistant Guide", frappe.PermissionError)
 	regenerate_structure_guide()
+	return {"status": "ok"}
+
+
+def seed_api_and_caching_guide():
+	"""Create or overwrite the single AI Assistant Guide record holding the
+	hand-written API/caching reference points - same create-or-overwrite-by-
+	title pattern as regenerate_structure_guide(), so re-running this is
+	always safe and never duplicates or touches any other guide record."""
+	points = build_api_and_caching_points()
+
+	if frappe.db.exists("AI Assistant Guide", API_AND_CACHING_SECTION_TITLE):
+		doc = frappe.get_doc("AI Assistant Guide", API_AND_CACHING_SECTION_TITLE)
+		doc.set("points", [])
+	else:
+		doc = frappe.get_doc({
+			"doctype": "AI Assistant Guide",
+			"title": API_AND_CACHING_SECTION_TITLE,
+			"is_active": 1,
+			"sort_order": API_AND_CACHING_SECTION_SORT_ORDER,
+			"points": [],
+		})
+
+	for i, point in enumerate(points):
+		doc.append("points", {"point": point, "is_active": 1, "sort_order": i})
+
+	if doc.name:
+		doc.save(ignore_permissions=True)
+	else:
+		doc.insert(ignore_permissions=True)
+
+	frappe.cache().delete_value("budget_mis_ai_assistant_guide")
+	frappe.db.commit()
+	return [p.point for p in doc.points]
+
+
+@frappe.whitelist()
+def regenerate_ai_guide_api_and_caching():
+	"""Admin-triggered (re)seed of the hand-written API/caching guide
+	section - same permission gate as regenerate_ai_guide_structure."""
+	if not frappe.has_permission("AI Assistant Guide", "write"):
+		frappe.throw("You do not have permission to update the AI Assistant Guide", frappe.PermissionError)
+	seed_api_and_caching_guide()
+	return {"status": "ok"}
+
+
+def seed_self_improvement_guide():
+	"""Create or overwrite the single AI Assistant Guide record holding the
+	propose_guide_point usage instructions - same create-or-overwrite-by-
+	title pattern as the other seed functions in this file."""
+	points = build_self_improvement_points()
+
+	if frappe.db.exists("AI Assistant Guide", SELF_IMPROVEMENT_SECTION_TITLE):
+		doc = frappe.get_doc("AI Assistant Guide", SELF_IMPROVEMENT_SECTION_TITLE)
+		doc.set("points", [])
+	else:
+		doc = frappe.get_doc({
+			"doctype": "AI Assistant Guide",
+			"title": SELF_IMPROVEMENT_SECTION_TITLE,
+			"is_active": 1,
+			"sort_order": SELF_IMPROVEMENT_SECTION_SORT_ORDER,
+			"points": [],
+		})
+
+	for i, point in enumerate(points):
+		doc.append("points", {"point": point, "is_active": 1, "sort_order": i})
+
+	if doc.name:
+		doc.save(ignore_permissions=True)
+	else:
+		doc.insert(ignore_permissions=True)
+
+	frappe.cache().delete_value("budget_mis_ai_assistant_guide")
+	frappe.db.commit()
+	return [p.point for p in doc.points]
+
+
+@frappe.whitelist()
+def regenerate_ai_guide_self_improvement():
+	"""Admin-triggered (re)seed of the propose_guide_point usage guide
+	section - same permission gate as the other regenerate_* functions."""
+	if not frappe.has_permission("AI Assistant Guide", "write"):
+		frappe.throw("You do not have permission to update the AI Assistant Guide", frappe.PermissionError)
+	seed_self_improvement_guide()
 	return {"status": "ok"}

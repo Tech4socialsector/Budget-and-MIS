@@ -5,7 +5,7 @@ import frappe
 from budget_mis.utils import guest_api, get_allowed_units
 from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.erp_actuals import get_actuals_from_erp_month_wise
-from budget_mis.api_1.helper import get_actuals_cache_duration_seconds
+from budget_mis.api_1.helper import get_actuals_cache_duration_seconds, cache_with_single_flight
 
 
 # Every function below is cached and shared across EVERY caller regardless
@@ -218,18 +218,15 @@ def group_actuals_by_gl_mapping(fiscal_year, accounting_period):
 @guest_api
 def group_actuals_ytd(fiscal_year, accounting_period):
     cache_key = f"budget_mis:group_actuals_ytd:{fiscal_year}:{accounting_period}"
-    cached = frappe.cache().get_value(cache_key)
-    if cached is not None:
-        # Scoped on top of the cached (always-unscoped) result, into a new
-        # dict/list - never mutates the cached object itself, which stays
-        # the single shared, unscoped entry every caller's cache hit reads.
-        if is_direct_http_call(group_actuals_ytd):
-            return {**cached, "data": _scope_rows_to_allowed_units(cached.get("data", []), group_actuals_ytd)}
-        return cached
-
-    result = _group_actuals_ytd_raw(fiscal_year, accounting_period)
-    if result.get("status") == "success":
-        frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
+    result = cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: _group_actuals_ytd_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda r: r.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
+    )
+    # Scoped on top of the cached (always-unscoped) result, into a new
+    # dict/list - never mutates the cached object itself, which stays the
+    # single shared, unscoped entry every caller (cache hit OR miss) reads.
     if is_direct_http_call(group_actuals_ytd):
         return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), group_actuals_ytd)}
     return result
@@ -306,15 +303,12 @@ def _group_actuals_ytd_raw(fiscal_year, accounting_period):
 @guest_api
 def group_actuals_by_gl_code(fiscal_year, accounting_period):
     cache_key = f"budget_mis:group_actuals_by_gl_code:{fiscal_year}:{accounting_period}"
-    cached = frappe.cache().get_value(cache_key)
-    if cached is not None:
-        if is_direct_http_call(group_actuals_by_gl_code):
-            return {**cached, "data": _scope_rows_to_allowed_units(cached.get("data", []), group_actuals_by_gl_code)}
-        return cached
-
-    result = _group_actuals_by_gl_code_raw(fiscal_year, accounting_period)
-    if result.get("status") == "success":
-        frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
+    result = cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: _group_actuals_by_gl_code_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda r: r.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
+    )
     if is_direct_http_call(group_actuals_by_gl_code):
         return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), group_actuals_by_gl_code)}
     return result

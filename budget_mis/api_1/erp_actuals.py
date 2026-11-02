@@ -9,6 +9,7 @@ from budget_mis.api_1.helper import (
     get_peoplesoft_prod_credentials,
     format_financial_year,
     get_actuals_cache_duration_seconds,
+    cache_with_single_flight,
 )
 
 
@@ -17,14 +18,12 @@ from budget_mis.api_1.helper import (
 @guest_api
 def get_actuals_from_erp_month_wise(fiscal_year, accounting_period):
     cache_key = f"budget_mis:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
-    cached = frappe.cache().get_value(cache_key)
-    if cached is not None:
-        return cached
-
-    result = _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period)
-    if result.get("status") == "success":
-        frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
-    return result
+    return cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda result: result.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
+    )
 
 
 def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):

@@ -125,11 +125,26 @@
               >
                 {{ userInitial }}
               </span>
-              <div
-                class="max-w-[95%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
-                :class="m.role === 'user' ? 'ai-assistant-bubble-user' : 'ai-assistant-bubble-bot'"
-                v-html="renderFormatted(m.content)"
-              />
+              <div class="max-w-[95%] min-w-0">
+                <div
+                  class="rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                  :class="m.role === 'user' ? 'ai-assistant-bubble-user' : 'ai-assistant-bubble-bot'"
+                  v-html="renderFormatted(m.content)"
+                />
+                <div v-if="m.attachments?.length" class="mt-1.5 flex flex-col gap-1">
+                  <a
+                    v-for="att in m.attachments"
+                    :key="att.file_url"
+                    :href="att.file_url"
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600"
+                  >
+                    <FeatherIcon name="download" class="h-3.5 w-3.5 flex-shrink-0" />
+                    {{ att.file_name }}
+                  </a>
+                </div>
+              </div>
             </div>
           </TransitionGroup>
 
