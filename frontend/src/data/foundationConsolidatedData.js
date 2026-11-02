@@ -162,3 +162,20 @@ export function isGrandTotalSection(sec) {
 export function isConsolidatedEntry(entry) {
   return entry?.sequence_id === 9999 || normName(entry?.table_name) === 'CONSOLIDATED'
 }
+
+// A raw "Failed to fetch"/"NetworkError..." TypeError (no HTTP response at
+// all - connection dropped or timed out, e.g. a hosting proxy's own request
+// ceiling cutting off this page's slow cold-cache combined tab call; see
+// MonthlyMis.vue's own identical fix) reads as a dead end to a user with no
+// idea what to do about it. Shared here since every one of this page's 6
+// tab components (PptTab/SummaryInrTab/HeadcountTab/ExpenseTreeTab/
+// BudgetActualsTab) independently builds its own errorMessage computed from
+// the same raw error object - rather than duplicating this rewrite 5 times,
+// each one calls this instead.
+export function tabErrorMessage(error, fallback) {
+  const raw = error?.messages?.[0] || error?.message || ''
+  if (/failed to fetch|networkerror/i.test(raw)) {
+    return 'Could not reach the server - this can happen when the data is still loading for the first time. Please wait a moment and try again.'
+  }
+  return raw || fallback || 'Something went wrong loading this data.'
+}

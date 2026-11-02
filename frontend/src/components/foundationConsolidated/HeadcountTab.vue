@@ -7,7 +7,10 @@
   gate on both % tables together).
 -->
 <template>
-  <ErrorMessage v-if="error" :message="errorMessage" />
+  <div v-if="error" class="flex items-center gap-3">
+    <ErrorMessage :message="errorMessage" />
+    <button class="text-sm text-fc-blue-mid underline" @click="$emit('retry')">Retry</button>
+  </div>
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
     <AppLoader label="Loading Headcount..." />
   </div>
@@ -156,6 +159,7 @@ import { computed, h } from 'vue'
 import { Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import CrCell from './CrCell.vue'
+import { tabErrorMessage } from '@/data/foundationConsolidatedData'
 
 const props = defineProps({
   loading: Boolean,
@@ -166,7 +170,7 @@ const props = defineProps({
 })
 defineEmits(['retry', 'export'])
 
-const errorMessage = computed(() => props.error?.messages?.[0] || props.error?.message || 'Something went wrong loading Headcount.')
+const errorMessage = computed(() => tabErrorMessage(props.error, 'Something went wrong loading Headcount.'))
 
 const records = computed(() => props.headcountData || [])
 
