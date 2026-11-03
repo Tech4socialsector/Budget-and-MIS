@@ -17,6 +17,19 @@
             />
           </div>
           <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Operating Units</label>
+            <MultiSelect
+              v-model="themeSelection"
+              :options="themeOptions"
+              :loading="themeLoading || themeMappingLoading"
+              placeholder="All operating units"
+              class="w-full"
+            />
+            <p v-if="themeMappingEmpty" class="mt-1 text-[0.6875rem] text-amber-600 dark:text-amber-400">
+              No units/cost centers are set up for this Operating Unit yet - showing all data instead.
+            </p>
+          </div>
+          <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Unit</label>
             <MultiSelect
               v-model="filters.units"
@@ -136,7 +149,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { MultiSelect, FormControl, Button, FeatherIcon, Switch, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
@@ -239,6 +252,95 @@ async function loadUnits() {
   unitOptions.value = toOptions(r?.data)
 }
 
+// --- Operating Units (theme) filter -----------------------------------
+// Same cascade as BudgetActualsBreakdown.vue's own Operating Units filter:
+// picking a theme resolves to a set of Unit/Cost Center/Location Code
+// values via get_theme_mappings and overwrites those selections - the
+// backend never sees "theme" itself. Budget Summary is budget-only (no
+// actuals call), so unlike BudgetActualsBreakdown this only needs each
+// mapping's budget-side (value), never its erp_cost_center_value/erp_loc_value.
+const themeOptions = ref([])
+const themeLoading = ref(false)
+const themeMappingLoading = ref(false)
+const themeMappingEmpty = ref(false)
+const themeLabelToName = reactive({})
+const themeSelectionNames = ref([])
+const themeSelection = computed({
+  get: () => themeSelectionNames.value.map((name) => Object.entries(themeLabelToName).find(([, v]) => v === name)?.[0]).filter(Boolean),
+  set: (labels) => {
+    themeSelectionNames.value = labels.map((label) => themeLabelToName[label]).filter(Boolean)
+    applyThemeSelection()
+  },
+})
+
+async function loadThemes() {
+  themeLoading.value = true
+  try {
+    const rows = await call('budget_mis.api_1.filter_options.get_theme')
+    for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
+    themeOptions.value = (rows || []).map((d) => {
+      themeLabelToName[d.number_card_title] = d.name
+      return { label: d.number_card_title, value: d.number_card_title }
+    })
+  } finally {
+    themeLoading.value = false
+  }
+}
+
+let suppressUnitWatch = false
+let themeMappingToken = 0
+async function applyThemeSelection() {
+  const token = ++themeMappingToken
+
+  if (!themeSelectionNames.value.length) {
+    themeMappingEmpty.value = false
+    suppressUnitWatch = true
+    filters.units = []
+    await nextTick()
+    suppressUnitWatch = false
+    costCenterOptions.value = []
+    locationCodeOptions.value = []
+    filters.costCenters = []
+    filters.locationCodes = []
+    return
+  }
+
+  themeMappingLoading.value = true
+  let results
+  try {
+    results = await Promise.all(
+      themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
+    )
+  } catch (e) {
+    if (token === themeMappingToken) themeMappingLoading.value = false
+    window.alert(e?.messages?.[0] || e?.message || 'Could not load the selected Operating Unit(s) - filters were not changed.')
+    return
+  }
+  if (token !== themeMappingToken) return
+
+  const unitVals = new Map()
+  const ccVals = new Map()
+  const locVals = new Map()
+  for (const r of results) {
+    for (const u of r?.units || []) unitVals.set(u.value, u)
+    for (const c of r?.cost_centers || []) { if (c.value) ccVals.set(c.value, c) }
+    for (const l of r?.location_codes || []) { if (l.value) locVals.set(l.value, l) }
+  }
+
+  suppressUnitWatch = true
+  filters.units = [...unitVals.keys()]
+  await nextTick()
+  suppressUnitWatch = false
+
+  costCenterOptions.value = [...ccVals.values()].map((c) => ({ label: c.label, value: c.value }))
+  locationCodeOptions.value = [...locVals.values()].map((l) => ({ label: l.label, value: l.value }))
+  filters.costCenters = [...ccVals.keys()]
+  filters.locationCodes = [...locVals.keys()]
+  themeMappingEmpty.value = !unitVals.size && !ccVals.size && !locVals.size
+  themeMappingLoading.value = false
+  loadReport()
+}
+
 async function loadCostCenters() {
   if (!filters.units.length) {
     costCenterOptions.value = []
@@ -282,6 +384,7 @@ async function loadReport() {
 }
 
 function clearFilters() {
+  themeSelectionNames.value = []
   filters.units = []
   filters.costCenters = []
   filters.locationCodes = []
@@ -314,6 +417,7 @@ watch(() => filters.financialYear, () => {
 })
 
 watch(() => filters.units.slice(), async (newUnits, oldUnits) => {
+  if (suppressUnitWatch) return
   const changed = JSON.stringify(newUnits) !== JSON.stringify(oldUnits || [])
   if (!changed) return
   filters.costCenters = []
@@ -377,6 +481,7 @@ async function exportExcel() {
 onMounted(async () => {
   await loadFinancialYears()
   await loadUnits()
+  loadThemes()
   loadReport()
 })
 </script>

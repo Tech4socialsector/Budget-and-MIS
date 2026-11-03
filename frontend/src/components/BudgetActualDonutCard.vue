@@ -42,18 +42,18 @@
             </span>
             <span class="dc-stat-label">Actual Spent</span>
           </div>
-          <div class="dc-stat-value" :style="{ color: utilColor }">{{ actualLabel }}</div>
-          <div class="dc-stat-detail">{{ utilPct }}% of budget</div>
+          <div class="dc-stat-value">{{ actualLabel }}</div>
+          <div class="dc-stat-detail" :style="{ color: utilColor }">{{ utilPct }}% of budget</div>
         </div>
         <div class="dc-stat">
           <div class="dc-stat-top">
             <span class="dc-stat-icon" :style="{ backgroundColor: remainingColor + '1a', color: remainingColor }">
               <FeatherIcon name="credit-card" class="dc-stat-icon-svg" />
             </span>
-            <span class="dc-stat-label">{{ varianceAmount >= 0 ? 'Remaining Budget' : 'Over Budget' }}</span>
+            <span class="dc-stat-label">{{ varianceAmount >= 0 ? 'Variance' : 'Over Budget' }}</span>
           </div>
-          <div class="dc-stat-value" :style="{ color: remainingColor }">{{ varianceLabel }}</div>
-          <div class="dc-stat-detail">{{ remainingPct }}% of budget</div>
+          <div class="dc-stat-value">{{ varianceLabel }}</div>
+          <div class="dc-stat-detail" :style="{ color: remainingColor }">{{ remainingPct }}% of budget</div>
         </div>
       </div>
     </div>
@@ -117,7 +117,7 @@ const themeVars = computed(() => (
         '--dc-title-color': '#f5f5f5',
         '--dc-subtitle-color': '#9a9a9a',
         '--dc-stat-label-color': '#9a9a9a',
-        '--dc-stat-detail-color': '#8a8a8a',
+        '--dc-stat-detail-color': '#c7c7c7',
         '--dc-donut-track': '#2e2e2e',
       }
     : {
@@ -125,8 +125,8 @@ const themeVars = computed(() => (
         '--dc-card-border': '#e8e8e6',
         '--dc-title-color': '#111',
         '--dc-subtitle-color': '#8a8a8a',
-        '--dc-stat-label-color': '#555',
-        '--dc-stat-detail-color': '#8a8a8a',
+        '--dc-stat-label-color': '#8a8a8a',
+        '--dc-stat-detail-color': '#555',
         '--dc-donut-track': '#ececeb',
       }
 ))
@@ -207,7 +207,7 @@ on the page scales around them - the same bug index.css's own .fc-th/
   transform: scale(0.995);
 }
 .donut-card--grand {
-  padding: 0.625rem 0.75rem;
+  padding: 0.6875rem 0.8125rem;
 }
 .donut-card--small {
   padding: 0.4375rem 0.5625rem;
@@ -222,14 +222,14 @@ on the page scales around them - the same bug index.css's own .fc-th/
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.3125rem;
+  height: 1.3125rem;
   border-radius: 0.375rem;
   flex-shrink: 0;
 }
 .dc-icon-svg {
-  width: 0.6875rem;
-  height: 0.6875rem;
+  width: 0.75rem;
+  height: 0.75rem;
 }
 .donut-card--grand .dc-icon {
   width: 1.5rem;
@@ -237,8 +237,8 @@ on the page scales around them - the same bug index.css's own .fc-th/
   border-radius: 0.4375rem;
 }
 .donut-card--grand .dc-icon-svg {
-  width: 0.8125rem;
-  height: 0.8125rem;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 .donut-card--small .dc-icon {
   width: 1.0625rem;
@@ -250,7 +250,7 @@ on the page scales around them - the same bug index.css's own .fc-th/
   height: 0.5625rem;
 }
 .dc-title {
-  font-size: 0.71875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--dc-title-color, #111);
   overflow: hidden;
@@ -258,37 +258,37 @@ on the page scales around them - the same bug index.css's own .fc-th/
   white-space: nowrap;
 }
 .donut-card--grand .dc-title {
-  font-size: 0.84375rem;
+  font-size: 0.8125rem;
 }
 .donut-card--small .dc-title {
-  font-size: 0.65625rem;
+  font-size: 0.6875rem;
 }
 .dc-subtitle {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--dc-subtitle-color, #8a8a8a);
   margin-top: 0;
 }
 
 .dc-body {
-  margin-top: 0.375rem;
+  margin-top: 0.4375rem;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.625rem;
   flex-wrap: wrap;
 }
 .dc-donut-wrap {
   position: relative;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
 }
 .donut-card--grand .dc-donut-wrap {
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
 }
 .donut-card--small .dc-donut-wrap {
-  width: 2.125rem;
-  height: 2.125rem;
+  width: 1.8125rem;
+  height: 1.8125rem;
 }
 .dc-donut-center {
   position: absolute;
@@ -297,24 +297,30 @@ on the page scales around them - the same bug index.css's own .fc-th/
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.0625rem;
+  padding: 0 0.125rem;
   pointer-events: none;
 }
 .dc-donut-pct {
   font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: proportional-nums;
-  line-height: 1.1;
+  line-height: 1;
+  text-align: center;
 }
 .donut-card--grand .dc-donut-pct {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 .donut-card--small .dc-donut-pct {
   font-size: 0.5625rem;
 }
 .dc-donut-label {
   font-size: 0.5rem;
+  font-weight: 500;
   color: var(--dc-stat-detail-color, #8a8a8a);
-  margin-top: 0;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 .donut-card--small .dc-donut-label {
   display: none;
@@ -351,27 +357,40 @@ on the page scales around them - the same bug index.css's own .fc-th/
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 0.9375rem;
-  height: 0.9375rem;
-  border-radius: 0.25rem;
+  width: 1.3125rem;
+  height: 1.3125rem;
+  border-radius: 0.3125rem;
   flex-shrink: 0;
 }
 .dc-stat-icon-svg {
-  width: 0.5625rem;
-  height: 0.5625rem;
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+.donut-card--grand .dc-stat-icon {
+  width: 1.4375rem;
+  height: 1.4375rem;
+  border-radius: 0.375rem;
+}
+.donut-card--grand .dc-stat-icon-svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 .donut-card--small .dc-stat-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 0.1875rem;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  border-radius: 0.25rem;
 }
 .donut-card--small .dc-stat-icon-svg {
-  width: 0.4375rem;
-  height: 0.4375rem;
+  width: 0.625rem;
+  height: 0.625rem;
 }
+/* Stat-tile hierarchy (dataviz skill's figure contract): label is the
+quietest element (sentence case, muted, regular weight) so it never competes
+with the value - the value is the loudest thing in the tile, and the detail
+sits beneath it as a secondary annotation, not a 4th equally-loud line. */
 .dc-stat-label {
-  font-size: 0.78125rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--dc-stat-label-color, #555);
   white-space: nowrap;
   overflow: hidden;
@@ -382,27 +401,31 @@ on the page scales around them - the same bug index.css's own .fc-th/
   font-size: 0.875rem;
 }
 .donut-card--small .dc-stat-label {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .dc-stat-value {
-  margin-top: 0.0625rem;
-  font-size: 0.78125rem;
+  margin-top: 0.125rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: var(--dc-title-color, #111);
   font-variant-numeric: proportional-nums;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 .donut-card--grand .dc-stat-value {
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
 }
 .donut-card--small .dc-stat-value {
-  font-size: 0.65625rem;
+  font-size: 0.75rem;
 }
 .dc-stat-detail {
-  margin-top: 0;
-  font-size: 0.5625rem;
+  margin-top: 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--dc-stat-detail-color, #8a8a8a);
   line-height: 1.2;
+}
+.donut-card--grand .dc-stat-detail {
+  font-size: 0.75rem;
 }
 .donut-card--small .dc-stat-detail {
   display: none;

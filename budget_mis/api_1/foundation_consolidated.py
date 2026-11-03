@@ -109,9 +109,21 @@ def _fetch_current_and_previous_actuals(financial_year, month):
 
 # ---------------------------------------------------------------------------
 # PPT tab: get_foundation_overall_current_vs_previous_year (current vs previous FY) + get_unit_wise_actuals_breakup
-# (Opex Capex, previous FY only) + get_budget_summary. Previously 2 parallel
+# (Opex Capex, CURRENT FY) + get_budget_summary. Previously 2 parallel
 # frontend calls (get_foundation_overall_current_vs_previous_year, get_unit_wise_actuals_breakup) each
 # independently fetching ERP actuals; now ONE call, actuals fetched once.
+#
+# Opex Capex deliberately queries the CURRENT financial_year, not
+# previous_financial_year - this table is titled "OPERATING/CAPITAL EXPENSES
+# {current FY}" on the frontend (FoundationConsolidated.vue's loadPpt(),
+# buildBreakdownTable(uwp, kind, curFY)), and was previously fetching
+# previous-year data under that current-year label - a long-standing bug
+# also present in the original Desk page (consolidated_budget.js's own
+# buildOpexBudgetTable/buildCapexBudgetTable calls, which pass curFY as the
+# title while fetching with is_previous:1) that the api_1 port initially
+# carried over faithfully rather than introducing. Confirmed with the user
+# this table should show real current-year data, not previous-year data
+# mislabeled as current.
 # ---------------------------------------------------------------------------
 @guest_api
 @_page_data_cache
@@ -126,8 +138,8 @@ def get_ppt_page_data(financial_year):
         _grouped_actuals_data=current_actuals_data, _previous_grouped_actuals_data=previous_actuals_data,
     )
     opex_capex_previous = get_unit_wise_actuals_breakup(
-        previous_financial_year, month, table_name_filter="Opex Capex",
-        _grouped_actuals_data=previous_actuals_data,
+        financial_year, month, table_name_filter="Opex Capex",
+        _grouped_actuals_data=current_actuals_data,
     )
     consolidated_report = get_budget_summary(financial_year=financial_year)
 
@@ -139,12 +151,21 @@ def get_ppt_page_data(financial_year):
 
 
 # ---------------------------------------------------------------------------
-# Summary INR tab: get_unit_wise_actuals_breakup (Unit Wise Plan, previous FY) +
+# Summary INR tab: get_unit_wise_actuals_breakup (Unit Wise Plan, CURRENT FY) +
 # get_headcount_with_plan_data + get_budget_summary + get_actuals_quarter_and_month_breakup
 # (previous FY, period 12/March). Previously 4 parallel frontend calls; now
 # ONE call. The quarter/month-wise total and get_budget_summary results are
 # also reused as-is by the Actuals and Annual Budget tabs respectively (see
 # those entrypoints below), rather than each independently recomputing them.
+#
+# Unit Wise Plan deliberately queries the CURRENT financial_year, not
+# previous_financial_year - sections B ("Breakdown of Unit Wise Plan") and H
+# ("Capital Expenditure") on SummaryInrTab.vue both display this under a
+# current-FY "Plan" column header (pLbl = `${financialYear} Budget`), and
+# were previously showing previous-year data under that label - the same
+# long-standing mislabeling bug as get_ppt_page_data's Opex Capex table
+# above (see that function's own comment), now fixed the same way per
+# explicit confirmation that this table should show real current-year data.
 # ---------------------------------------------------------------------------
 @guest_api
 @_page_data_cache
@@ -155,8 +176,8 @@ def get_summary_inr_page_data(financial_year):
     )
 
     unit_wise_plan_previous = get_unit_wise_actuals_breakup(
-        previous_financial_year, month, table_name_filter="Unit Wise Plan",
-        _grouped_actuals_data=previous_actuals_data,
+        financial_year, month, table_name_filter="Unit Wise Plan",
+        _grouped_actuals_data=current_actuals_data,
     )
     headcount = get_headcount_with_plan_data(
         financial_year, month, table_name_filter="Unit Wise Plan",

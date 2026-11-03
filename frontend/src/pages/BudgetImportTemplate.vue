@@ -82,7 +82,7 @@
 
     <ReviewSelectionModal
       v-model="reviewOpen"
-      :rows="pendingSelection?.selectedRows || []"
+      :rows="(pendingSelection?.isFullDownload ? pendingSelection?.user?.rows : pendingSelection?.selectedRows) || []"
       @confirm="onReviewConfirmed"
     />
     <NoTemplateModal v-model="noTemplateOpen" :is-admin="isAdmin" />
@@ -182,13 +182,17 @@ const progressLabel = computed(() => ({
   ready: 'Preparing file...',
 }[progressStage.value] || 'Generating your template...'))
 
+// "Download all" (no rows ticked) now goes through the same mandatory
+// review step as "Download selected" - previously it skipped straight to
+// startDownload(), so a user who meant to download everything never saw
+// the same "note these down to avoid duplicate imports" checkpoint a
+// partial download already required. The full row list stands in for
+// "selectedRows" here purely for the review dialog's own display; the
+// actual download call below still distinguishes the two (entityData is
+// only set when the user genuinely ticked specific rows).
 async function onDownloadRequest({ user, selectedRows }) {
-  if (selectedRows.length) {
-    pendingSelection.value = { user, selectedRows }
-    reviewOpen.value = true
-    return
-  }
-  await startDownload(user, [])
+  pendingSelection.value = { user, selectedRows, isFullDownload: !selectedRows.length }
+  reviewOpen.value = true
 }
 
 async function onReviewConfirmed() {

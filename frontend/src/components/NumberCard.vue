@@ -53,6 +53,10 @@ defineEmits(['click'])
 const SIZE_CLASSES = {
   lg: { padding: 'p-4', label: 'text-xs', value: 'mt-1.5 text-2xl', detailGap: 'mt-1.5' },
   md: { padding: 'p-4', label: 'text-xs', value: 'mt-1.5 text-2xl', detailGap: 'mt-1' },
+  // Shorter than 'lg'/'md' - tighter padding, a smaller value size, and
+  // tighter gaps - for a row of cards meant to read compact (e.g. Work
+  // Plan Views' Grand Total/Direct Work/Grants & Donations row).
+  compact: { padding: 'p-2', label: 'text-xs', value: 'mt-0.5 text-lg', detailGap: 'mt-0.5' },
   sm: { padding: 'p-3', label: 'text-[0.6875rem]', value: 'mt-1 text-sm', detailGap: 'mt-1' },
 }
 
