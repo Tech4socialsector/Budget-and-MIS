@@ -5,6 +5,7 @@ from decimal import Decimal
 from budget_mis.api.actual_format import get_filtered_actuals, sum_of_actuals_by_sequence, get_gl_breakup_for_item
 from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.budget_summary import get_budget_summary as get_consolidated_report
+from budget_mis.api_1.number_card_settings import resolve_grouped_units
 
 @guest_api
 def get_consolidated_report_actual_ytd(
@@ -917,11 +918,20 @@ def get_number_card_settings(set_group_id=None):
             setting.name
         )
 
-        units = [d.unit for d in doc.select_units]
-        cost_centers = [d.cost_center for d in doc.select_cost_centers]
-        cost_centers_erp = [d.cost_center_erp for d in doc.select_cost_centers]
-        locations = [d.location_code for d in doc.select_location_codes]
-        locations_erp = [d.location_code_erp for d in doc.select_location_codes]
+        # select_units/select_cost_centers/select_location_codes never
+        # existed on this doctype (it was restructured into
+        # cost_centre_and_location_code_grouping, possibly nested under
+        # Sub Items for "Define by Card Mapping" docs) - resolve_grouped_units
+        # is the one already-correct reader of that structure (see its own
+        # docstring comment), just returned one entry per row/sub-card
+        # instead of this function's flat per-doc shape, so flatten+dedupe
+        # here to keep format_api's and the frontend's existing contract.
+        grouped = resolve_grouped_units(doc)
+        units = list(dict.fromkeys(g["unit"] for g in grouped if g.get("unit")))
+        cost_centers = list(dict.fromkeys(cc for g in grouped for cc in g.get("cost_centers", [])))
+        cost_centers_erp = list(dict.fromkeys(cc for g in grouped for cc in g.get("cost_centers_erp", [])))
+        locations = list(dict.fromkeys(loc for g in grouped for loc in g.get("locations", [])))
+        locations_erp = list(dict.fromkeys(loc for g in grouped for loc in g.get("locations_erp", [])))
 
         results.append({
             "settings_doc": doc.name,

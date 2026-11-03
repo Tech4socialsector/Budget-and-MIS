@@ -64,7 +64,7 @@
               :value="formatAmount(capexTotal)"
               @click="openDrilldown(capexNode, 'ytd')"
             >
-              <div class="text-xs text-gray-400">{{ pctOf(capexTotal, overallTotal) }}% of total</div>
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(capexTotal, overallTotal) }}% of total</div>
             </NumberCard>
             <NumberCard
               size="md"
@@ -75,7 +75,7 @@
               :value="formatAmount(opexTotal)"
               @click="openDrilldown(opexNode, 'ytd')"
             >
-              <div class="text-xs text-gray-400">{{ pctOf(opexTotal, overallTotal) }}% of total</div>
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(opexTotal, overallTotal) }}% of total</div>
             </NumberCard>
           </div>
 
@@ -95,7 +95,7 @@
                 :value="formatAmount(unitTotal(unit))"
                 @click="openDrilldown(unitNode(unit), 'ytd')"
               >
-                <div class="text-xs text-gray-400">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
               </NumberCard>
             </div>
           </div>
@@ -114,7 +114,7 @@
                 :value="formatAmount(unitTotal(unit))"
                 @click="openDrilldown(unitNode(unit), 'ytd')"
               >
-                <div class="text-xs text-gray-400">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
               </NumberCard>
             </div>
           </div>
@@ -175,10 +175,17 @@
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
 
-          <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2">
+          <!-- Left column: Grand Total, Direct Work, Grants & Donations, and
+          the two Work Plan insight cards, all the same uniform size (matching
+          the Grand Total card) arranged 3-per-row (wrapping to 2 rows for
+          these 5 cards) via their own grid. Right column: the Direct Work &
+          Grants chart, in the same row as that whole block - items-stretch
+          makes it match the block's total height rather than just its first
+          row's height. -->
+          <div class="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:col-span-2">
               <NumberCard
-                size="lg"
+                size="compact"
                 icon="pie-chart"
                 accent-color="neutral"
                 clickable
@@ -187,7 +194,7 @@
                 @click="openDrilldown({ name: 'Grand Total', items: workPlanHeads, sub_heads: [] }, 'ytd')"
               />
               <NumberCard
-                size="lg"
+                size="compact"
                 icon="briefcase"
                 accent-color="#1e5fa8"
                 clickable
@@ -195,10 +202,10 @@
                 :value="formatAmount(directWorkTotal)"
                 @click="openDrilldown({ name: 'Direct Work', items: directWorkItems, sub_heads: [] }, 'ytd')"
               >
-                <div class="text-xs text-gray-400">{{ pctOf(directWorkTotal, workPlanTotal) }}% of total</div>
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(directWorkTotal, workPlanTotal) }}% of total</div>
               </NumberCard>
               <NumberCard
-                size="lg"
+                size="compact"
                 icon="gift"
                 accent-color="#e8792a"
                 clickable
@@ -206,18 +213,17 @@
                 :value="formatAmount(grantsTotal)"
                 @click="openDrilldown({ name: 'Grants & Donations', items: grantsItems, sub_heads: [] }, 'ytd')"
               >
-                <div class="text-xs text-gray-400">{{ pctOf(grantsTotal, workPlanTotal) }}% of total</div>
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(grantsTotal, workPlanTotal) }}% of total</div>
               </NumberCard>
+              <InsightStrip bare compact :insights="workPlanInsights" />
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Direct Work &amp; Grants</div>
-              <div class="mt-3 h-56">
+              <div class="mt-3 flex-1">
                 <canvas ref="workplanPieRef" />
               </div>
             </div>
           </div>
-
-          <InsightStrip :insights="workPlanInsights" />
 
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -236,121 +242,12 @@
         </template>
       </template>
 
-      <!-- Tab 3: Budget vs Actuals Breakdown -->
+      <!-- Tab 3: Budget vs Actuals Breakdown - same component as the
+      standalone Budget vs Actual page, so both share one implementation
+      and design (filters, donut cards, detailed table, export) instead of
+      two separately-maintained versions. -->
       <template v-else>
-        <div class="flex flex-col gap-3">
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">YTD Month</label>
-              <MultiSelect v-model="baMonthSelection" :options="MONTH_OPTIONS" placeholder="Select month" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Unit</label>
-              <MultiSelect v-model="baFilters.units" :options="unitOptions" placeholder="All units" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Cost Center</label>
-              <MultiSelect v-model="baFilters.costCenters" :options="baCostCenterOptions" :disabled="!baFilters.units.length" placeholder="All cost centers" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Location Code</label>
-              <MultiSelect v-model="baFilters.locationCodes" :options="baLocationCodeOptions" :disabled="!baFilters.units.length" placeholder="All location codes" class="w-full" />
-            </div>
-          </div>
-          <Button variant="solid" theme="gray" class="self-start" :loading="actualsLoading" @click="loadActuals">
-            <template #prefix>
-              <FeatherIcon name="search" class="h-4 w-4" />
-            </template>
-            Get Report
-          </Button>
-        </div>
-
-        <ErrorMessage v-if="actualsError" :message="actualsErrorMessage" />
-        <div v-else-if="actualsLoading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <AppLoader label="Loading budget vs actuals..." />
-        </div>
-        <div v-else-if="!actualsHeads.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-          Choose filters and click "Get Report" to see the budget vs actuals breakdown.
-        </div>
-        <template v-else>
-          <div class="flex items-center justify-end">
-            <Switch v-model="showFullNumbers" label="Show full numbers" />
-          </div>
-
-          <!-- Grand total + head cards -->
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <NumberCard
-              size="lg"
-              icon="pie-chart"
-              accent-color="neutral"
-              clickable
-              label="Grand Total"
-              :value="formatAmount(actualsGrandBudget)"
-              @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
-            >
-              <div class="text-xs text-gray-400">Actual: {{ formatAmount(actualsGrandActual) }}</div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div class="h-full rounded-full" :style="{ width: Math.min(actualsGrandUtil, 100) + '%', backgroundColor: utilizationColor(actualsGrandUtil) }" />
-              </div>
-              <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(actualsGrandUtil) }">{{ actualsGrandUtil }}% utilized</div>
-            </NumberCard>
-            <NumberCard
-              v-for="(head, i) in actualsHeads"
-              :key="head.name"
-              size="lg"
-              :icon="headIcon(head.name)"
-              :accent-color="accentColor(i)"
-              clickable
-              :label="head.name"
-              :value="formatAmount(treeTotal(head, nodeBudget))"
-              @click="openDrilldown(head, 'actuals')"
-            >
-              <div class="text-xs text-gray-400">Actual: {{ formatAmount(treeTotal(head, nodeActual)) }}</div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                <div class="h-full rounded-full" :style="{ width: Math.min(utilizationPct(head), 100) + '%', backgroundColor: utilizationColor(utilizationPct(head)) }" />
-              </div>
-              <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(utilizationPct(head)) }">{{ utilizationPct(head) }}% utilized</div>
-            </NumberCard>
-          </div>
-
-          <!-- Sub-head cards -->
-          <div v-for="head in actualsHeadsWithSubs" :key="'group-' + head.name">
-            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">{{ head.name }}</div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <NumberCard
-                v-for="sub in head.sub_heads"
-                :key="sub.name"
-                size="sm"
-                :accent-color="accentColor(actualsHeads.indexOf(head))"
-                clickable
-                :label="sub.name"
-                :value="formatAmount(treeTotal(sub, nodeBudget))"
-                @click="openDrilldown(sub, 'actuals')"
-              >
-                <div class="h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div class="h-full rounded-full" :style="{ width: Math.min(utilizationPct(sub), 100) + '%', backgroundColor: utilizationColor(utilizationPct(sub)) }" />
-                </div>
-              </NumberCard>
-            </div>
-          </div>
-
-          <InsightStrip :insights="actualsInsights" />
-
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Breakdown</div>
-              <div class="mt-3 h-64">
-                <canvas ref="baBudgetPieRef" />
-              </div>
-            </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Actuals Breakdown</div>
-              <div class="mt-3 h-64">
-                <canvas ref="baActualPieRef" />
-              </div>
-            </div>
-          </div>
-        </template>
+        <BudgetActualsBreakdown :financial-year="filters.financialYear" />
       </template>
     </div>
 
@@ -366,16 +263,17 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Chart } from 'chart.js/auto'
-import { MultiSelect, FeatherIcon, ErrorMessage, Switch, Button } from 'frappe-ui'
+import { MultiSelect, ErrorMessage, Switch } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
+import BudgetActualsBreakdown from '@/components/BudgetActualsBreakdown.vue'
 import InsightStrip from '@/components/InsightStrip.vue'
 import NumberCard from '@/components/NumberCard.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
-import { accentColor, headIcon, formatCr, formatINR, isDarkMode } from '@/data/budgetTotals'
-import { findItemsByName, findItemsExcluding, nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct } from '@/data/dashboardData'
+import { accentColor, formatCr, formatINR, isDarkMode } from '@/data/budgetTotals'
+import { findItemsByName, findItemsExcluding, nodeBudget, treeTotal } from '@/data/dashboardData'
 
 onMounted(() => setPageTitle('Dashboard'))
 
@@ -544,8 +442,6 @@ const dashboardInsights = computed(() => {
 
   const top = units[0]
   const bottom = units[units.length - 1]
-  const top3Total = units.slice(0, 3).reduce((sum, u) => sum + unitTotal(u), 0)
-  const concentrationPct = pctOf(top3Total, overallTotal.value)
 
   const insights = [
     {
@@ -565,33 +461,6 @@ const dashboardInsights = computed(() => {
       icon: 'trending-down',
       color: '#e34948',
       onClick: () => openDrilldown(unitNode(bottom), 'ytd'),
-    })
-  }
-  if (units.length >= 3) {
-    insights.push({
-      label: 'Budget Concentration',
-      value: `${concentrationPct}%`,
-      detail: 'held by the top 3 units',
-      icon: 'target',
-      color: '#2a78d6',
-      onClick: () => openDrilldown(
-        { name: 'Top 3 Units', items: units.slice(0, 3).map((u) => unitNode(u)), sub_heads: [] },
-        'ytd',
-      ),
-    })
-  }
-  // Opex : Capex ratio - a different lens than the raw totals already shown
-  // in the banner cards above (a ratio reads faster than eyeballing two
-  // separate Cr figures for "which spending style dominates").
-  if (capexTotal.value > 0 || opexTotal.value > 0) {
-    const capexShare = pctOf(capexTotal.value, overallTotal.value)
-    insights.push({
-      label: 'Opex : Capex Split',
-      value: `${100 - capexShare}% : ${capexShare}%`,
-      detail: `${formatAmount(opexTotal.value)} operating vs ${formatAmount(capexTotal.value)} capital`,
-      icon: 'pie-chart',
-      color: '#e8792a',
-      onClick: () => openDrilldown(consolidatedHeadsNode.value, 'ytd'),
     })
   }
   // Peak allocation month - depends on the separately-loaded quarterly
@@ -1220,163 +1089,6 @@ function renderWorkPlanCharts() {
   }
 }
 
-// =========================================================================
-// TAB 3: Budget vs Actuals Breakdown
-// =========================================================================
-const baFilters = reactive({ units: [], costCenters: [], locationCodes: [] })
-const baMonth = ref('March')
-const baMonthSelection = computed({
-  get: () => (baMonth.value ? [baMonth.value] : []),
-  set: (values) => { baMonth.value = values.length ? values[values.length - 1] : 'March' },
-})
-const baCostCenterOptions = ref([])
-const baLocationCodeOptions = ref([])
-
-watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
-  if (JSON.stringify(newUnits) === JSON.stringify(oldUnits || [])) return
-  baFilters.costCenters = []
-  baFilters.locationCodes = []
-  if (!baFilters.units.length) {
-    baCostCenterOptions.value = []
-    baLocationCodeOptions.value = []
-    return
-  }
-  const [cc, loc] = await Promise.all([
-    call('budget_mis.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
-    call('budget_mis.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
-  ])
-  baCostCenterOptions.value = toOptions(cc?.data)
-  baLocationCodeOptions.value = toOptions(loc?.data)
-})
-
-const actualsLoading = ref(false)
-const actualsError = ref(null)
-const actualsErrorMessage = computed(() => actualsError.value?.messages?.[0] || actualsError.value?.message || 'Something went wrong loading budget vs actuals.')
-const actualsHeads = ref([])
-
-async function loadActuals() {
-  if (!filters.financialYear) return
-  actualsLoading.value = true
-  actualsError.value = null
-  try {
-    const result = await call('budget_mis.api.phase_sheet.get_combined_actuals', {
-      financial_year: filters.financialYear,
-      month: baMonth.value,
-      unit: baFilters.units.join(',') || undefined,
-      cost_center: baFilters.costCenters.join(',') || undefined,
-      location_code: baFilters.locationCodes.join(',') || undefined,
-    })
-    actualsHeads.value = result || []
-  } catch (e) {
-    actualsError.value = e
-    actualsHeads.value = []
-  } finally {
-    actualsLoading.value = false
-    await nextTick()
-    renderActualsCharts()
-  }
-}
-
-const actualsHeadsWithSubs = computed(() => actualsHeads.value.filter((h) => h.sub_heads?.length))
-const actualsGrandBudget = computed(() => actualsHeads.value.reduce((sum, h) => sum + treeTotal(h, nodeBudget), 0))
-const actualsGrandActual = computed(() => actualsHeads.value.reduce((sum, h) => sum + treeTotal(h, nodeActual), 0))
-const actualsGrandUtil = computed(() => (actualsGrandBudget.value > 0 ? Math.round((actualsGrandActual.value / actualsGrandBudget.value) * 100) : 0))
-
-// Heads plus their sub-heads, each carrying its own utilization % - the
-// same rows already shown as cards, just flattened into one list to rank
-// by utilization instead of by document order.
-const actualsRankableRows = computed(() => {
-  const rows = []
-  for (const head of actualsHeads.value) {
-    if (treeTotal(head, nodeBudget) > 0) rows.push(head)
-    for (const sub of head.sub_heads || []) {
-      if (treeTotal(sub, nodeBudget) > 0) rows.push(sub)
-    }
-  }
-  return rows
-})
-
-const actualsInsights = computed(() => {
-  const rows = actualsRankableRows.value
-  if (!rows.length) return []
-
-  const ranked = [...rows].sort((a, b) => utilizationPct(b) - utilizationPct(a))
-  const highest = ranked[0]
-  const lowest = ranked[ranked.length - 1]
-  const overCount = rows.filter((r) => utilizationPct(r) > 100).length
-
-  const insights = [
-    {
-      label: 'Highest Utilization',
-      value: highest.name,
-      detail: `${utilizationPct(highest)}% of ${formatAmount(treeTotal(highest, nodeBudget))} budget spent`,
-      icon: 'alert-triangle',
-      color: utilizationColor(utilizationPct(highest)),
-    },
-  ]
-  if (lowest !== highest) {
-    insights.push({
-      label: 'Lowest Utilization',
-      value: lowest.name,
-      detail: `${utilizationPct(lowest)}% of ${formatAmount(treeTotal(lowest, nodeBudget))} budget spent`,
-      icon: 'battery',
-      color: utilizationColor(utilizationPct(lowest)),
-    })
-  }
-  insights.push({
-    label: 'Over Budget',
-    value: `${overCount} of ${rows.length}`,
-    detail: overCount ? 'heads/sub-heads exceeding 100% utilization' : 'nothing over budget yet',
-    icon: 'alert-circle',
-    color: overCount ? '#e34948' : '#1baf7a',
-  })
-  return insights
-})
-
-const baBudgetPieRef = ref(null)
-const baActualPieRef = ref(null)
-let baBudgetPieChart = null
-let baActualPieChart = null
-
-function renderActualsCharts() {
-  if (baBudgetPieRef.value) {
-    baBudgetPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeBudget) > 0)
-    baBudgetPieChart = new Chart(baBudgetPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index], 'actuals') },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
-  }
-  if (baActualPieRef.value) {
-    baActualPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeActual) > 0)
-    baActualPieChart = new Chart(baActualPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index], 'actuals') },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
-  }
-}
-
 // --- Tab switching / reactivity -----------------------------------------
 watch(activeTab, (tab) => {
   if (tab === 'dashboard' && !unitWiseRaw.value.length) loadUnitWise()
@@ -1389,7 +1101,6 @@ watch(() => filters.financialYear, () => {
 watch(showFullNumbers, () => {
   renderShareChart()
   renderWorkPlanCharts()
-  renderActualsCharts()
   renderQuarterlyTrendChart()
   renderMonthlyBudgetChart()
   renderMonthlyByUnitChart()

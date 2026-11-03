@@ -34,12 +34,21 @@ def get_financial_year_list():
 @guest_api
 def get_units():
 	allowed_units = get_allowed_units()
+	# `restricted` tells the frontend whether `data` is this user's own
+	# complete, scoped list (so it's safe/correct to auto-select all of it
+	# on page load - see BudgetVsActual.vue's loadUnits()) or the
+	# unrestricted full org list (where auto-selecting everything would be
+	# wrong - that's every unit in the org, not "this user's own allocated
+	# units"). None (unrestricted/admin) -> restricted: False; a set (even
+	# empty) -> restricted: True, matching get_allowed_units()'s own
+	# None-vs-set convention exactly.
+	restricted = allowed_units is not None
 
 	if allowed_units is None:
 		unit_data = frappe.get_all("Unit", fields=["name", "unit_decription"], order_by="name asc")
 	else:
 		if not allowed_units:
-			return {"data": []}
+			return {"data": [], "restricted": restricted}
 		unit_data = frappe.get_all(
 			"Unit",
 			filters={"name": ["in", list(allowed_units)]},
@@ -50,7 +59,7 @@ def get_units():
 	data = [{"label": "", "value": ""}]
 	for u in unit_data:
 		data.append({"label": f"{u.name} - {u.unit_decription}", "value": u.name})
-	return {"data": data}
+	return {"data": data, "restricted": restricted}
 
 
 @guest_api

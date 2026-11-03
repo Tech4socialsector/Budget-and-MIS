@@ -157,12 +157,16 @@
   "icon": "database",
   "is_sidebar_module": 1,
   "label": "Settings & Master Data",
-  "modified": "2026-11-02 10:11:13.649815",
+  "modified": "2026-11-03 09:01:42.938713",
   "module_name": "budget_master",
   "name": "budget_master",
-  "restrict_by_role": 0,
-  "roles": [],
-  "sort_order": 11
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "sort_order": 12
  },
  {
   "direct_doctype_name": null,
@@ -257,11 +261,15 @@
   "icon": "file-text",
   "is_sidebar_module": 0,
   "label": "Foundation - Consolidated Budget",
-  "modified": "2026-11-02 10:11:13.644031",
+  "modified": "2026-11-03 09:01:42.949084",
   "module_name": "foundation_consolidated",
   "name": "foundation_consolidated",
-  "restrict_by_role": 0,
-  "roles": [],
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
   "sort_order": 3
  },
  {
@@ -277,11 +285,15 @@
   "icon": "database",
   "is_sidebar_module": 0,
   "label": "ERP Actuals",
-  "modified": "2026-11-02 10:11:13.645692",
+  "modified": "2026-11-03 09:01:42.888380",
   "module_name": "erp_actuals",
   "name": "erp_actuals",
-  "restrict_by_role": 0,
-  "roles": [],
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
   "sort_order": 5
  },
  {
@@ -297,12 +309,12 @@
   "icon": "life-buoy",
   "is_sidebar_module": 0,
   "label": "Help & Support",
-  "modified": "2026-11-02 10:11:13.648628",
+  "modified": "2026-11-02 15:33:58.625849",
   "module_name": "help_support",
   "name": "help_support",
   "restrict_by_role": 0,
   "roles": [],
-  "sort_order": 9
+  "sort_order": 10
  },
  {
   "direct_doctype_name": null,
@@ -337,12 +349,16 @@
   "icon": "git-compare",
   "is_sidebar_module": 0,
   "label": "Combination Reconciliation",
-  "modified": "2026-11-02 10:11:13.649256",
+  "modified": "2026-11-03 09:01:42.933385",
   "module_name": "combination_reconciliation",
   "name": "combination_reconciliation",
-  "restrict_by_role": 0,
-  "roles": [],
-  "sort_order": 10
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "sort_order": 11
  },
  {
   "direct_doctype_name": null,
@@ -387,5 +403,25 @@
    }
   ],
   "sort_order": 8
+ },
+ {
+  "direct_doctype_name": null,
+  "direct_item_type": "Page",
+  "direct_page_route": "UserGuide",
+  "direct_route": null,
+  "direct_url": null,
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [],
+  "enabled": 1,
+  "icon": "book-open",
+  "is_sidebar_module": 0,
+  "label": "User Guide",
+  "modified": "2026-11-02 15:33:58.944319",
+  "module_name": "user_guide",
+  "name": "user_guide",
+  "restrict_by_role": 0,
+  "roles": [],
+  "sort_order": 9
  }
 ]

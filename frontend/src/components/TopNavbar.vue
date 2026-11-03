@@ -200,6 +200,7 @@ import { clearFrontendCache } from '@/data/clearCache'
 import { brandingResource, defaultAppIcon } from '@/data/branding'
 import { activeModule } from '@/data/activeModule'
 import { session, logoutResource } from '@/data/session'
+import { GUIDE_SECTIONS } from '@/data/userGuideContent'
 import { openCommandPalette } from '@/data/commandPalette'
 import { assistantConfigResource, toggleAssistant } from '@/data/aiAssistant'
 import { profileModalOpen, openProfileSettings } from '@/data/profileModal'
@@ -298,6 +299,20 @@ const breadcrumbItems = computed(() => {
         route: { name: 'DoctypeList', params: { doctypeRoute: route.params.doctypeRoute } },
       },
       { label: pageTitle.value || (route.name === 'DoctypeNew' ? 'New' : route.params.name) },
+    ]
+  }
+
+  // UserGuide's own :topicId param (router.js's '/user-guide/:topicId?')
+  // picks one topic's article within the guide - /user-guide alone is just
+  // "Home / User Guide" (the fallback crumb below), but a topic route like
+  // /user-guide/home needs its own third crumb, or the breadcrumb looks
+  // stuck on "User Guide" regardless of which topic is actually open.
+  if (route.name === 'UserGuide' && route.params.topicId) {
+    const topic = GUIDE_SECTIONS.find((s) => s.id === route.params.topicId)
+    return [
+      { label: 'Home', route: { name: 'Home' } },
+      { label: 'User Guide', route: { name: 'UserGuide' } },
+      { label: topic?.title || route.params.topicId },
     ]
   }
 

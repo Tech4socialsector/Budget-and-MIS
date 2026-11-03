@@ -62,7 +62,19 @@ import { modulesResource, isSidebarModule } from '@/data/modules'
 
 onMounted(() => {
   setPageTitle('Home')
-  modulesResource.fetch()
+  // The router guard's own ensureModulesLoaded() already fetches this on
+  // first navigation into the app (including straight to /home) - calling
+  // fetch() again here unconditionally could abort that still-in-flight
+  // request (frappe-ui cancels a superseded call via AbortController), and
+  // the resulting "signal is aborted without reason" rejection had no
+  // .catch() to swallow it, so it landed in modulesResource.error and
+  // rendered as a raw, user-visible error below the tiles. Skip the
+  // redundant fetch whenever one is already loading or has already
+  // resolved, and always catch (matching every other modulesResource.fetch()
+  // call site in the app) so even a genuine abort never surfaces here.
+  if (!modulesResource.data && !modulesResource.loading) {
+    modulesResource.fetch().catch(() => {})
+  }
 })
 
 const router = useRouter()
@@ -107,7 +119,7 @@ const homeTiles = computed(() => {
       key: 'direct-' + mod.name,
       label: mod.label,
       icon: mod.icon,
-      onClick: () => openDirect(mod.direct),
+      onClick: () => openDirect(mod.direct, mod.label),
     })
   }
 
@@ -134,9 +146,16 @@ function openItem(item) {
 
 // A direct-mode module's own destination (mod.direct) - one tile, one of
 // three shapes depending on direct_item_type set in App Module Setting.
-function openDirect(direct) {
+// tileLabel is the clicked tile's own label ("Dashboard") - passed through
+// as a query param so the destination page can show that instead of its
+// own default title when a role's tile has been redirected to a different
+// page under the hood (DASHBOARD_REDIRECT_BY_ROLE in api/modules.py - e.g.
+// Finance Unit Coordinator's "Dashboard" tile actually opens Budget vs
+// Actual). A direct visit to that page's own URL/tile never carries this
+// param, so it still shows its own real title in every other case.
+function openDirect(direct, tileLabel) {
   if (direct.type === 'Page') {
-    router.push({ name: direct.page_route })
+    router.push({ name: direct.page_route, query: tileLabel ? { tileLabel } : undefined })
   } else if (direct.type === 'DocType') {
     router.push({ name: 'DoctypeList', params: { doctypeRoute: direct.route } })
   } else if (direct.type === 'URL') {

@@ -74,6 +74,17 @@ const routes = [
     component: () => import('@/pages/AiGuideReview.vue'),
   },
   {
+    // :topicId is optional (the leading / in '/:topicId?' - note no extra
+    // slash needed, Vue Router's own '?' modifier handles it) - /user-guide
+    // alone shows the topic grid, /user-guide/login (etc.) opens that one
+    // topic's article directly, so a topic can be linked/bookmarked/shared
+    // as its own real URL instead of only reachable by clicking a card.
+    path: '/user-guide/:topicId?',
+    name: 'UserGuide',
+    component: () => import('@/pages/UserGuide.vue'),
+    props: true,
+  },
+  {
     path: '/:doctypeRoute',
     name: 'DoctypeList',
     component: () => import('@/pages/DoctypeList.vue'),
