@@ -36,6 +36,7 @@ already encodes.
 import frappe
 
 from budget_mis.utils import guest_api
+from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.number_card_settings import resolve_grouped_units
 from budget_mis.api.erp_actuals import fetch_actuals_ytd
 
@@ -143,6 +144,20 @@ def find_unmapped_combinations(fiscal_year, accounting_period, enablers_only=0, 
 	cost_center_erp) only, dropping location_code_erp from both sides of
 	the comparison and the returned rows.
 	"""
+	# This endpoint intentionally returns full org-wide ERP actuals, unscoped
+	# by unit - that's the entire point of a reconciliation check (finding
+	# combinations missing from ANY card, not just the caller's own units).
+	# The page itself is already restricted to System Manager at the nav
+	# level (App Module Setting's own restrict_by_role/roles for
+	# combination_reconciliation), but that only hides the menu entry - it
+	# was never enforced here, so any logged-in user who knew/guessed this
+	# method name could call it directly and get the same unrestricted
+	# data. Enforcing the same role here closes that gap without changing
+	# the (deliberately unscoped) data shape for the users who are actually
+	# meant to see it.
+	if is_direct_http_call(find_unmapped_combinations) and "System Manager" not in frappe.get_roles():
+		frappe.throw("Not permitted", frappe.PermissionError)
+
 	fiscal_year = int(fiscal_year)
 	accounting_period = int(accounting_period)
 	enablers_only = bool(int(enablers_only))

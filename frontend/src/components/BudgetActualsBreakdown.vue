@@ -330,10 +330,44 @@ const costCenterOptions = ref([])
 const locationCodeOptions = ref([])
 // ERP-side cost-center/location values (actuals come from an external ERP
 // keyed by its own codes, distinct from the internal doctype names used on
-// the budget side) - resolved alongside costCenterOptions/locationCodeOptions
-// and threaded into get_combined_actuals_report as erp_cost_center_value/erp_loc_value.
-const erpCostCenterValues = ref([])
-const erpLocationValues = ref([])
+// the budget side) - get_combined_actuals_report's own actuals lookup only
+// ever filters by these, never by the plain cost_center/location_code doc
+// names (those only narrow the BUDGET-side comparison figures) - confirmed
+// by reading sum_of_actuals_by_sequence/get_filtered_actuals, which filter
+// PeopleSoft rows by deptid/operating_unit (the ERP code), not any Frappe
+// doc name at all. Without threading these through, Actual Spent silently
+// ignores the Cost Center/Location Code filters entirely (a confirmed bug:
+// picking a Location Code here previously left Actual Spent unchanged).
+//
+// ccErpLookup/locErpLookup map every doc-name VALUE this page could ever
+// have selected (from both cascades: the plain Unit-driven one below and
+// the Operating-Unit theme-mapping one above) to its own ERP code, and
+// erpCostCenterValues/erpLocationValues below derive the actual values to
+// send from whichever of baFilters.costCenters/locationCodes is CURRENTLY
+// selected - not a stale snapshot taken once when the cascade first ran,
+// so narrowing the selection afterward (plain dropdown or theme) always
+// narrows the actuals total too, not just the budget-side figures.
+const ccErpLookup = ref(new Map())
+const locErpLookup = ref(new Map())
+// Theme-mapping rows with no doc name at all (an actuals-only,
+// reference_for="Actual" row - see get_theme_mappings' own docstring) carry
+// ONLY their erp_cost_center_value/erp_loc_value, so they can never be
+// looked up via a baFilters.costCenters/locationCodes doc-name selection -
+// kept as their own separate list, always included regardless of selection.
+const themeOnlyErpCostCenterValues = ref([])
+const themeOnlyErpLocationValues = ref([])
+const erpCostCenterValues = computed(() => [
+  ...new Set([
+    ...baFilters.costCenters.map((v) => ccErpLookup.value.get(v)).filter(Boolean),
+    ...themeOnlyErpCostCenterValues.value,
+  ]),
+])
+const erpLocationValues = computed(() => [
+  ...new Set([
+    ...baFilters.locationCodes.map((v) => locErpLookup.value.get(v)).filter(Boolean),
+    ...themeOnlyErpLocationValues.value,
+  ]),
+])
 
 // --- Operating Units (theme) filter -----------------------------------
 // A pure client-side cascade mirroring the Desk page (budget_actuals_phase.js):
@@ -401,8 +435,10 @@ async function applyThemeSelection() {
     locationCodeOptions.value = []
     baFilters.costCenters = []
     baFilters.locationCodes = []
-    erpCostCenterValues.value = []
-    erpLocationValues.value = []
+    ccErpLookup.value = new Map()
+    locErpLookup.value = new Map()
+    themeOnlyErpCostCenterValues.value = []
+    themeOnlyErpLocationValues.value = []
     return
   }
 
@@ -439,9 +475,15 @@ async function applyThemeSelection() {
   locationCodeOptions.value = [...locVals.values()].map((l) => ({ label: l.label, value: l.value }))
   baFilters.costCenters = [...ccVals.keys()]
   baFilters.locationCodes = [...locVals.keys()]
-  erpCostCenterValues.value = (results.flatMap((r) => r?.cost_centers || [])).map((c) => c.erp_cost_center_value).filter(Boolean)
-  erpLocationValues.value = (results.flatMap((r) => r?.location_codes || [])).map((l) => l.erp_loc_value).filter(Boolean)
-  themeMappingEmpty.value = !unitVals.size && !ccVals.size && !locVals.size && !erpCostCenterValues.value.length && !erpLocationValues.value.length
+  ccErpLookup.value = new Map([...ccVals.values()].filter((c) => c.erp_cost_center_value).map((c) => [c.value, c.erp_cost_center_value]))
+  locErpLookup.value = new Map([...locVals.values()].filter((l) => l.erp_loc_value).map((l) => [l.value, l.erp_loc_value]))
+  // Actuals-only rows (reference_for="Actual") carry no doc-name `value` at
+  // all - ccVals/locVals (keyed by value) can never hold them, so they're
+  // collected separately here straight from the raw per-theme results.
+  themeOnlyErpCostCenterValues.value = results.flatMap((r) => r?.cost_centers || []).filter((c) => !c.value && c.erp_cost_center_value).map((c) => c.erp_cost_center_value)
+  themeOnlyErpLocationValues.value = results.flatMap((r) => r?.location_codes || []).filter((l) => !l.value && l.erp_loc_value).map((l) => l.erp_loc_value)
+  const hasAnyErp = ccErpLookup.value.size || locErpLookup.value.size || themeOnlyErpCostCenterValues.value.length || themeOnlyErpLocationValues.value.length
+  themeMappingEmpty.value = !unitVals.size && !ccVals.size && !locVals.size && !hasAnyErp
   themeMappingLoading.value = false
 }
 
@@ -450,8 +492,10 @@ watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
   if (JSON.stringify(newUnits) === JSON.stringify(oldUnits || [])) return
   baFilters.costCenters = []
   baFilters.locationCodes = []
-  erpCostCenterValues.value = []
-  erpLocationValues.value = []
+  ccErpLookup.value = new Map()
+  locErpLookup.value = new Map()
+  themeOnlyErpCostCenterValues.value = []
+  themeOnlyErpLocationValues.value = []
   if (!baFilters.units.length) {
     costCenterOptions.value = []
     locationCodeOptions.value = []
@@ -463,12 +507,19 @@ watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
   ])
   costCenterOptions.value = toOptions(cc?.data)
   locationCodeOptions.value = toOptions(loc?.data)
-  // Same "everything currently in the dropdown is the right default" rule
-  // as loadUnits() - Cost Center/Location Code only populate once Unit is
-  // known, so their own auto-select has to happen here rather than at
-  // load time.
-  baFilters.costCenters = costCenterOptions.value.map((o) => o.value)
-  baFilters.locationCodes = locationCodeOptions.value.map((o) => o.value)
+  // get_cost_centers_by_set_id/get_location_codes_by_unit's own responses
+  // already carry each entry's erp_cost_center_value/erp_loc_value (same
+  // shape get_theme_mappings uses) - toOptions() strips them for the plain
+  // {label, value} shape MultiSelect needs, so keep the ERP side here
+  // instead, keyed by the same `value` used for selection/lookup.
+  ccErpLookup.value = new Map((cc?.data || []).filter((c) => c.value && c.erp_cost_center_value).map((c) => [c.value, c.erp_cost_center_value]))
+  locErpLookup.value = new Map((loc?.data || []).filter((l) => l.value && l.erp_loc_value).map((l) => [l.value, l.erp_loc_value]))
+  // Picking a Unit only populates the Cost Center/Location Code dropdown
+  // OPTIONS for that unit - it deliberately does NOT pre-select all of
+  // them (matching Budget Summary's own same cascade), so "All cost
+  // centers"/"All location codes" stays the visible default and the user
+  // has to deliberately narrow it, rather than the report silently running
+  // pre-scoped to every cost center/location the moment a Unit is picked.
 })
 
 // --- Drill-down modal ------------------------------------------------
