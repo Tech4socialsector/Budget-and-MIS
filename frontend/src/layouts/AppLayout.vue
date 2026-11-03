@@ -22,12 +22,21 @@
 </template>
 
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import AppSidebar from '@/components/AppSidebar.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import MobileShell from '@/components/MobileShell.vue'
-import AiAssistant from '@/components/AiAssistant.vue'
 import { activeModule } from '@/data/activeModule'
+
+// AiAssistant itself renders nothing until opened (its root is `v-if="show"`
+// - the trigger buttons living in TopNavbar/MobileNav flip that flag), but
+// was still being eagerly imported into AppLayout's own chunk, which loads
+// on every single page. Deferring the import until AppLayout actually mounts
+// it keeps the ~31kB chat panel out of the shell every page pays for, while
+// still always being present in the DOM tree for the trigger buttons to
+// reveal, same as before.
+const AiAssistant = defineAsyncComponent(() => import('@/components/AiAssistant.vue'))
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('sm')

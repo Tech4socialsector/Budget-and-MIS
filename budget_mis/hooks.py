@@ -86,7 +86,20 @@ home_page = "budget-mis"
 # budget_mis/fixtures/app_module_setting.json, so it ships with the app
 # itself (git-tracked, applied automatically by `bench migrate` on any
 # other site) instead of needing to be recreated by hand everywhere.
-fixtures = ["App Module Setting"]
+#
+# AI Assistant Guide: the admin-editable instruction sections the AI
+# Assistant's own system prompt is built from (ai/assistant.py's
+# _load_guide()) - written directly on this (local) site via Desk over
+# several sessions, so like App Module Setting it only ever existed here
+# until exported. Its own child table (AI Assistant Guide Point) is NOT
+# listed separately - Frappe's fixture export embeds a parent doc's own
+# child-table rows inside that parent's single JSON entry automatically, so
+# one fixtures entry carries both. Exporting this is what gets these guide
+# sections onto a freshly-deployed site (e.g. production on Frappe Cloud)
+# without hand-recreating them in Desk there - run
+# `bench --site <site> export-fixtures --app budget_mis` after any further
+# edit to these sections, same as the App Module Setting convention above.
+fixtures = ["App Module Setting", "AI Assistant Guide"]
 
 website_route_rules = [
 	{"from_route": "/budget-mis/<path:app_path>", "to_route": "budget-mis"},

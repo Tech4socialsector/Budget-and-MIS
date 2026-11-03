@@ -68,10 +68,24 @@ MONTH_COLUMNS = [
 
 # 0-based column indices, matching generate_budget_template's `headers` list.
 COL_UNIT = 0
+COL_UNIT_DESCRIPTION = 1
 COL_COST_CENTER = 2
+COL_COST_CENTER_ERP = 3
+COL_COST_CENTER_DESCRIPTION = 4
 COL_LOCATION_CODE = 5
+COL_LOCATION_CODE_ERP = 6
+COL_LOCATION_DESCRIPTION = 7
+COL_STATE = 8
 COL_FINANCIAL_YEAR = 9
+# COL 10 (Uploaded By) is read from the file only to forward-fill the parent
+# group's own identity below - never trusted as the row's real uploader
+# (see commit_budget_import, which always uses the actual logged-in user
+# instead). Exposed in the preview purely as a display field.
+COL_UPLOADED_BY = 10
 COL_TYPE_OF_EXPENSE_ID = 11
+COL_HEAD_OF_EXPENSE = 12
+COL_SUB_HEAD_OF_EXPENSE = 13
+COL_TYPE_OF_EXPENSE = 14
 COL_MONTH_START = 15  # April .. March = columns 15-26 inclusive
 
 
@@ -84,7 +98,14 @@ def _read_rows(file_url):
 	worksheet = workbook.worksheets[0]
 
 	rows = []
-	group = None  # last non-blank (unit, cost_center, location_code, financial_year)
+	# Carries both the real identity fields (unit/cost_center/location_code/
+	# financial_year - what a row is actually matched/written against) and
+	# the PURELY DISPLAY fields the file carries alongside them (unit
+	# description, cost center/location ERP codes and descriptions, state,
+	# uploaded_by) - generate_budget_template leaves all of these blank on
+	# every row of a group after its first, so every one of them needs the
+	# same forward-fill, not just the identity fields.
+	group = None
 
 	for excel_row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
 		if row is None or all(v in (None, "") for v in row):
@@ -94,6 +115,13 @@ def _read_rows(file_url):
 		cost_center = row[COL_COST_CENTER] or (group["cost_center"] if group else None)
 		location_code = row[COL_LOCATION_CODE] or (group["location_code"] if group else None)
 		financial_year = row[COL_FINANCIAL_YEAR] or (group["financial_year"] if group else None)
+		unit_description = row[COL_UNIT_DESCRIPTION] or (group["unit_description"] if group else None)
+		cost_center_erp = row[COL_COST_CENTER_ERP] or (group["cost_center_erp"] if group else None)
+		cost_center_description = row[COL_COST_CENTER_DESCRIPTION] or (group["cost_center_description"] if group else None)
+		location_code_erp = row[COL_LOCATION_CODE_ERP] or (group["location_code_erp"] if group else None)
+		location_description = row[COL_LOCATION_DESCRIPTION] or (group["location_description"] if group else None)
+		state = row[COL_STATE] or (group["state"] if group else None)
+		uploaded_by = row[COL_UPLOADED_BY] or (group["uploaded_by"] if group else None)
 
 		if row[COL_UNIT]:
 			group = {
@@ -101,6 +129,13 @@ def _read_rows(file_url):
 				"cost_center": cost_center,
 				"location_code": location_code,
 				"financial_year": financial_year,
+				"unit_description": unit_description,
+				"cost_center_erp": cost_center_erp,
+				"cost_center_description": cost_center_description,
+				"location_code_erp": location_code_erp,
+				"location_description": location_description,
+				"state": state,
+				"uploaded_by": uploaded_by,
 			}
 
 		type_of_expense_id = row[COL_TYPE_OF_EXPENSE_ID]
@@ -112,14 +147,31 @@ def _read_rows(file_url):
 			except (TypeError, ValueError):
 				months[month] = None  # flagged as an error below
 
+		def _s(value):
+			return str(value).strip() if value not in (None, "") else None
+
 		rows.append({
 			"excel_row": excel_row_num,
-			"unit": str(unit).strip() if unit else None,
-			"cost_center": str(cost_center).strip() if cost_center else None,
-			"location_code": str(location_code).strip() if location_code else None,
-			"financial_year": str(financial_year).strip() if financial_year else None,
-			"type_of_expense_id": str(type_of_expense_id).strip() if type_of_expense_id else None,
+			"unit": _s(unit),
+			"cost_center": _s(cost_center),
+			"location_code": _s(location_code),
+			"financial_year": _s(financial_year),
+			"type_of_expense_id": _s(type_of_expense_id),
 			"months": months,
+			# Parent (Finance Budget) display fields - purely descriptive,
+			# never used for matching/writing (commit_budget_import's own
+			# matching is still by the real doc-name identity fields above).
+			"unit_description": _s(unit_description),
+			"cost_center_erp": _s(cost_center_erp),
+			"cost_center_description": _s(cost_center_description),
+			"location_code_erp": _s(location_code_erp),
+			"location_description": _s(location_description),
+			"state": _s(state),
+			"uploaded_by": _s(uploaded_by),
+			# Child (Finance Budget Amounts) display fields.
+			"head_of_expense": _s(row[COL_HEAD_OF_EXPENSE]),
+			"sub_head_of_expense": _s(row[COL_SUB_HEAD_OF_EXPENSE]),
+			"type_of_expense": _s(row[COL_TYPE_OF_EXPENSE]),
 		})
 
 	return rows

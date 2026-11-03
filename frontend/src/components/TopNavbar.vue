@@ -186,13 +186,12 @@ expand-and-fade is missed. */
 </style>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Breadcrumbs, Button, Dropdown } from 'frappe-ui'
 import LucideIcon from '@/components/LucideIcon.vue'
 import AppTooltip from '@/components/AppTooltip.vue'
 import AuditorIcon from '@/components/AuditorIcon.vue'
-import ProfileSettingsModal from '@/components/ProfileSettingsModal.vue'
 import AppCommandPalette from '@/components/AppCommandPalette.vue'
 import { pageTitle } from '@/data/pageTitle'
 import { currentTheme, toggleTheme } from '@/data/theme'
@@ -200,7 +199,6 @@ import { clearFrontendCache } from '@/data/clearCache'
 import { brandingResource, defaultAppIcon } from '@/data/branding'
 import { activeModule } from '@/data/activeModule'
 import { session, logoutResource } from '@/data/session'
-import { GUIDE_SECTIONS } from '@/data/userGuideContent'
 import { openCommandPalette } from '@/data/commandPalette'
 import { assistantConfigResource, toggleAssistant } from '@/data/aiAssistant'
 import { profileModalOpen, openProfileSettings } from '@/data/profileModal'
@@ -208,6 +206,33 @@ import { useGravatarUrl } from '@/utils/gravatar'
 
 const route = useRoute()
 const router = useRouter()
+
+// ProfileSettingsModal (and the Settings doctype panel / DynamicField /
+// LinkField it drags in underneath) only ever renders once opened (its
+// Dialog is v-model gated) - deferring the import the same way AppLayout.vue
+// defers AiAssistant keeps that whole subtree out of the shared shell chunk
+// until a user actually opens Settings.
+const ProfileSettingsModal = defineAsyncComponent(() => import('@/components/ProfileSettingsModal.vue'))
+
+// userGuideContent.js is ~60kB of guide text/body content that only the
+// User Guide page itself actually needs - TopNavbar previously imported it
+// statically just for this one topic-title lookup, which dragged the whole
+// module into AppLayout's chunk (loaded on every single page, not just
+// /user-guide). A dynamic import keeps it out of the app shell and only
+// fetches it when a user guide topic route is actually open.
+const guideTopicTitle = ref('')
+watch(
+  () => (route.name === 'UserGuide' ? route.params.topicId : null),
+  async (topicId) => {
+    if (!topicId) {
+      guideTopicTitle.value = ''
+      return
+    }
+    const { GUIDE_SECTIONS } = await import('@/data/userGuideContent')
+    guideTopicTitle.value = GUIDE_SECTIONS.find((s) => s.id === topicId)?.title || ''
+  },
+  { immediate: true },
+)
 
 function handleCommandSelect(item) {
   if (item.onClick) {
@@ -308,11 +333,10 @@ const breadcrumbItems = computed(() => {
   // /user-guide/home needs its own third crumb, or the breadcrumb looks
   // stuck on "User Guide" regardless of which topic is actually open.
   if (route.name === 'UserGuide' && route.params.topicId) {
-    const topic = GUIDE_SECTIONS.find((s) => s.id === route.params.topicId)
     return [
       { label: 'Home', route: { name: 'Home' } },
       { label: 'User Guide', route: { name: 'UserGuide' } },
-      { label: topic?.title || route.params.topicId },
+      { label: guideTopicTitle.value || route.params.topicId },
     ]
   }
 

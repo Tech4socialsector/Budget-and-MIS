@@ -6,6 +6,7 @@ from budget_mis.api.actual_format import get_filtered_actuals, sum_of_actuals_by
 from budget_mis.api.response_crypto import is_direct_http_call
 from budget_mis.api_1.budget_summary import get_budget_summary as get_consolidated_report
 from budget_mis.api_1.number_card_settings import resolve_grouped_units
+from budget_mis.api_1.helper import get_actuals_cache_duration_seconds
 
 @guest_api
 def get_consolidated_report_actual_ytd(
@@ -275,6 +276,49 @@ def get_combined_actuals(
                     return []
                 unit = ",".join(sorted(allowed_units))
 
+    # Cache keyed on the ALREADY-SCOPED unit (resolved above) so a
+    # permission-restricted user's cache entry is always keyed on their own
+    # actual allowed units, never on the raw unscoped input - two different
+    # users calling with unit=None can never collide on, or leak into, the
+    # same cache entry. Shares the same TTL convention as every other
+    # actuals-derived cache in this app (get_actuals_cache_duration_seconds).
+    cache_key = "budget_mis:get_combined_actuals:" + "|".join(
+        str(v) for v in (
+            financial_year, month, unit, cost_center, location_code,
+            erp_loc_value, erp_cost_center_value,
+        )
+    )
+
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached
+
+    result = _compute_combined_actuals(
+        financial_year=financial_year,
+        month=month,
+        unit=unit,
+        cost_center=cost_center,
+        location_code=location_code,
+        erp_loc_value=erp_loc_value,
+        erp_cost_center_value=erp_cost_center_value,
+    )
+
+    frappe.cache().set_value(
+        cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds()
+    )
+
+    return result
+
+
+def _compute_combined_actuals(
+    financial_year=None,
+    month=None,
+    unit=None,
+    cost_center=None,
+    location_code=None,
+    erp_loc_value=None,
+    erp_cost_center_value=None
+):
     from decimal import Decimal, ROUND_HALF_UP
 
     def to_decimal(value):

@@ -184,7 +184,7 @@ def list_users(filters=None, limit=20):
 	return users
 
 
-def get_budget_summary(financial_year=None, unit=None):
+def get_budget_summary(financial_year=None, unit=None, operating_unit=None, cost_center=None, location_code=None):
 	"""The authoritative aggregate budget total for a financial year -
 	built the same way the Budget Summary page computes its grand total
 	(summing every expense head's monthly q1-q4 figures from the
@@ -193,18 +193,60 @@ def get_budget_summary(financial_year=None, unit=None):
 	total_budget field is one line item, never the org-wide total - the
 	assistant must never treat it as one.
 
+	Pass EITHER `unit` (a literal Unit code like "APU") OR `operating_unit`
+	(a name from list_operating_units, e.g. "Azim Premji School") - never
+	pass an Operating Unit's display name into `unit`, it will not match any
+	real Unit and silently returns a 0.00 total instead of an error.
+	`cost_center`/`location_code` narrow further (the plain code shown in
+	the real page's own filter dropdowns, e.g. "111100"/"1001" - pass them
+	exactly as given) and work even with no unit/operating_unit at all.
+
 	Always scoped to the calling user's own unit access (never the
 	internal/admin-unscoped default get_consolidated_report falls back to
 	for non-HTTP callers), so a restricted Finance user asking this
 	assistant never sees more than their own list views already show
 	them.
 	"""
+	from budget_mis.utils import get_allowed_cost_centers, get_allowed_location_codes
 	from budget_mis.api_1.budget_summary import get_budget_summary
+	from budget_mis.api_1.filter_options import get_theme_mappings
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
 	if not financial_year:
 		frappe.throw(_("No financial year was given, and none is set as current in Master Settings."))
+
+	if unit and operating_unit:
+		frappe.throw(_("Pass either unit or operating_unit, not both."))
+
+	if operating_unit:
+		theme_name = _resolve_operating_unit_name(operating_unit)
+		mapping = get_theme_mappings(theme_name)
+		unit = ",".join(sorted({u["value"] for u in mapping.get("units") or [] if u.get("value")})) or None
+		cost_center = ",".join(sorted({c["value"] for c in mapping.get("cost_centers") or [] if c.get("value")})) or None
+		location_code = ",".join(sorted({l["value"] for l in mapping.get("location_codes") or [] if l.get("value")})) or None
+		if not unit:
+			frappe.throw(_("Operating Unit '{0}' has no units configured.").format(operating_unit))
+
+	# Budget-side data ("Finance Budget" records) is keyed entirely by doc
+	# name throughout get_budget_summary's own filters - unlike actuals
+	# (get_actuals_summary), there's no separate ERP-code form to resolve
+	# here, just the plain code -> doc name lookup.
+	if cost_center and not operating_unit:
+		requested_codes = [c.strip() for c in str(cost_center).split(",") if c.strip()]
+		cc_docs = frappe.get_all("Cost Center", filters={"cost_center": ["in", requested_codes]}, fields=["name", "cost_center"])
+		missing = set(requested_codes) - {str(d.cost_center) for d in cc_docs}
+		if missing:
+			frappe.throw(_("Unknown cost center code(s): {0}").format(", ".join(sorted(missing))))
+		cost_center = ",".join(str(d.name) for d in cc_docs)
+
+	if location_code and not operating_unit:
+		requested_codes = [l.strip() for l in str(location_code).split(",") if l.strip()]
+		loc_docs = frappe.get_all("Location Code", filters={"location_code": ["in", requested_codes]}, fields=["name", "location_code"])
+		missing = set(requested_codes) - {str(d.location_code) for d in loc_docs}
+		if missing:
+			frappe.throw(_("Unknown location code(s): {0}").format(", ".join(sorted(missing))))
+		location_code = ",".join(str(d.name) for d in loc_docs)
 
 	allowed_units = get_allowed_units()
 	if allowed_units is not None:
@@ -212,17 +254,31 @@ def get_budget_summary(financial_year=None, unit=None):
 			requested = {u.strip() for u in str(unit).split(",") if u.strip()}
 			if not requested.issubset(allowed_units):
 				frappe.throw(_("You do not have access to one or more of the requested units."), frappe.PermissionError)
-		elif not allowed_units:
+		elif not allowed_units and not cost_center and not location_code:
 			return {
 				"financial_year": financial_year,
 				"grand_total": 0,
 				"heads": [],
 				"note": "You do not have access to any budget units.",
 			}
-		else:
+		elif not operating_unit and not cost_center and not location_code:
 			unit = ",".join(sorted(allowed_units))
 
-	heads = get_budget_summary(financial_year=financial_year, units=unit) or []
+	if cost_center:
+		allowed_cost_centers = get_allowed_cost_centers()
+		if allowed_cost_centers is not None:
+			requested = {c.strip() for c in str(cost_center).split(",") if c.strip()}
+			if not requested.issubset(allowed_cost_centers):
+				frappe.throw(_("You do not have access to one or more of the requested cost centers."), frappe.PermissionError)
+
+	if location_code:
+		allowed_location_codes = get_allowed_location_codes()
+		if allowed_location_codes is not None:
+			requested = {l.strip() for l in str(location_code).split(",") if l.strip()}
+			if not requested.issubset(allowed_location_codes):
+				frappe.throw(_("You do not have access to one or more of the requested location codes."), frappe.PermissionError)
+
+	heads = get_budget_summary(financial_year=financial_year, units=unit, cost_center=cost_center, location_code=location_code) or []
 
 	def _row_total(row):
 		return sum(sum(row.get(q, [0, 0, 0])) for q in ("q1", "q2", "q3", "q4"))
@@ -236,7 +292,7 @@ def get_budget_summary(financial_year=None, unit=None):
 
 	return {
 		"financial_year": financial_year,
-		"unit": unit or "all units you have access to",
+		"unit": operating_unit or unit or "all units you have access to",
 		"grand_total": round(grand_total, 2),
 		"heads": head_summaries,
 	}
@@ -250,7 +306,75 @@ MONTHS_IN_ORDER = [
 ]
 
 
-def get_actuals_summary(financial_year=None, month=None, unit=None):
+def list_operating_units():
+	"""Operating Units are a different, higher-level grouping than a raw
+	Unit - each one (e.g. "Azim Premji School", "Azim Premji University")
+	resolves to a whole SET of Unit/Cost Center/Location Code values, not a
+	single Unit code. They're "Overview number cards settings" records
+	tagged via combination_table_settings.table_name == "Operating Unit
+	Filter Option" - the same records the Budget vs Actuals and Budget
+	Summary pages' own "Operating Units" filter dropdown lists. Call this
+	FIRST whenever the user names an Operating Unit (as opposed to a literal
+	Unit code like "APU") in a budget/actuals question, to get its real
+	name for resolve_operating_unit/get_actuals_summary's operating_unit
+	argument - never pass the Operating Unit's own display title straight
+	into get_actuals_summary's `unit` argument, it is not a Unit code and
+	will silently match nothing (reads as a correct 0.00 answer instead of
+	an error)."""
+	from budget_mis.api_1.filter_options import get_theme
+
+	return get_theme()
+
+
+def resolve_operating_unit(operating_unit):
+	"""Resolve one Operating Unit (by its number_card_title OR its doctype
+	name, as returned by list_operating_units) into the real Unit/Cost
+	Center/Location Code values it covers - both the budget-side values and
+	their ERP-side equivalents, matching exactly what get_actuals_summary's
+	own operating_unit argument resolves internally. Mainly useful to show
+	the user what an Operating Unit actually covers; get_actuals_summary
+	resolves it directly, so this tool is for inspection, not a required
+	first step before calling that one."""
+	from budget_mis.api_1.filter_options import get_theme, get_theme_mappings
+
+	theme_name = _resolve_operating_unit_name(operating_unit)
+	mapping = get_theme_mappings(theme_name)
+	# resolve_grouped_units (underlying get_theme_mappings) returns one
+	# entry per underlying row, so the same unit/cost-center/location can
+	# legitimately repeat several times - deduped here since this tool is
+	# purely for a human-readable "what does this cover" answer, not a
+	# per-row computation like get_actuals_summary's own internal use.
+	return {
+		"operating_unit": operating_unit,
+		"resolved_theme": theme_name,
+		"units": sorted({u["value"] for u in mapping.get("units") or [] if u.get("value")}),
+		"cost_centers": sorted({c["value"] for c in mapping.get("cost_centers") or [] if c.get("value")}),
+		"location_codes": sorted({l["value"] for l in mapping.get("location_codes") or [] if l.get("value")}),
+	}
+
+
+def _resolve_operating_unit_name(operating_unit):
+	"""Operating Unit names are matched case-insensitively against either
+	the doctype's own `name` or its human `number_card_title` - the model
+	is only ever shown number_card_title (via list_operating_units), but a
+	user might also type the raw name, so both are accepted."""
+	from budget_mis.api_1.filter_options import get_theme
+
+	operating_unit = str(operating_unit or "").strip()
+	if not operating_unit:
+		frappe.throw(_("An operating_unit name is required."))
+
+	needle = operating_unit.lower()
+	for card in get_theme():
+		if str(card["name"]).lower() == needle or (card.get("number_card_title") or "").lower() == needle:
+			return card["name"]
+
+	frappe.throw(
+		_("'{0}' is not a known Operating Unit. Call list_operating_units to see the available ones.").format(operating_unit)
+	)
+
+
+def get_actuals_summary(financial_year=None, month=None, unit=None, operating_unit=None, cost_center=None, location_code=None):
 	"""The authoritative year-to-date ACTUAL spend total (as opposed to
 	get_budget_summary's BUDGETED/planned total) for a financial year,
 	through a given month. Built the same way the Budget Dashboard's
@@ -262,12 +386,27 @@ def get_actuals_summary(financial_year=None, month=None, unit=None):
 	"utilized"/"expenditure so far" means this tool; "budget"/"allocated"/
 	"sanctioned"/"planned" means get_budget_summary.
 
-	Always scoped to the calling user's own unit access (get_combined_actuals
-	itself applies no such scoping when called internally), so a restricted
-	Finance user asking this assistant never sees more than their own list
-	views already show them.
+	Pass EITHER `unit` (a literal Unit code like "APU") OR `operating_unit`
+	(a name from list_operating_units, e.g. "Azim Premji School") - never
+	pass an Operating Unit's display name into `unit`, it will not match any
+	real Unit and silently returns a 0.00 total instead of an error. When
+	the user names something that isn't an obvious short Unit code, call
+	list_operating_units first to check whether it's actually an Operating
+	Unit. `cost_center`/`location_code` narrow further within whichever of
+	those you picked (both are the plain code the user sees in the Cost
+	Center/Location Code dropdowns on the real Budget vs Actuals page, e.g.
+	"111100"/"1001" - pass them exactly as given, do not translate or guess
+	a different value) - they work even with no unit/operating_unit at all,
+	scoped only by this user's own cost-center/location access.
+
+	Always scoped to the calling user's own unit/cost-center/location access
+	(get_combined_actuals itself applies no such scoping when called
+	internally), so a restricted Finance user asking this assistant never
+	sees more than their own list views already show them.
 	"""
+	from budget_mis.utils import get_allowed_cost_centers, get_allowed_location_codes
 	from budget_mis.api.phase_sheet import get_combined_actuals
+	from budget_mis.api_1.filter_options import get_theme_mappings
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
@@ -280,13 +419,68 @@ def get_actuals_summary(financial_year=None, month=None, unit=None):
 	if month not in MONTHS_IN_ORDER:
 		frappe.throw(_("Invalid month '{0}'. Use a full month name, April through March.").format(month))
 
+	if unit and operating_unit:
+		frappe.throw(_("Pass either unit or operating_unit, not both."))
+
+	erp_cost_center_value = None
+	erp_loc_value = None
+
+	if operating_unit:
+		theme_name = _resolve_operating_unit_name(operating_unit)
+		mapping = get_theme_mappings(theme_name)
+		unit = ",".join(sorted({u["value"] for u in mapping.get("units") or [] if u.get("value")})) or None
+		cost_center = ",".join(sorted({c["value"] for c in mapping.get("cost_centers") or [] if c.get("value")})) or None
+		location_code = ",".join(sorted({l["value"] for l in mapping.get("location_codes") or [] if l.get("value")})) or None
+		erp_cost_center_value = ",".join(sorted({
+			c["erp_cost_center_value"] for c in mapping.get("cost_centers") or [] if c.get("erp_cost_center_value")
+		})) or None
+		erp_loc_value = ",".join(sorted({
+			l["erp_loc_value"] for l in mapping.get("location_codes") or [] if l.get("erp_loc_value")
+		})) or None
+		if not unit and not erp_cost_center_value and not erp_loc_value:
+			frappe.throw(_("Operating Unit '{0}' has no units/cost centers/location codes configured.").format(operating_unit))
+
+	# Resolve a plain user-given cost_center/location_code (e.g. "111100",
+	# "1001" - the ERP code shown in the real page's own filter dropdowns,
+	# which is also each Cost Center/Location Code doc's own `cost_center`/
+	# `location_code` field, NOT its Frappe doc name) into BOTH forms the
+	# underlying report needs: the budget-side doc name (get_combined_actuals'
+	# own cost_center/location_code params, used only for the budget-side
+	# comparison figures) and the ERP code itself (erp_cost_center_value/
+	# erp_loc_value, the ONLY thing sum_of_actuals_by_sequence's actuals
+	# lookup actually filters by - passing just the doc name here, as this
+	# tool previously did, left the real actuals total completely
+	# unfiltered: a confirmed bug, not a permission issue). operating_unit's
+	# own resolution above already produces both forms directly from
+	# get_theme_mappings, so this only runs for a plain, non-Operating-Unit
+	# cost_center/location_code.
+	if cost_center and not operating_unit:
+		requested_codes = [c.strip() for c in str(cost_center).split(",") if c.strip()]
+		cc_docs = frappe.get_all("Cost Center", filters={"cost_center": ["in", requested_codes]}, fields=["name", "cost_center"])
+		found_codes = {str(d.cost_center) for d in cc_docs}
+		missing = set(requested_codes) - found_codes
+		if missing:
+			frappe.throw(_("Unknown cost center code(s): {0}").format(", ".join(sorted(missing))))
+		cost_center = ",".join(str(d.name) for d in cc_docs)
+		erp_cost_center_value = ",".join(requested_codes)
+
+	if location_code and not operating_unit:
+		requested_codes = [l.strip() for l in str(location_code).split(",") if l.strip()]
+		loc_docs = frappe.get_all("Location Code", filters={"location_code": ["in", requested_codes]}, fields=["name", "location_code"])
+		found_codes = {str(d.location_code) for d in loc_docs}
+		missing = set(requested_codes) - found_codes
+		if missing:
+			frappe.throw(_("Unknown location code(s): {0}").format(", ".join(sorted(missing))))
+		location_code = ",".join(str(d.name) for d in loc_docs)
+		erp_loc_value = ",".join(requested_codes)
+
 	allowed_units = get_allowed_units()
 	if allowed_units is not None:
 		if unit:
 			requested = {u.strip() for u in str(unit).split(",") if u.strip()}
 			if not requested.issubset(allowed_units):
 				frappe.throw(_("You do not have access to one or more of the requested units."), frappe.PermissionError)
-		elif not allowed_units:
+		elif not allowed_units and not cost_center and not location_code:
 			return {
 				"financial_year": financial_year,
 				"month": month,
@@ -294,10 +488,32 @@ def get_actuals_summary(financial_year=None, month=None, unit=None):
 				"heads": [],
 				"note": "You do not have access to any budget units.",
 			}
-		else:
+		elif not operating_unit and not cost_center and not location_code:
 			unit = ",".join(sorted(allowed_units))
 
-	heads = get_combined_actuals(financial_year=financial_year, month=month, unit=unit) or []
+	if cost_center:
+		allowed_cost_centers = get_allowed_cost_centers()
+		if allowed_cost_centers is not None:
+			requested = {c.strip() for c in str(cost_center).split(",") if c.strip()}
+			if not requested.issubset(allowed_cost_centers):
+				frappe.throw(_("You do not have access to one or more of the requested cost centers."), frappe.PermissionError)
+
+	if location_code:
+		allowed_location_codes = get_allowed_location_codes()
+		if allowed_location_codes is not None:
+			requested = {l.strip() for l in str(location_code).split(",") if l.strip()}
+			if not requested.issubset(allowed_location_codes):
+				frappe.throw(_("You do not have access to one or more of the requested location codes."), frappe.PermissionError)
+
+	heads = get_combined_actuals(
+		financial_year=financial_year,
+		month=month,
+		unit=unit,
+		cost_center=cost_center,
+		location_code=location_code,
+		erp_cost_center_value=erp_cost_center_value,
+		erp_loc_value=erp_loc_value,
+	) or []
 
 	head_summaries = []
 	grand_total = 0.0
@@ -309,7 +525,7 @@ def get_actuals_summary(financial_year=None, month=None, unit=None):
 	return {
 		"financial_year": financial_year,
 		"month": month,
-		"unit": unit or "all units you have access to",
+		"unit": operating_unit or unit or "all units you have access to",
 		"grand_total_ytd": round(grand_total, 2),
 		"heads": head_summaries,
 	}
@@ -584,6 +800,8 @@ TOOL_FUNCTIONS = {
 	"get_my_access": get_my_access,
 	"propose_guide_point": propose_guide_point,
 	"list_users": list_users,
+	"list_operating_units": list_operating_units,
+	"resolve_operating_unit": resolve_operating_unit,
 	"get_budget_summary": get_budget_summary,
 	"get_actuals_summary": get_actuals_summary,
 	"get_monthly_mis_summary": get_monthly_mis_summary,
@@ -682,6 +900,43 @@ TOOL_SCHEMAS = [
 	{
 		"type": "function",
 		"function": {
+			"name": "list_operating_units",
+			"description": (
+				"List the available Operating Units (e.g. 'Azim Premji School', 'Azim Premji University') - a "
+				"higher-level grouping distinct from a raw Unit code, each covering a whole set of Units/Cost "
+				"Centers/Location Codes. Call this whenever the user names something that might be an Operating "
+				"Unit rather than a literal Unit code, before passing it to get_actuals_summary's operating_unit "
+				"argument or get_budget_summary's unit argument - never guess at whether a name is a real Unit "
+				"code or an Operating Unit."
+			),
+			"parameters": {"type": "object", "properties": {}},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "resolve_operating_unit",
+			"description": (
+				"Show exactly which Units/Cost Centers/Location Codes one Operating Unit (from list_operating_units) "
+				"covers. Use this only when the user asks what an Operating Unit actually includes - get_actuals_summary "
+				"and get_budget_summary already resolve an operating_unit/unit argument internally, so this is not a "
+				"required first step before calling those."
+			),
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"operating_unit": {
+						"type": "string",
+						"description": "An Operating Unit's name, as returned by list_operating_units.",
+					},
+				},
+				"required": ["operating_unit"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
 			"name": "get_budget_summary",
 			"description": (
 				"The ONLY correct source for a budget total, grand total, or per-head total for a financial year. "
@@ -689,7 +944,9 @@ TOOL_SCHEMAS = [
 				"never compute a total yourself and never use search_records or get_record on 'Finance Budget' "
 				"for this, since each 'Finance Budget' record is a single line item, not an aggregate. "
 				"If the user doesn't name a financial year, call this with no financial_year argument - it defaults "
-				"to the app's current financial year, and its reply tells you which year that was."
+				"to the app's current financial year, and its reply tells you which year that was. If the user names "
+				"an Operating Unit (e.g. 'Azim Premji School') rather than a literal Unit code, pass it as "
+				"operating_unit, never as unit - call list_operating_units first if unsure which one a name is."
 			),
 			"parameters": {
 				"type": "object",
@@ -700,7 +957,19 @@ TOOL_SCHEMAS = [
 					},
 					"unit": {
 						"type": ["string", "null"],
-						"description": "Optional comma-separated unit name(s) to scope the total to. Omit or pass null for all units the current user can access.",
+						"description": "Optional comma-separated literal Unit code(s) (e.g. 'APU') to scope the total to. Omit or pass null for all units the current user can access. Never pass an Operating Unit's name here - use operating_unit instead.",
+					},
+					"operating_unit": {
+						"type": ["string", "null"],
+						"description": "Optional Operating Unit name, as returned by list_operating_units (e.g. 'Azim Premji School'), to scope the total to. Mutually exclusive with unit.",
+					},
+					"cost_center": {
+						"type": ["string", "null"],
+						"description": "Optional comma-separated Cost Center code(s) (e.g. '111100'), exactly as the user gives them. Narrows further within unit/operating_unit if given, or works alone with no unit at all.",
+					},
+					"location_code": {
+						"type": ["string", "null"],
+						"description": "Optional comma-separated Location Code(s) (e.g. '1001'), exactly as the user gives them. Narrows further within unit/operating_unit if given, or works alone with no unit at all.",
 					},
 				},
 			},
@@ -716,7 +985,10 @@ TOOL_SCHEMAS = [
 				"how much has actually been spent, utilized, or posted so far - never compute a total yourself and "
 				"never use search_records or get_record on 'Finance Budget' or 'Monthly Adjustment' for this. "
 				"Actuals are always reported year-to-date through a specific month, so a month is required - if the "
-				"user doesn't name one, ask them which month instead of guessing."
+				"user doesn't name one, ask them which month instead of guessing. If the user names an Operating "
+				"Unit (e.g. 'Azim Premji School') rather than a literal Unit code, pass it as operating_unit, never "
+				"as unit - passing an Operating Unit's name as unit will not match anything and silently returns a "
+				"0.00 total instead of an error. Call list_operating_units first if unsure which one a name is."
 			),
 			"parameters": {
 				"type": "object",
@@ -731,7 +1003,19 @@ TOOL_SCHEMAS = [
 					},
 					"unit": {
 						"type": ["string", "null"],
-						"description": "Optional comma-separated unit name(s) to scope the total to. Omit or pass null for all units the current user can access.",
+						"description": "Optional comma-separated literal Unit code(s) (e.g. 'APU') to scope the total to. Omit or pass null for all units the current user can access. Never pass an Operating Unit's name here - use operating_unit instead.",
+					},
+					"operating_unit": {
+						"type": ["string", "null"],
+						"description": "Optional Operating Unit name, as returned by list_operating_units (e.g. 'Azim Premji School'), to scope the total to. Mutually exclusive with unit.",
+					},
+					"cost_center": {
+						"type": ["string", "null"],
+						"description": "Optional comma-separated Cost Center code(s) (e.g. '111100'), exactly as the user gives them - never translate, reformat, or guess a different value. Narrows further within unit/operating_unit if given, or works alone with no unit at all.",
+					},
+					"location_code": {
+						"type": ["string", "null"],
+						"description": "Optional comma-separated Location Code(s) (e.g. '1001'), exactly as the user gives them. Narrows further within unit/operating_unit if given, or works alone with no unit at all.",
 					},
 				},
 				"required": ["month"],

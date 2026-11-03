@@ -3,15 +3,17 @@
   pages/BudgetImportTemplate.vue (which generates/downloads the .xlsx).
   Net-new feature: no prior upload/import UI existed anywhere in this app.
 
-  Deliberately styled after Frappe's own Data Import tool (Desk doctype
-  "Data Import", /app/data-import) - confirmed by reading its actual source
-  (data_import.js, import_preview.js) rather than assuming a wizard/stepper
-  exists: it's ONE scrollable page with progressively-revealed sections
-  (Import File -> Preview, with column-validity shown as colored indicator
-  dots - green=recognized, red=problem - plus an inline progress bar during
-  the run and a results log table with per-row Success/Failure status),
-  not a multi-step wizard. This page mirrors that same section layout and
-  indicator-dot convention.
+  Upload step styled after Frappe's current (v16) Data Import tool: a
+  bordered dropzone with drag-and-drop, a cloud-upload icon, and file-type/
+  size hint text. The preview grid uses frappe-ui's own ListView primitives
+  (the same ones this app's DoctypeList.vue is built on) instead of a
+  hand-rolled <table> or a separate charting/grid library - same sticky
+  header, row hover and column layout as every other list in this app,
+  with zero doctype/meta machinery pulled in (DoctypeList.vue's own
+  meta-driven fetch/filter/sort layer doesn't apply - these are plain
+  in-memory parsed rows, not Frappe documents). Start Import lives in the
+  page's own top action bar (always visible, no scrolling to the bottom
+  needed) alongside a 2-step indicator for this page's real two phases.
 
   It deliberately does NOT reuse Frappe's actual Data Import ENGINE
   underneath (frappe.core.doctype.data_import) - that tool can only match
@@ -28,49 +30,91 @@
 
   Two backend calls, matching Data Import's own two-phase shape (preview
   pass, then a real import run): preview_budget_import parses + validates
-  only (zero writes) - rows show up in the preview grid with a status dot
-  per row, exactly like Data Import's own green/red column indicators, just
-  applied per-row here since our columns are fixed/known rather than
-  user-mapped. commit_budget_import re-parses and actually writes.
+  only (zero writes) - rows show up in the preview grid with a status
+  indicator per row. commit_budget_import re-parses and actually writes.
 -->
 <template>
   <AppLayout>
     <div class="flex flex-col gap-5">
-      <div class="flex items-start justify-between gap-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Budget Import</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Upload a filled-in Budget Import Template to create or update Finance Budget records.
           </p>
         </div>
-        <span
-          v-if="stageLabel"
-          class="flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-          :class="stageBadgeClass"
-        >
-          <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full" :class="stageDotClass" />
-          {{ stageLabel }}
-        </span>
+
+        <!-- Top action bar: a 2-step indicator for this page's real phases
+        (Upload, then Preview & Import) plus the primary action, always
+        visible here rather than requiring a scroll to the bottom of a long
+        preview table to find Start Import. -->
+        <div class="flex flex-shrink-0 items-center gap-4">
+          <ol class="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500">
+            <li class="flex items-center gap-1.5" :class="step >= 1 ? 'text-gray-900 dark:text-gray-100' : ''">
+              <span
+                class="flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem]"
+                :class="step >= 1 ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-800'"
+              >1</span>
+              Upload
+            </li>
+            <li class="h-px w-5 bg-gray-200 dark:bg-gray-700" />
+            <li class="flex items-center gap-1.5" :class="step >= 2 ? 'text-gray-900 dark:text-gray-100' : ''">
+              <span
+                class="flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem]"
+                :class="step >= 2 ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-800'"
+              >2</span>
+              Preview &amp; Import
+            </li>
+          </ol>
+
+          <Button
+            v-if="preview"
+            variant="solid"
+            theme="gray"
+            :disabled="!!preview.errors.length"
+            :loading="importing"
+            @click="confirmImport"
+          >
+            <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
+            {{ result ? 'Import Again' : 'Start Import' }}
+          </Button>
+        </div>
       </div>
 
-      <!-- Section: Import File -->
+      <!-- Section: Import File - a dropzone (Frappe v16 Data Import's own
+      upload-step look) when nothing's attached yet, a plain attached-file
+      row once something is. -->
       <div class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-        <div class="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Import File</h2>
+        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Upload file</h2>
         </div>
         <div class="p-4">
-          <div v-if="!fileName" class="flex items-center gap-3">
-            <FileUploader :upload-args="{ private: true }" @success="onFileUploaded">
-              <template #default="{ openFileSelector, uploading, progress }">
-                <Button variant="subtle" theme="gray" :loading="uploading" @click="openFileSelector">
-                  <template #prefix><FeatherIcon name="paperclip" class="h-4 w-4" /></template>
-                  {{ uploading ? `Uploading ${progress}%` : 'Attach File' }}
-                </Button>
-              </template>
-            </FileUploader>
-            <span class="text-xs text-gray-500 dark:text-gray-400">.xlsx only</span>
-          </div>
-          <div v-else class="flex items-center justify-between gap-3">
+          <FileUploader ref="fileUploaderRef" :upload-args="{ private: true }" :validate-file="validateFile" @success="onFileUploaded">
+            <template #default="{ openFileSelector, uploading, progress }">
+              <div
+                v-if="!fileName"
+                class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors"
+                :class="isDragOver ? 'border-gray-400 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/60' : 'border-gray-200 dark:border-gray-700'"
+                @click="openFileSelector"
+                @dragover.prevent="isDragOver = true"
+                @dragleave.prevent="isDragOver = false"
+                @drop.prevent="(e) => { isDragOver = false; onFileDrop(e) }"
+              >
+                <template v-if="uploading">
+                  <FeatherIcon name="loader" class="h-6 w-6 animate-spin text-gray-400" />
+                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Uploading {{ progress }}%</p>
+                </template>
+                <template v-else>
+                  <FeatherIcon name="upload-cloud" class="h-6 w-6 text-gray-400" />
+                  <p class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Drag an Excel file here, or <span class="text-blue-600 dark:text-blue-400">click to browse</span>
+                  </p>
+                  <p class="text-xs text-gray-400 dark:text-gray-500">.xlsx up to 10 MB</p>
+                </template>
+              </div>
+            </template>
+          </FileUploader>
+          <div v-if="fileName" class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <FeatherIcon name="file-text" class="h-4 w-4 flex-shrink-0 text-gray-400" />
               {{ fileName }}
@@ -101,41 +145,116 @@
             </div>
           </div>
 
-          <!-- Preview grid: one status-indicator column (Data Import's own
-          green/red column-header convention, applied per row here since
-          our template's columns are fixed/known rather than user-mapped) -->
+          <!-- Preview: a tree - one expandable PARENT row per real Finance
+          Budget identity (Unit+Cost Center+Location+Financial Year,
+          exactly the key commit_budget_import groups by), carrying every
+          one of Finance Budget's own real parent fields (Unit/Cost
+          Center/Location descriptions and ERP codes, State, Uploaded By -
+          not just the bare codes); expanding it reveals its own Finance
+          Budget Amounts CHILD rows, one per Type of Expense, each with its
+          own Head/Sub Head, 12 monthly amounts, and Quarter/Year totals -
+          Finance Budget's real parent/child shape, not an arbitrary
+          grouping. A hand-built table (not ListView) since a child row
+          alone is ~19 columns wide - .fc-scroll-wrapper's own horizontal
+          scroll (already used by every other wide table in this app, e.g.
+          BudgetActualsBreakdown.vue) handles that better than forcing it
+          through a column-grid component built for flat lists. -->
           <div class="fc-scroll-wrapper fc-scroll-wrapper-tall">
-            <table class="fc-table w-full min-w-[900px] text-sm">
+            <table class="fc-table w-full min-w-[1600px] text-sm">
               <thead>
                 <tr class="fc-thead-main">
-                  <th class="fc-th w-10 text-center">Sr.</th>
-                  <th class="fc-th w-10"></th>
-                  <th class="fc-th text-left">Unit</th>
+                  <th class="fc-th w-6"></th>
+                  <th class="fc-th text-left">Entity / Unit</th>
+                  <th class="fc-th text-left">Entity / Unit Description</th>
                   <th class="fc-th text-left">Cost Center</th>
+                  <th class="fc-th text-left">Cost Center (Original)</th>
+                  <th class="fc-th text-left">Cost Center Description</th>
                   <th class="fc-th text-left">Location Code</th>
+                  <th class="fc-th text-left">Location Code (Original)</th>
+                  <th class="fc-th text-left">Location Description</th>
+                  <th class="fc-th text-left">State</th>
                   <th class="fc-th text-left">Financial Year</th>
-                  <th class="fc-th text-left">Type of Expense</th>
+                  <th class="fc-th text-left">Uploaded By</th>
                   <th class="fc-th text-right">Year Total</th>
                   <th class="fc-th text-left">Status</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in previewRows" :key="i" :class="row._ok ? '' : 'bg-red-50/60 dark:bg-red-950/20'">
-                  <td class="fc-td text-center text-gray-400">{{ row.excel_row }}</td>
-                  <td class="fc-td text-center">
-                    <span class="inline-block h-2 w-2 rounded-full" :class="row._ok ? 'bg-green-500' : 'bg-red-500'" />
-                  </td>
-                  <td class="fc-td text-left">{{ row.unit }}</td>
-                  <td class="fc-td text-left">{{ row.cost_center }}</td>
-                  <td class="fc-td text-left">{{ row.location_code }}</td>
-                  <td class="fc-td text-left">{{ row.financial_year }}</td>
-                  <td class="fc-td text-left">{{ row.type_of_expense_id }}</td>
-                  <td class="fc-td text-right">{{ row._ok ? formatTotal(rowTotal(row)) : '—' }}</td>
-                  <td class="fc-td text-left">
-                    <span v-if="row._ok" class="text-green-700 dark:text-green-400">OK</span>
-                    <span v-else class="text-red-700 dark:text-red-400">{{ row._error }}</span>
-                  </td>
-                </tr>
+                <template v-if="!previewGroups.length">
+                  <tr><td class="fc-td text-center text-gray-400" colspan="14">No rows to preview.</td></tr>
+                </template>
+                <template v-for="group in previewGroups" :key="group.group">
+                  <!-- Parent row (Finance Budget) -->
+                  <tr class="fc-row-head cursor-pointer" @click="toggleGroup(group.group)">
+                    <td class="fc-td text-center">
+                      <FeatherIcon :name="isGroupOpen(group.group) ? 'chevron-down' : 'chevron-right'" class="h-3.5 w-3.5" />
+                    </td>
+                    <td class="fc-td text-left">{{ group.unit }}</td>
+                    <td class="fc-td text-left">{{ group.unit_description || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.cost_center }}</td>
+                    <td class="fc-td text-left">{{ group.cost_center_erp || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.cost_center_description || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.location_code }}</td>
+                    <td class="fc-td text-left">{{ group.location_code_erp || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.location_description || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.state || '—' }}</td>
+                    <td class="fc-td text-left">{{ group.financial_year }}</td>
+                    <td class="fc-td text-left">{{ group.uploaded_by || '—' }}</td>
+                    <td class="fc-td text-right">{{ group.yearTotalLabel }}</td>
+                    <td class="fc-td text-left">
+                      <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2 w-2 flex-shrink-0 rounded-full" :class="group.allOk ? 'bg-green-500' : 'bg-red-500'" />
+                        <span :class="group.allOk ? '' : 'text-red-700 dark:text-red-400'">{{ group.allOk ? 'OK' : `${group.errorCount} error${group.errorCount === 1 ? '' : 's'}` }}</span>
+                      </span>
+                    </td>
+                  </tr>
+
+                  <!-- Child rows (Finance Budget Amounts), one per Type of
+                  Expense - a nested mini-table of its own 19 columns
+                  (Type of Expense ID/Head/Sub Head/Type + 12 months +
+                  Q1-4 + Year), indented under its parent. -->
+                  <tr v-if="isGroupOpen(group.group)">
+                    <td class="fc-td p-0" colspan="14">
+                      <table class="fc-table w-full min-w-[1800px] text-sm">
+                        <thead>
+                          <tr class="fc-thead-main">
+                            <th class="fc-th w-6"></th>
+                            <th class="fc-th text-left">Type of Expense ID</th>
+                            <th class="fc-th text-left">Head of Expense</th>
+                            <th class="fc-th text-left">Sub Head of Expense</th>
+                            <th class="fc-th text-left">Type of Expense</th>
+                            <th v-for="m in MONTH_LABELS" :key="m" class="fc-th text-right">{{ m }}</th>
+                            <th class="fc-th text-right">Q1</th>
+                            <th class="fc-th text-right">Q2</th>
+                            <th class="fc-th text-right">Q3</th>
+                            <th class="fc-th text-right">Q4</th>
+                            <th class="fc-th text-right">Year Total</th>
+                            <th class="fc-th text-left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="row in group.rows" :key="row._key" :class="row._ok ? '' : 'bg-red-50/60 dark:bg-red-950/20'">
+                            <td class="fc-td"></td>
+                            <td class="fc-td text-left">{{ row.type_of_expense_id }}</td>
+                            <td class="fc-td text-left">{{ row.head_of_expense || '—' }}</td>
+                            <td class="fc-td text-left">{{ row.sub_head_of_expense || '—' }}</td>
+                            <td class="fc-td text-left">{{ row.type_of_expense || '—' }}</td>
+                            <td v-for="m in MONTH_COLUMNS" :key="m" class="fc-td text-right">{{ row._ok ? formatTotal(row.months[m]) : '—' }}</td>
+                            <td class="fc-td text-right">{{ row._ok ? formatTotal(quarterTotal(row, 0)) : '—' }}</td>
+                            <td class="fc-td text-right">{{ row._ok ? formatTotal(quarterTotal(row, 1)) : '—' }}</td>
+                            <td class="fc-td text-right">{{ row._ok ? formatTotal(quarterTotal(row, 2)) : '—' }}</td>
+                            <td class="fc-td text-right">{{ row._ok ? formatTotal(quarterTotal(row, 3)) : '—' }}</td>
+                            <td class="fc-td text-right">{{ row._ok ? formatTotal(rowTotal(row)) : '—' }}</td>
+                            <td class="fc-td text-left">
+                              <span v-if="row._ok" class="text-green-700 dark:text-green-400">OK</span>
+                              <span v-else class="text-red-700 dark:text-red-400">{{ row._error }}</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -159,10 +278,7 @@
         area while running - matches Data Import's own inline dashboard
         progress area rather than a separate screen). commit_budget_import
         is one synchronous call with no real progress signal to report, so
-        this shows an indeterminate loader rather than a fake percentage -
-        Data Import's own bar only moves because it's driven by real
-        realtime progress events from a background job, which this
-        single-request commit doesn't have. -->
+        this shows an indeterminate loader rather than a fake percentage. -->
         <div v-if="importing" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
           <AppLoader label="Importing..." variant="build" />
         </div>
@@ -182,23 +298,6 @@
         </div>
 
         <ErrorMessage v-if="error" :message="error" />
-
-        <!-- Primary action - matches Data Import's own page-level primary
-        button whose label changes with state (Save -> Start Import ->
-        Retry), kept inline here instead of in the page header. -->
-        <div class="flex justify-end gap-2">
-          <Button variant="subtle" theme="gray" @click="reset">Cancel</Button>
-          <Button
-            variant="solid"
-            theme="blue"
-            :disabled="!!preview.errors.length"
-            :loading="importing"
-            @click="confirmImport"
-          >
-            <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
-            {{ result ? 'Import Again' : 'Start Import' }}
-          </Button>
-        </div>
       </template>
     </div>
   </AppLayout>
@@ -206,13 +305,40 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, FeatherIcon, FileUploader, ErrorMessage } from 'frappe-ui'
+import { Button, ErrorMessage, FeatherIcon, FileUploader } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 
 setPageTitle('Budget Import')
+
+const fileUploaderRef = ref(null)
+const isDragOver = ref(false)
+
+function validateFile(file) {
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return 'Only .xlsx files are supported.'
+  }
+}
+
+// Drag-and-drop onto the dropzone: FileUploader itself only wires up its
+// own hidden <input type="file">'s change event (see onFileAdd in that
+// component), so a dropped file is handed to that same input via a
+// DataTransfer - the standard way to feed a native file input
+// programmatically - then a 'change' event is dispatched to trigger
+// FileUploader's existing upload flow exactly as if the user had browsed
+// for the file, instead of duplicating its upload/validation logic here.
+function onFileDrop(e) {
+  const file = e.dataTransfer?.files?.[0]
+  if (!file) return
+  const input = fileUploaderRef.value?.inputRef?.()
+  if (!input) return
+  const dataTransfer = new DataTransfer()
+  dataTransfer.items.add(file)
+  input.files = dataTransfer.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+}
 
 const fileName = ref('')
 const uploadedFileUrl = ref('')
@@ -222,30 +348,18 @@ const error = ref(null)
 const checkingPreview = ref(false)
 const importing = ref(false)
 
-// Matches Data Import's own page-status badge (Pending/In Progress/
-// Partial Success/Success/Error), shown next to the page title.
-const stageLabel = computed(() => {
-  if (importing.value) return 'In Progress'
-  if (result.value) return 'Success'
-  if (preview.value?.error_count) return 'Pending'
-  if (preview.value) return 'Pending'
-  return ''
-})
-const stageBadgeClass = computed(() => ({
-  'In Progress': 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  Success: 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  Pending: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
-}[stageLabel.value] || ''))
-const stageDotClass = computed(() => ({
-  'In Progress': 'bg-amber-500',
-  Success: 'bg-green-500',
-  Pending: 'bg-gray-400',
-}[stageLabel.value] || ''))
+// Drives the top action bar's step indicator - step 1 (Upload) until a
+// file has been read and validated into a preview, step 2 (Preview &
+// Import) from then on, including after a successful import (the page
+// stays on step 2 rather than resetting, since Import Again re-runs the
+// same already-previewed file).
+const step = computed(() => (preview.value ? 2 : 1))
 
 // Preview rows merged with their errors (if any) into one list, in
 // original file order, each carrying its own _ok/_error - matches Data
 // Import's per-row status in its results log, just shown pre-import here
-// since our preview already does full validation.
+// since our preview already does full validation. _key is ListView's
+// required rowKey - excel_row is already unique per file.
 const previewRows = computed(() => {
   if (!preview.value) return []
   const errorsByRow = new Map(preview.value.errors.map((e) => [e.excel_row, e.message]))
@@ -253,8 +367,96 @@ const previewRows = computed(() => {
   const errorRows = [...errorsByRow.entries()].map(([excel_row, message]) => ({
     excel_row, _ok: false, _error: message,
   }))
-  return [...okRows, ...errorRows].sort((a, b) => a.excel_row - b.excel_row)
+  return [...okRows, ...errorRows]
+    .sort((a, b) => a.excel_row - b.excel_row)
+    .map((row) => ({
+      ...row,
+      _key: row.excel_row,
+      status: row._ok ? 'OK' : row._error,
+      year_total: row._ok ? formatTotal(rowTotal(row)) : '—',
+    }))
 })
+
+// Grouped into one entry per real Finance Budget PARENT identity
+// (unit, cost_center, location_code, financial_year) - exactly the key
+// commit_budget_import itself groups rows by to decide "one parent doc,
+// reused or created" - carrying every one of Finance Budget's own real
+// display fields (unit/cost-center/location descriptions and ERP codes,
+// state, uploaded_by), not just the bare identity codes. Each group's own
+// rows are its Type of Expense entries (Finance Budget Amounts, the real
+// child doctype this maps onto). A row that failed validation before even
+// reaching that point (e.g. a missing identity field) has no real parent
+// to group under, so every such row becomes its own single-row "Rows with
+// errors" group instead, kept separate from the real, groupable parents.
+const previewGroups = computed(() => {
+  const groups = new Map()
+  const errorGroup = {
+    group: 'Rows with errors', rows: [], allOk: false, errorCount: 0, yearTotalLabel: '—',
+    unit: '—', unit_description: '', cost_center: '—', cost_center_erp: '', cost_center_description: '',
+    location_code: '—', location_code_erp: '', location_description: '', state: '', financial_year: '—', uploaded_by: '',
+  }
+  for (const row of previewRows.value) {
+    if (!row._ok) {
+      errorGroup.rows.push(row)
+      errorGroup.errorCount++
+      continue
+    }
+    const key = [row.unit, row.cost_center, row.location_code, row.financial_year].join('::')
+    if (!groups.has(key)) {
+      groups.set(key, {
+        group: key,
+        unit: row.unit,
+        unit_description: row.unit_description,
+        cost_center: row.cost_center,
+        cost_center_erp: row.cost_center_erp,
+        cost_center_description: row.cost_center_description,
+        location_code: row.location_code,
+        location_code_erp: row.location_code_erp,
+        location_description: row.location_description,
+        state: row.state,
+        financial_year: row.financial_year,
+        uploaded_by: row.uploaded_by,
+        rows: [],
+        allOk: true,
+        errorCount: 0,
+        _total: 0,
+      })
+    }
+    const g = groups.get(key)
+    g.rows.push(row)
+    g._total += rowTotal(row)
+  }
+  const result = [...groups.values()].map((g) => ({ ...g, yearTotalLabel: formatTotal(g._total) }))
+  if (errorGroup.rows.length) result.push(errorGroup)
+  return result
+})
+
+// Expand/collapse state per group, keyed by its own `group` key - every
+// group starts expanded (a key with no entry here is treated as open, see
+// isGroupOpen), matching the "tree" the user asked for showing its child
+// records right away rather than needing every parent clicked open first.
+const collapsedGroups = ref(new Set())
+function isGroupOpen(key) {
+  return !collapsedGroups.value.has(key)
+}
+function toggleGroup(key) {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsedGroups.value = next
+}
+
+const MONTH_LABELS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
+const MONTH_COLUMNS = ['april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'january', 'february', 'march']
+const QUARTERS = [
+  ['april', 'may', 'june'],
+  ['july', 'august', 'september'],
+  ['october', 'november', 'december'],
+  ['january', 'february', 'march'],
+]
+function quarterTotal(row, quarterIndex) {
+  return QUARTERS[quarterIndex].reduce((sum, m) => sum + (row.months[m] || 0), 0)
+}
 
 async function onFileUploaded(file) {
   fileName.value = file.file_name
@@ -293,7 +495,19 @@ async function confirmImport() {
     }
     result.value = message
   } catch (e) {
-    error.value = e?.messages?.[0] || e?.message || 'Import failed. Please try again.'
+    // "Failed to fetch" is the browser's own generic message for a request
+    // that never completed at all (dropped connection, server restarting
+    // mid-request, etc.) - never confirms the import one way or the other,
+    // unlike a real error response from commit_budget_import itself (which
+    // always comes back as a normal {status: 'failed', error} result, not
+    // a thrown exception at all). Reword it so "try again" reads as "check
+    // the Import Log/Finance Budget records before re-running" rather than
+    // implying nothing happened, since a request can fail to return a
+    // response even after the server-side write already succeeded.
+    const isNetworkFailure = /failed to fetch|network/i.test(e?.message || '')
+    error.value = isNetworkFailure
+      ? 'Lost connection while importing - the import may or may not have completed. Check the Finance Budget list before re-running, to avoid a duplicate import.'
+      : (e?.messages?.[0] || e?.message || 'Import failed. Please try again.')
   } finally {
     importing.value = false
   }
