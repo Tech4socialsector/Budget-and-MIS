@@ -17,6 +17,7 @@ declare module 'vue' {
     BreakupTable: typeof import('./src/components/monthlyMis/BreakupTable.vue')['default']
     BudgetActualBarChart: typeof import('./src/components/BudgetActualBarChart.vue')['default']
     BudgetActualDonutCard: typeof import('./src/components/BudgetActualDonutCard.vue')['default']
+    BudgetActualsBreakdown: typeof import('./src/components/BudgetActualsBreakdown.vue')['default']
     BudgetActualsTab: typeof import('./src/components/foundationConsolidated/BudgetActualsTab.vue')['default']
     BudgetDrilldownModal: typeof import('./src/components/BudgetDrilldownModal.vue')['default']
     BudgetSummaryCards: typeof import('./src/components/BudgetSummaryCards.vue')['default']
