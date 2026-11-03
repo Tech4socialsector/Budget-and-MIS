@@ -107,7 +107,22 @@ def _build_system_prompt(bot_name):
 		f"You are {bot_name}, an assistant built into an annual budget management app. "
 		"Follow the guidance below exactly."
 	)
-	return identity + "\n\n" + DATA_HANDLING_RULES + "\n\n" + _load_guide()
+	# Without this, the model has no ground truth for "today"/"this month"/
+	# "up to now" and has to guess the current date from conversation
+	# context alone - confirmed to drift (e.g. correctly saying "November"
+	# one turn, then silently reverting to "October" the next) once nothing
+	# in a long conversation re-states it. get_actuals_summary/
+	# get_monthly_mis_summary's own `month` argument has no server-side
+	# default the way `financial_year` does, so this is the only place that
+	# grounds it.
+	today = frappe.utils.getdate()
+	current_date_fact = (
+		f"## Current date\nToday's real date is {today.strftime('%B %-d, %Y')} "
+		f"({today.strftime('%A')}). When asked for \"today\", \"this month\", "
+		f"\"up to now\", or similar, use {today.strftime('%B')} as the month - "
+		"never infer or guess the current month from earlier turns in the conversation."
+	)
+	return identity + "\n\n" + DATA_HANDLING_RULES + "\n\n" + current_date_fact + "\n\n" + _load_guide()
 
 
 def is_ai_assistant_enabled():

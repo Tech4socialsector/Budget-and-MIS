@@ -268,7 +268,7 @@ def group_actuals_by_dimension(fiscal_year, accounting_period):
         else:
             grouped[key]["posted_total_amt"] += amt
 
-    result = list(grouped.values())
+    result = _scope_rows_to_allowed_units(list(grouped.values()), group_actuals_by_dimension)
 
     return {
         "status": "success",
@@ -287,9 +287,11 @@ def group_actuals_by_gl_code(fiscal_year, accounting_period):
     if month_wise.get("status") != "success":
         return {"status": month_wise.get("status", "failed"), "fiscal_year": fiscal_year, "data": []}
 
+    month_wise_data = _scope_rows_to_allowed_units(month_wise.get("data", []), group_actuals_by_gl_code)
+
     grouped = defaultdict(float)
 
-    for record in month_wise.get("data", []):
+    for record in month_wise_data:
         key = (
             record.get("business_unit"),
             record.get("deptid"),
@@ -342,10 +344,12 @@ def group_actuals_ytd(fiscal_year, accounting_period):
     if month_wise.get("status") != "success":
         return {"status": month_wise.get("status", "failed"), "fiscal_year": fiscal_year, "data": []}
 
+    month_wise_data = _scope_rows_to_allowed_units(month_wise.get("data", []), group_actuals_ytd)
+
     grouped = defaultdict(float)
     meta_by_key = {}
 
-    for record in month_wise.get("data", []):
+    for record in month_wise_data:
         key = (
             record.get("business_unit"),
             record.get("deptid"),
@@ -489,6 +493,7 @@ def group_actuals_month_wise(fiscal_year, accounting_period):
         })
 
     final_output.sort(key=lambda x: (x.get("sequence_id") or 0))
+    final_output = _scope_rows_to_allowed_units(final_output, group_actuals_month_wise)
 
     return {
         "status": "success",
