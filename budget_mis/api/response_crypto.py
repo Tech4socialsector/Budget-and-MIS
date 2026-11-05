@@ -49,13 +49,6 @@ def _testing_mode_expired(doc):
 	return elapsed > timedelta(minutes=max_minutes)
 
 
-@frappe.whitelist(allow_guest=True)
-def get_testing_mode_status():
-	if "System Manager" not in frappe.get_roles(frappe.session.user):
-		return {"testing_mode": False}
-	return {"testing_mode": is_testing_mode()}
-
-
 def require_login():
 	if is_testing_mode():
 		return

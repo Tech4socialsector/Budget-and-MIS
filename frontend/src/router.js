@@ -44,6 +44,11 @@ const routes = [
     component: () => import('@/pages/ErpActuals.vue'),
   },
   {
+    path: '/trial-balance-check',
+    name: 'TrialBalanceCheck',
+    component: () => import('@/pages/TrialBalanceCheck.vue'),
+  },
+  {
     path: '/budget-vs-actual',
     name: 'BudgetVsActual',
     component: () => import('@/pages/BudgetVsActual.vue'),

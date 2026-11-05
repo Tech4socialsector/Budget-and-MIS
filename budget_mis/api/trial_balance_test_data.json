@@ -1,0 +1,4742 @@
+[
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 29675006.97
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 13200200.66
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 140163.96
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 3074288.75
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 316740.09
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 1165562.07
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 3140185.13
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 17000837.61
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 381408.86
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 4577635.55
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 3750787.15
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 14068804.67
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 1953981.74
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 124435.6
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 26467093.2
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 12200879.11
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 50519.43
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 12699324.93
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 1469751.85
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 3143056.42
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 14910557141.52
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 178526914.29
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 287167.19
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 6889875.81
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 1837302.63
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 1331796.71
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 1065617.1
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 34771.69
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 608648.25
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 5272856.1
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 2600068.06
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 395621.46
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 7134837.52
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 12001678.96
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 22135956.97
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -871994.07
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 1984349.19
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 81415.46
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 294331.4
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 4663589.16
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 1901.74
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 696750.76
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 32821.3
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 476706.63
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 1508.93
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 314510.09
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 149313.48
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 194420.47
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 327923.08
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 6010.05
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 14390.28
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 209458.99
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 142347.01
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 187586.11
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 212072.84
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 30869.01
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 131945.69
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 120492.75
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 22056.3
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 100488.56
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 163.38
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 8059.3
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 73653.52
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 64222.34
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 3682687.95
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 1225.35
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 394527.69
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 4470083.92
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 234525.41
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 1100226.65
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 1191123.06
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 4078.14
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 62137.48
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 9286.99
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 5054150.96
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 63266.57
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 4421.73
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 4299.54
+  },
+  {
+    "business_unit": "APUMP",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -11670.0
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 10934235.65
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 4863827.15
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 51645.67
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 1132771.35
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 116708.0
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 429470.17
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 1157051.93
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 6264233.22
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 140536.26
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 1686703.76
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 1382038.11
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 5183878.33
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 719976.13
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 45850.31
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 9752228.0
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 4495610.98
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 18614.7
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 4679271.39
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 541553.81
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 1158109.91
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 5494035621.98
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 65781125.23
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 105811.39
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 2538686.03
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 676983.83
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 490722.01
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 392643.83
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 12812.19
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 224266.28
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 1942869.0
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 958037.08
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 145773.12
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 2628946.13
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 4422212.47
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 8156350.9
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -321300.3
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 731165.51
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 29998.84
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 108451.16
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 1718374.75
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 700.73
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 256729.07
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 12093.54
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 175650.26
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 555.99
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 115886.32
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 55016.96
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 71637.36
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 120828.56
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 2214.5
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 5302.33
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 77178.55
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 52450.05
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 69119.13
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 78141.66
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 11374.18
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 48617.52
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 44397.5
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 8127.0
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 37026.63
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 60.2
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 2969.58
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 27138.83
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 23663.76
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 1356945.86
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 451.5
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 145370.1
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 1647074.62
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 86414.67
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 405396.28
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 438888.53
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 1502.66
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 22895.56
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 3421.94
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 1862283.56
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 23311.59
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 1629.26
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 1584.24
+  },
+  {
+    "business_unit": "APUJH",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -4300.0
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 18562772.14
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 8257194.93
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 87677.54
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 1923076.94
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 198132.19
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 729100.52
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 1964297.47
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 10634628.5
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 238584.8
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 2863473.82
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 2346250.75
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 8800537.62
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 1222285.06
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 77838.89
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 16556108.0
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 7632083.76
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 31601.7
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 7943879.34
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 919382.05
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 1966093.56
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 9327083730.35
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 111674933.53
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 179633.29
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 4309862.33
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 1149298.13
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 833086.21
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 666581.39
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 21750.93
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 380731.13
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 3298359.0
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 1626435.04
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 247475.29
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 4463094.59
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 7507476.99
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 13846828.27
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -545463.3
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 1241280.98
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 50928.27
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 184114.76
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 2917240.86
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 1189.61
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 435842.38
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 20530.89
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 298196.95
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 943.89
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 196737.25
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 93400.89
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 121616.92
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 205127.55
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 3759.5
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 9001.63
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 131024.05
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 89043.12
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 117341.78
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 132659.1
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 19309.66
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 82536.72
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 75372.5
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 13797.0
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 62859.17
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 102.2
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 5041.38
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 46072.9
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 40173.36
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 2303652.28
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 766.5
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 246791.1
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 2796196.45
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 146703.98
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 688230.9
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 745089.83
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 2551.02
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 38869.2
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 5809.34
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 3161551.16
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 39575.49
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 2765.95
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 2689.52
+  },
+  {
+    "business_unit": "APUAS",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -7300.0
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 16986207.93
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 7555898.92
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 80230.95
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 1759747.12
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 181304.53
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 667176.92
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 1797466.72
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 9731413.47
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 218321.44
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 2620274.68
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 2146980.14
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 8053094.7
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 1118474.55
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 71227.92
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 15149972.8
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 6983879.39
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 28917.72
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 7269193.7
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 841297.54
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 1799110.27
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 8534920454.62
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 102190213.15
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 164376.76
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 3943819.23
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 1051686.51
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 762330.94
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 609967.63
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 19903.59
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 348395.06
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 3018224.4
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 1488299.46
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 226456.84
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 4084037.24
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 6869855.65
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 12670796.28
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -499136.28
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 1135857.12
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 46602.85
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 168477.62
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 2669475.2
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 1088.57
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 398825.63
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 18787.17
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 272870.63
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 863.72
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 180028.06
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 85468.22
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 111287.81
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 187705.76
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 3440.2
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 8237.11
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 119895.98
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 81480.55
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 107375.77
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 121392.17
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 17669.66
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 75526.75
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 68971.0
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 12625.2
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 57520.44
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 93.52
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 4613.21
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 42159.86
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 36761.38
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 2107999.62
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 701.4
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 225830.76
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 2558711.27
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 134244.19
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 629778.41
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 681808.23
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 2334.36
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 35567.98
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 5315.94
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 2893035.86
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 36214.28
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 2531.03
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 2461.09
+  },
+  {
+    "business_unit": "APU",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -6680.0
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 32650136.21
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 14523614.09
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 154216.39
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 3382507.93
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 348495.52
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 1282417.91
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 3455010.89
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 18705291.76
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 419647.79
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 5036575.87
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 4126830.08
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 15479301.79
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 2149882.22
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 136911.15
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 29120606.4
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 13424103.49
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 55584.36
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 13972522.03
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 1617104.86
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 3458170.04
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 16405445903.79
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 196425499.52
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 315957.73
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 7580634.56
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 2021505.2
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 1465318.75
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 1172452.74
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 38257.79
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 669669.55
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 5801497.2
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 2860743.27
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 435285.31
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 7850155.42
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 13204932.12
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 24355243.14
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -959417.64
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 2183294.22
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 89577.94
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 323840.21
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 5131146.94
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 2092.41
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 766604.95
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 36111.87
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 524499.84
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 1660.21
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 346041.95
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 164283.22
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 213912.5
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 360799.69
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 6612.6
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 15833.0
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 230458.74
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 156618.3
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 206392.95
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 233334.64
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 33963.84
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 145174.18
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 132573.0
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 24267.6
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 110563.25
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 179.76
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 8867.3
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 81037.81
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 70661.09
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 4051903.46
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 1348.2
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 434081.88
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 4918241.43
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 258038.24
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 1210532.15
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 1310541.56
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 4487.0
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 68367.2
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 10218.07
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 5560865.33
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 69609.49
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 4865.04
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 4730.6
+  },
+  {
+    "business_unit": "APPI",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -12840.0
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 30819287.45
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 13709205.83
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 145568.74
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 3192834.59
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 328953.72
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 1210506.62
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 3261271.96
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 17656396.9
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 396116.14
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 4754151.06
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 3895419.05
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 14611303.56
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 2029328.08
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 129233.89
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 27487675.2
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 12671350.02
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 52467.48
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 13189016.12
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 1526426.08
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 3264253.97
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 15485514357.78
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 185410985.53
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 298240.48
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 7155552.25
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 1908149.77
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 1383151.34
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 1106707.73
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 36112.5
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 632117.98
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 5476179.6
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 2700327.76
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 410876.79
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 7409959.79
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 12464468.64
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 22989528.57
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -905618.52
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 2060866.51
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 84554.88
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 305680.94
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 4843419.08
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 1975.08
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 723617.75
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 34086.91
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 495088.63
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 1567.12
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 326637.73
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 155071.07
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 201917.41
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 340567.93
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 6241.8
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 14945.17
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 217535.82
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 147835.97
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 194819.51
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 220250.46
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 32059.33
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 137033.57
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 125139.0
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 22906.8
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 104363.44
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 169.68
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 8370.07
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 76493.63
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 66698.78
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 3824693.92
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 1272.6
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 409740.84
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 4642452.19
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 243568.8
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 1142651.84
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 1237053.25
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 4235.39
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 64533.52
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 9645.1
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 5249041.1
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 65706.16
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 4592.23
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 4465.34
+  },
+  {
+    "business_unit": "APFD",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -12120.0
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 37405257.29
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 16638813.34
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 176676.25
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 3875131.75
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 399249.94
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 1469187.49
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 3958193.94
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 21429504.82
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 480764.72
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 5770095.88
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 4727855.96
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 17733686.09
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 2462988.12
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 156850.7
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 33361691.6
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 15379171.52
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 63679.59
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 16007460.98
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 1852617.79
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 3961813.19
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 18794712558.0
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 225032640.03
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 361973.38
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 8684667.79
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 2315914.45
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 1678725.76
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 1343207.15
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 43829.61
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 767199.3
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 6646419.3
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 3277378.0
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 498679.66
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 8993441.3
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 15128080.34
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 27902307.37
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -1099145.91
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 2501266.2
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 102623.95
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 371003.85
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 5878440.15
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 2397.14
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 878252.24
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 41371.15
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 600887.27
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 1902.0
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 396439.03
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 188209.2
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 245066.42
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 413346.06
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 7575.65
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 18138.9
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 264022.43
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 179427.98
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 236451.73
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 267317.18
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 38910.29
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 166317.14
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 151880.75
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 27801.9
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 126665.53
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 205.94
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 10158.73
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 92840.05
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 80952.07
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 4642017.12
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 1544.55
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 497300.97
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 5634527.37
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 295618.57
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 1386832.4
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 1501407.04
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 5140.48
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 78324.1
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 11706.22
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 6370742.13
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 79747.32
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 5573.57
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 5419.56
+  },
+  {
+    "business_unit": "APF01",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -14710.0
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 12815941.31
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 5700857.87
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 60533.53
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 1327713.39
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 136792.64
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 503378.99
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 1356172.5
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 7342264.06
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 164721.56
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 1976973.71
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 1619877.23
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 6075987.62
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 843879.0
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 53740.82
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 11430518.4
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 5269274.27
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 21818.16
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 5484541.36
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 634751.44
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 1357412.54
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 6439520822.05
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 77101597.94
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 124020.79
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 2975576.18
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 793488.02
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 575171.85
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 460215.1
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 15017.08
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 262860.94
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 2277223.2
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 1122908.57
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 170859.65
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 3081369.42
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 5183244.39
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 9560001.98
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -376593.84
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 856993.99
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 35161.43
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 127114.85
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 2014095.06
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 821.32
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 300910.35
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 14174.75
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 205878.44
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 651.67
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 135829.55
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 64485.0
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 83965.65
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 141622.31
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 2595.6
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 6214.82
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 90460.44
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 61476.34
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 81014.05
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 91589.3
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 13331.6
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 56984.26
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 52038.0
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 9525.6
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 43398.66
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 70.56
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 3480.62
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 31809.23
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 27736.13
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 1590466.78
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 529.2
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 170387.28
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 1930524.67
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 101286.04
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 475162.15
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 514418.18
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 1761.25
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 26835.72
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 4010.83
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 2182769.57
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 27323.35
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 1909.64
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 1856.87
+  },
+  {
+    "business_unit": "APF",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -5040.0
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 23038180.22
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 10247970.69
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 108816.24
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 2386722.88
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 245901.05
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 904883.66
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 2437881.52
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 13198593.72
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 296106.62
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 3553845.59
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 2911922.16
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 10922311.08
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 1516972.97
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 96605.53
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 20547717.6
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 9472147.79
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 39220.74
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 9859116.01
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 1141041.28
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 2440110.64
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 11575805287.25
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 138599301.07
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 222942.14
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 5348952.43
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 1426389.19
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 1033939.87
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 827291.42
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 26994.99
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 472523.84
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 4093579.8
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 2018561.84
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 307140.57
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 5539128.36
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 9317498.84
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 17185241.66
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -676972.26
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 1540548.73
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 63206.86
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 228504.07
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 3620575.65
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 1476.42
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 540922.18
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 25480.81
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 370091.01
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 1171.46
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 244169.79
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 115919.47
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 150938.26
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 254582.96
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 4665.9
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 11171.89
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 162613.41
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 110511.04
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 145632.41
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 164642.67
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 23965.14
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 102435.98
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 93544.5
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 17123.4
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 78014.26
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 126.84
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 6256.84
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 57180.89
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 49858.99
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 2859053.37
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 951.3
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 306291.42
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 3470347.93
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 182073.71
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 854160.54
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 924727.93
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 3166.06
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 48240.4
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 7209.95
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 3923788.15
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 49116.98
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 3432.81
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 3337.95
+  },
+  {
+    "business_unit": "APET",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -9060.0
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40011",
+    "account": "CWIP-Software Development",
+    "amount": 11086806.38
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40100",
+    "account": "Intangible Assets Software",
+    "amount": 4931694.51
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40106",
+    "account": "Leasehold Improv-Constrn. Cost",
+    "amount": 52366.31
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40110",
+    "account": "Off & Oth Equip-Audio Video Eq",
+    "amount": 1148577.46
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40111",
+    "account": "Off & Oth Equip-Commn. Equip",
+    "amount": 118336.49
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40112",
+    "account": "Off & Oth Equip-Multi Fn. Devi",
+    "amount": 435462.78
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40113",
+    "account": "Off & Oth Equip-Consumer Goods",
+    "amount": 1173196.84
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40114",
+    "account": "Computers-End User Devices",
+    "amount": 6351641.13
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40115",
+    "account": "Computers-Netwrk Equip&Servers",
+    "amount": 142497.23
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40116",
+    "account": "Furniture & Fixtures-Furniture",
+    "amount": 1710239.16
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40117",
+    "account": "Furniture & Fixtures-Fixtures",
+    "amount": 1401322.36
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40119",
+    "account": "Vehicles",
+    "amount": 5256211.51
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40124",
+    "account": "Electrical Installation &Equip",
+    "amount": 730022.31
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "40128",
+    "account": "Off & Oth Equip-Kitchen Equip",
+    "amount": 46490.08
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "53000",
+    "account": "Capital Advance",
+    "amount": 9888305.6
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70000",
+    "account": "Program-External Consltnt Fees",
+    "amount": 4558340.44
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70001",
+    "account": "Program-Material Costs",
+    "amount": 18874.44
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70002",
+    "account": "Program-Boarding & Lodging",
+    "amount": 4744563.55
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70003",
+    "account": "Program-Travel & Conveyance",
+    "amount": 549110.37
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70004",
+    "account": "Program-Venue & Other Costs",
+    "amount": 1174269.58
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "70005",
+    "account": "Program-Donations and Grants",
+    "amount": 5570696584.15
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72000",
+    "account": "Sal&Ben-Salary Cost",
+    "amount": 66699001.4
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72003",
+    "account": "Sal&Ben-PF Admin & Other Chgs",
+    "amount": 107287.83
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72004",
+    "account": "Sal&Ben-PF Employer Contrbtn",
+    "amount": 2574109.56
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72011",
+    "account": "Sal&Ben-Medical Reimbursement",
+    "amount": 686430.12
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72013",
+    "account": "Sal&Ben-Relocation Expenses",
+    "amount": 497569.3
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72020",
+    "account": "Sal&Ben-Insurance-Health",
+    "amount": 398122.58
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72021",
+    "account": "Sal&Ben-Insurance-Per Accident",
+    "amount": 12990.96
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72022",
+    "account": "Sal&Ben-Insurance-Term Life",
+    "amount": 227395.58
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "72102",
+    "account": "Cnsltnt & Rtnr Fees-Oth/Enblrs",
+    "amount": 1969978.8
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73000",
+    "account": "Travel Domestic-Boarding",
+    "amount": 971405.04
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73001",
+    "account": "Travel Domestic-Business Mtg",
+    "amount": 147807.16
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73002",
+    "account": "Travel Domestic-Conveyance",
+    "amount": 2665629.1
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73003",
+    "account": "Travel Domestic-Lodging",
+    "amount": 4483917.76
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73004",
+    "account": "Travel Domestic-Travel Fare",
+    "amount": 8270160.44
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73005",
+    "account": "Travel Domestic-Other Exp",
+    "amount": -325783.56
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73201",
+    "account": "Travel Local-Conveyance",
+    "amount": 741367.82
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73202",
+    "account": "Travel Local-Boarding",
+    "amount": 30417.43
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "73300",
+    "account": "Travel-Consltnts and Retainers",
+    "amount": 109964.43
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75000",
+    "account": "Rent-Office",
+    "amount": 1742352.08
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75001",
+    "account": "Rent-Guest House",
+    "amount": 710.51
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75011",
+    "account": "Housekeeping-Manpower services",
+    "amount": 260311.34
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75012",
+    "account": "Pantry - Manpower Services",
+    "amount": 12262.29
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75013",
+    "account": "Security - Manpower Services",
+    "amount": 178101.19
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75014",
+    "account": "Material Transport & Mvmnt Chg",
+    "amount": 563.75
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75019",
+    "account": "Housekeeping_Materials & Othrs",
+    "amount": 117503.34
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75020",
+    "account": "Business Meetings",
+    "amount": 55784.64
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75021",
+    "account": "Pantry - Materials",
+    "amount": 72636.95
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75031",
+    "account": "Electricity Charges",
+    "amount": 122514.54
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75032",
+    "account": "Water Charges",
+    "amount": 2245.4
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75042",
+    "account": "Repairs & Maintenance-Furn Fix",
+    "amount": 5376.32
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75043",
+    "account": "Repairs & Maintenance-Others",
+    "amount": 78255.46
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75050",
+    "account": "Communication-Datacard Charges",
+    "amount": 53181.92
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75052",
+    "account": "Communication-Leased Line Chgs",
+    "amount": 70083.59
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75053",
+    "account": "Communication-Mobile Domestic",
+    "amount": 79232.01
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75061",
+    "account": "Recruitment-Backgrnd Verifictn",
+    "amount": 11532.89
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75062",
+    "account": "Rcruitment-Candidate Reimb&oth",
+    "amount": 49295.9
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75064",
+    "account": "Recruitment-Portals",
+    "amount": 45017.0
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75093",
+    "account": "Training",
+    "amount": 8240.4
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75101",
+    "account": "Team Lunch",
+    "amount": 37543.28
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75110",
+    "account": "Photocopying Expenses",
+    "amount": 61.04
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75111",
+    "account": "Postage & Courier Expenses",
+    "amount": 3011.02
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75112",
+    "account": "Printing Expenses",
+    "amount": 27517.51
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75113",
+    "account": "Stationery Expenses",
+    "amount": 23993.95
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75120",
+    "account": "Books Periodicals&Subscription",
+    "amount": 1375879.99
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75131",
+    "account": "IT Hardware accessories & main",
+    "amount": 457.8
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75132",
+    "account": "Hosting Services",
+    "amount": 147398.52
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75133",
+    "account": "Licence fees & domain charges",
+    "amount": 1670057.06
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75134",
+    "account": "IT Software Maintenance",
+    "amount": 87620.46
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75135",
+    "account": "Managed Services",
+    "amount": 411052.97
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75142",
+    "account": "Rates&Taxes-StampPapr&RegnChgs",
+    "amount": 445012.56
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75150",
+    "account": "Insurance-Assets",
+    "amount": 1523.62
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75154",
+    "account": "Insurance - Liability Policies",
+    "amount": 23215.03
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75161",
+    "account": "Audit Fees-Out of Pocket Exp",
+    "amount": 3469.69
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75171",
+    "account": "Professional Service Charges",
+    "amount": 1888268.91
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75172",
+    "account": "Outsourced Payroll Services",
+    "amount": 23636.87
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75180",
+    "account": "Bank Charges-Domestic",
+    "amount": 1651.99
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75181",
+    "account": "Bank Charges-Forex",
+    "amount": 1606.34
+  },
+  {
+    "business_unit": "APES",
+    "gl_code": "75200",
+    "account": "Profit or Loss on Fixed Assets",
+    "amount": -4360.0
+  }
+]

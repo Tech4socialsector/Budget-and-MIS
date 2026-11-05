@@ -410,7 +410,7 @@ frappe.pages['phase-sheet'].on_page_load = function (wrapper) {
 // 	/* ---------- FETCH DATA ---------- */
 // 	function loadData() {
 // 		frappe.call({
-// 			method: "budget_mis.api.phase_sheet.get_consolidated_report",
+// 			method: "budget_mis.api.budget_summary.get_budget_summary",
 // 			args: {
 // 				financial_year: "2025-26",
 // 				units: "APUMP"
@@ -704,7 +704,7 @@ frappe.pages['phase-sheet'].on_page_load = function (wrapper) {
 // 	/* ---------- API ---------- */
 // 	function loadData() {
 // 		frappe.call({
-// 			method: "budget_mis.api.phase_sheet.get_consolidated_report",
+// 			method: "budget_mis.api.budget_summary.get_budget_summary",
 // 			args: {
 // 				// TODO: bind these to toolbar filters later
 // 				financial_year: "2025-26",
@@ -1032,7 +1032,7 @@ frappe.pages['phase-sheet'].on_page_load = function (wrapper) {
 //     /* ---------- FETCH DATA ---------- */
 //     function loadData() {
 //         frappe.call({
-//             method: "budget_mis.api.phase_sheet.get_consolidated_report",
+//             method: "budget_mis.api.budget_summary.get_budget_summary",
 //             args: { financial_year: "2025-26", units: "APUMP" },
 //             callback: function (r) {
 //                 expense_heads = r.message || [];
@@ -1332,7 +1332,7 @@ frappe.pages['phase-sheet'].on_page_load = function (wrapper) {
 	/* ---------- FETCH DATA ---------- */
 	function loadData() {
 		frappe.call({
-			method: "budget_mis.api.phase_sheet.get_consolidated_report",
+			method: "budget_mis.api.budget_summary.get_budget_summary",
 			args: { financial_year: "2025-26", units: "APUMP" },
 			callback: function (r) {
 				expense_heads = r.message || [];

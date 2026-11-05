@@ -269,7 +269,7 @@ const props = defineProps({
   // GL-code drill-down (optional, one level beyond Line Items): a leaf
   // item carrying its own `sequence_id` (the Expenses master's row id) can
   // be drilled into for its underlying GL-code-level actuals breakdown,
-  // fetched on demand via budget_mis.api.phase_sheet.get_actual_gl_breakup
+  // fetched on demand via budget_mis.api.budget_vs_actual.get_actual_gl_breakup
   // - the same data/endpoint BudgetVsActual.vue's own item rows already
   // use, just reachable generically from any caller of this modal instead
   // of duplicated per-page. Only activates when financialYear is supplied;
@@ -449,7 +449,7 @@ async function drillInto(child) {
   if (!canGlDrill(child)) return
   glLoadingName.value = child.name
   try {
-    const rows = await call('budget_mis.api_1.budget_vs_actual.get_actual_gl_breakup', {
+    const rows = await call('budget_mis.api.budget_vs_actual.get_actual_gl_breakup', {
       financial_year: props.financialYear,
       month: props.month,
       sequence_id: child.sequence_id,
