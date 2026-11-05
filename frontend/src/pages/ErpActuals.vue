@@ -203,7 +203,7 @@ const API_OPTIONS = {
   'ERP Actuals (Month Wise)': 'budget_mis.api.erp_actuals.fetch_actuals_month_wise',
 }
 // April = accounting period 1 ... March = 12 - matches
-// budget_mis.api.actual_format.get_accounting_period_from_month, and
+// budget_mis.api.helper.get_accounting_period_from_month, and
 // confirmed verbatim against erp_actuals.js lines 74-87.
 const MONTH_TO_PERIOD = {
   April: 1, May: 2, June: 3, July: 4, August: 5, September: 6,

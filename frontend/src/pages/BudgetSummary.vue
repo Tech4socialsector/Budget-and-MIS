@@ -276,7 +276,7 @@ const themeSelection = computed({
 async function loadThemes() {
   themeLoading.value = true
   try {
-    const rows = await call('budget_mis.api_1.filter_options.get_theme')
+    const rows = await call('budget_mis.api.filter_options.get_theme')
     for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
     themeOptions.value = (rows || []).map((d) => {
       themeLabelToName[d.number_card_title] = d.name
@@ -309,7 +309,7 @@ async function applyThemeSelection() {
   let results
   try {
     results = await Promise.all(
-      themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
+      themeSelectionNames.value.map((name) => call('budget_mis.api.filter_options.get_theme_mappings', { theme_name: name })),
     )
   } catch (e) {
     if (token === themeMappingToken) themeMappingLoading.value = false
@@ -368,7 +368,7 @@ async function loadReport() {
   reportLoading.value = true
   reportError.value = null
   try {
-    const result = await call('budget_mis.api_1.budget_summary.get_budget_summary', {
+    const result = await call('budget_mis.api.budget_summary.get_budget_summary', {
       financial_year: filters.financialYear,
       units: filters.units.join(',') || undefined,
       cost_center: filters.costCenters.join(',') || undefined,
@@ -464,7 +464,7 @@ const exporting = ref(false)
 async function exportExcel() {
   exporting.value = true
   try {
-    const result = await call('budget_mis.api_1.budget_summary.export_phase_sheet_excel', {
+    const result = await call('budget_mis.api.budget_summary.export_phase_sheet_excel', {
       financial_year: filters.financialYear || '',
       units: filters.units.join(','),
       cost_center: filters.costCenters.join(','),

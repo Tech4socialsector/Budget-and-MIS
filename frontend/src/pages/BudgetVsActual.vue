@@ -54,7 +54,7 @@ const financialYearSelection = computed({
 })
 
 async function loadFinancialYears() {
-  const rows = await call('budget_mis.api_1.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     const now = new Date()

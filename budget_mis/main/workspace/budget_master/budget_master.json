@@ -1,8 +1,8 @@
 {
  "app": "budget_mis",
  "charts": [],
- "content": "[{\"id\":\"WcAhHuv7zD\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Budget Master</span>\",\"col\":12}},{\"id\":\"yt2p7f_FF_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Financial year list\",\"col\":3}},{\"id\":\"7MR8P9Vyjf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses\",\"col\":3}},{\"id\":\"FjiBKjc0tN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses Line Items\",\"col\":3}},{\"id\":\"bW8gGqSASH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"GL code\",\"col\":3}},{\"id\":\"IJC8Ov83Wi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Unit\",\"col\":3}},{\"id\":\"FuymfUtal7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location Code\",\"col\":3}},{\"id\":\"nwfveurDe2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Center\",\"col\":3}},{\"id\":\"RytaFwqMic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Months List\",\"col\":3}},{\"id\":\"4oBT5NJyPd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"State\",\"col\":3}},{\"id\":\"I3XEWUFKE-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Name Unit Link\",\"col\":3}},{\"id\":\"clCbxrSnwa\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location List\",\"col\":3}},{\"id\":\"oiDb17A_JX\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Settings</b></span>\",\"col\":12}},{\"id\":\"7YBjhSApyH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Master Settings\",\"col\":3}},{\"id\":\"TjOHRK3Bg1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Finance user access list \",\"col\":4}},{\"id\":\"cTGrM0z6fX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Import Templates\",\"col\":3}},{\"id\":\"0sh9uTzm1Y\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Table Name\",\"col\":3}},{\"id\":\"buYjgIhfvj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ERP Credentials\",\"col\":3}},{\"id\":\"rrXALwjDTA\",\"type\":\"paragraph\",\"data\":{\"text\":\"Flow settings\",\"col\":12}},{\"id\":\"mVu57ZvA6z\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Overview number cards settings\",\"col\":5}},{\"id\":\"8V5aQjppun\",\"type\":\"header\",\"data\":{\"text\":\"Headcount &amp; Adjustment<span class=\\\"h4\\\"><b></b></span>\",\"col\":12}},{\"id\":\"5qbkPtNVl0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Monthly Adjustment\",\"col\":4}},{\"id\":\"5Na9cj_bek\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Headcount\",\"col\":3}},{\"id\":\"-kaL37t6Z-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Grant Division Details\",\"col\":3}}]",
- "creation": "2025-09-29 14:49:51.762325",
+ "content": "[{\"id\":\"WcAhHuv7zD\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Budget Master</span>\",\"col\":12}},{\"id\":\"yt2p7f_FF_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Financial year list\",\"col\":3}},{\"id\":\"7MR8P9Vyjf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses\",\"col\":3}},{\"id\":\"FjiBKjc0tN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses Line Items\",\"col\":3}},{\"id\":\"bW8gGqSASH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"GL code\",\"col\":3}},{\"id\":\"IJC8Ov83Wi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Unit\",\"col\":3}},{\"id\":\"FuymfUtal7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location Code\",\"col\":3}},{\"id\":\"nwfveurDe2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Center\",\"col\":3}},{\"id\":\"RytaFwqMic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Months List\",\"col\":3}},{\"id\":\"4oBT5NJyPd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"State\",\"col\":3}},{\"id\":\"I3XEWUFKE-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Name Unit Link\",\"col\":3}},{\"id\":\"clCbxrSnwa\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location List\",\"col\":3}},{\"id\":\"oiDb17A_JX\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Settings</b></span>\",\"col\":12}},{\"id\":\"7YBjhSApyH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Master Settings\",\"col\":3}},{\"id\":\"TjOHRK3Bg1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Finance user access list \",\"col\":4}},{\"id\":\"cTGrM0z6fX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Import Templates\",\"col\":3}},{\"id\":\"0sh9uTzm1Y\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Table Name\",\"col\":3}},{\"id\":\"buYjgIhfvj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ERP Credentials\",\"col\":3}},{\"id\":\"bimEaIESet\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Budget Import Email Settings\",\"col\":3}},{\"id\":\"rrXALwjDTA\",\"type\":\"paragraph\",\"data\":{\"text\":\"Flow settings\",\"col\":12}},{\"id\":\"mVu57ZvA6z\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Overview number cards settings\",\"col\":5}},{\"id\":\"8V5aQjppun\",\"type\":\"header\",\"data\":{\"text\":\"Headcount &amp; Adjustment<span class=\\\"h4\\\"><b></b></span>\",\"col\":12}},{\"id\":\"5qbkPtNVl0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Monthly Adjustment\",\"col\":4}},{\"id\":\"5Na9cj_bek\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Headcount\",\"col\":3}},{\"id\":\"-kaL37t6Z-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Grant Division Details\",\"col\":3}}]",
+ "creation": "2026-11-03 17:41:50.174459",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -15,7 +15,7 @@
  "label": "Budget Master",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-10-26 15:54:22.000000",
+ "modified": "2026-11-03 17:41:50.174459",
  "modified_by": "Administrator",
  "module": "Main",
  "name": "Budget Master",
@@ -96,6 +96,14 @@
    "doc_view": "List",
    "label": "ERP Credentials",
    "link_to": "ERP Credentials",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Import Email Settings",
+   "link_to": "Budget Import Email Settings",
    "stats_filter": "[]",
    "type": "DocType"
   },

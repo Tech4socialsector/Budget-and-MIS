@@ -24,7 +24,7 @@
   of which Data Import's matching model can express. Using it as-is would
   mean hand-resolving every row to a document name before even handing the
   file to Data Import, i.e. writing 100% of the same matching logic
-  api_1/budget_import.py already does, for no engine benefit. So the LOOK
+  api/budget_import.py already does, for no engine benefit. So the LOOK
   matches Data Import; the WRITE logic underneath is our own preview_budget
   _import/commit_budget_import, which already does the right matching.
 
@@ -176,12 +176,13 @@
                   <th class="fc-th text-left">Financial Year</th>
                   <th class="fc-th text-left">Uploaded By</th>
                   <th class="fc-th text-right">Year Total</th>
+                  <th class="fc-th text-left">Import Type</th>
                   <th class="fc-th text-left">Status</th>
                 </tr>
               </thead>
               <tbody>
                 <template v-if="!previewGroups.length">
-                  <tr><td class="fc-td text-center text-gray-400" colspan="14">No rows to preview.</td></tr>
+                  <tr><td class="fc-td text-center text-gray-400" colspan="15">No rows to preview.</td></tr>
                 </template>
                 <template v-for="group in previewGroups" :key="group.group">
                   <!-- Parent row (Finance Budget) -->
@@ -202,6 +203,16 @@
                     <td class="fc-td text-left">{{ group.uploaded_by || '—' }}</td>
                     <td class="fc-td text-right">{{ group.yearTotalLabel }}</td>
                     <td class="fc-td text-left">
+                      <span
+                        v-if="group.importType"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                        :class="group.importType === 'new'
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'"
+                      >{{ group.importType === 'new' ? 'New' : 'Update' }}</span>
+                      <span v-else class="text-gray-400">—</span>
+                    </td>
+                    <td class="fc-td text-left">
                       <span class="inline-flex items-center gap-1.5">
                         <span class="h-2 w-2 flex-shrink-0 rounded-full" :class="group.allOk ? 'bg-green-500' : 'bg-red-500'" />
                         <span :class="group.allOk ? '' : 'text-red-700 dark:text-red-400'">{{ group.allOk ? 'OK' : `${group.errorCount} error${group.errorCount === 1 ? '' : 's'}` }}</span>
@@ -214,7 +225,7 @@
                   (Type of Expense ID/Head/Sub Head/Type + 12 months +
                   Q1-4 + Year), indented under its parent. -->
                   <tr v-if="isGroupOpen(group.group)">
-                    <td class="fc-td p-0" colspan="14">
+                    <td class="fc-td p-0" colspan="15">
                       <table class="fc-table w-full min-w-[1800px] text-sm">
                         <thead>
                           <tr class="fc-thead-main">
@@ -294,6 +305,43 @@
             Successfully imported {{ result.rows_imported }} row{{ result.rows_imported === 1 ? '' : 's' }} -
             {{ result.finance_budgets_created }} Finance Budget record{{ result.finance_budgets_created === 1 ? '' : 's' }} created,
             {{ result.finance_budgets_updated }} updated.
+          </div>
+
+          <!-- Per-group new-vs-update breakdown (same import_type tagging
+          as the preview table above), so a user can see exactly which
+          Unit/Cost Center/Location/Financial Year combinations were newly
+          created vs which existing ones were touched, not just the
+          aggregate counts above. -->
+          <div v-if="result.groups?.length" class="border-t border-gray-200 px-4 py-3 dark:border-gray-800">
+            <div class="fc-scroll-wrapper">
+              <table class="fc-table w-full text-sm">
+                <thead>
+                  <tr class="fc-thead-main">
+                    <th class="fc-th text-left">Type</th>
+                    <th class="fc-th text-left">Unit</th>
+                    <th class="fc-th text-left">Cost Center</th>
+                    <th class="fc-th text-left">Location Code</th>
+                    <th class="fc-th text-left">Financial Year</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="g in result.groups" :key="`${g.unit}::${g.cost_center}::${g.location_code}::${g.financial_year}`">
+                    <td class="fc-td text-left">
+                      <span
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                        :class="g.import_type === 'new'
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'"
+                      >{{ g.import_type === 'new' ? 'New' : 'Update' }}</span>
+                    </td>
+                    <td class="fc-td text-left">{{ g.unit }}</td>
+                    <td class="fc-td text-left">{{ g.cost_center }}</td>
+                    <td class="fc-td text-left">{{ g.location_code }}</td>
+                    <td class="fc-td text-left">{{ g.financial_year }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -416,6 +464,11 @@ const previewGroups = computed(() => {
         state: row.state,
         financial_year: row.financial_year,
         uploaded_by: row.uploaded_by,
+        // Every row in a group shares the same parent identity, so they
+        // all carry the same import_type ('new' or 'update') from the
+        // backend's own preview_budget_import - set once per group from
+        // whichever row creates it.
+        importType: row.import_type,
         rows: [],
         allOk: true,
         errorCount: 0,
@@ -431,19 +484,25 @@ const previewGroups = computed(() => {
   return result
 })
 
-// Expand/collapse state per group, keyed by its own `group` key - every
-// group starts expanded (a key with no entry here is treated as open, see
-// isGroupOpen), matching the "tree" the user asked for showing its child
-// records right away rather than needing every parent clicked open first.
-const collapsedGroups = ref(new Set())
+// Expand/collapse state per group, keyed by its own `group` key. Only the
+// FIRST parent group starts open (showing the tree shape right away
+// without a click) - every other group starts collapsed, since a real
+// import file can have hundreds of parent groups and auto-expanding all of
+// them is unreadable. toggledGroups tracks explicit user clicks as a
+// flip from each key's own default (open for the first group, closed for
+// every other), rather than tracking absolute open/closed state directly -
+// that way the "first group defaults open" rule keeps working correctly
+// even as previewGroups itself changes (e.g. a re-upload).
+const toggledGroups = ref(new Set())
 function isGroupOpen(key) {
-  return !collapsedGroups.value.has(key)
+  const isFirst = previewGroups.value[0]?.group === key
+  return toggledGroups.value.has(key) ? !isFirst : isFirst
 }
 function toggleGroup(key) {
-  const next = new Set(collapsedGroups.value)
+  const next = new Set(toggledGroups.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
-  collapsedGroups.value = next
+  toggledGroups.value = next
 }
 
 const MONTH_LABELS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
@@ -464,9 +523,10 @@ async function onFileUploaded(file) {
   error.value = null
   preview.value = null
   result.value = null
+  toggledGroups.value = new Set()
   checkingPreview.value = true
   try {
-    const message = await call('budget_mis.api_1.budget_import.preview_budget_import', {
+    const message = await call('budget_mis.api.budget_import.preview_budget_import', {
       file_url: file.file_url,
     })
     if (message?.status !== 'success') {
@@ -486,7 +546,7 @@ async function confirmImport() {
   error.value = null
   importing.value = true
   try {
-    const message = await call('budget_mis.api_1.budget_import.commit_budget_import', {
+    const message = await call('budget_mis.api.budget_import.commit_budget_import', {
       file_url: uploadedFileUrl.value,
     })
     if (message?.status !== 'success') {
@@ -519,6 +579,7 @@ function reset() {
   preview.value = null
   result.value = null
   error.value = null
+  toggledGroups.value = new Set()
 }
 
 function rowTotal(row) {

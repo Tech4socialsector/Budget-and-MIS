@@ -1094,7 +1094,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_budget_summary reads from Finance Budget records (via budget_mis.api_1.budget_summary) - a document-based doctype, not an external system, so its numbers are always exactly as current as the latest saved Finance Budget record, with no caching delay at all.",
+    "point": "get_budget_summary reads from Finance Budget records (via budget_mis.api.budget_summary) - a document-based doctype, not an external system, so its numbers are always exactly as current as the latest saved Finance Budget record, with no caching delay at all.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 1,
@@ -1102,7 +1102,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from one shared, server-side cached PeopleSoft ERP fetch (budget_mis.api_1.erp_actuals.get_actuals_from_erp_month_wise and budget_mis.api_1.grouped_actuals.group_actuals_ytd) - the SAME cached data the Monthly MIS and Budget vs Actuals pages in this app also read, not a separate or duplicate pull.",
+    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from one shared, server-side cached PeopleSoft ERP fetch (budget_mis.api.erp_actuals.get_actuals_from_erp_month_wise and budget_mis.api.grouped_actuals.group_actuals_ytd) - the SAME cached data the Monthly MIS and Budget vs Actuals pages in this app also read, not a separate or duplicate pull.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 2,

@@ -353,7 +353,7 @@ async function loadUnitWise() {
   unitWiseLoading.value = true
   unitWiseError.value = null
   try {
-    const result = await call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan_budget', {
+    const result = await call('budget_mis.api.foundation_consolidated.get_unit_wise_plan_budget', {
       financial_year: filters.financialYear,
       month: 'March',
       table_name_filter: 'Number Card',
@@ -512,7 +512,7 @@ async function loadQuarterlyTrend() {
   if (!filters.financialYear) return
   quarterlyTrendLoading.value = true
   try {
-    const result = await call('budget_mis.api.phase_sheet.get_consolidated_report', {
+    const result = await call('budget_mis.api.budget_summary.get_budget_summary', {
       financial_year: filters.financialYear,
     })
     quarterlyTrendHeads.value = result || []
@@ -546,7 +546,7 @@ async function loadMonthlyByUnit() {
   if (!filters.financialYear || !unitWiseRaw.value.length) return
   monthlyByUnitLoading.value = true
   try {
-    const cardSettings = await call('budget_mis.api.phase_sheet.get_number_card_settings')
+    const cardSettings = await call('budget_mis.api.number_card_settings.get_number_card_settings')
     const unitsBySettingsDoc = {}
     for (const card of cardSettings || []) {
       if (card.settings_doc) unitsBySettingsDoc[card.settings_doc] = (card.units || []).filter(Boolean)
@@ -569,7 +569,7 @@ async function loadMonthlyByUnit() {
         const unitsStr = (unitsBySettingsDoc[entry.settings_doc] || []).join(',')
         if (!unitsStr) return { label: entry.label, totals: new Array(12).fill(0) }
         try {
-          const heads = await call('budget_mis.api.phase_sheet.get_consolidated_report', {
+          const heads = await call('budget_mis.api.budget_summary.get_budget_summary', {
             financial_year: filters.financialYear,
             units: unitsStr,
           })
@@ -932,7 +932,7 @@ async function loadPieChart() {
   pieChartLoading.value = true
   pieChartError.value = null
   try {
-    const result = await call('budget_mis.api.foundation_consolidated_report.get_unit_wise_plan_budget', {
+    const result = await call('budget_mis.api.foundation_consolidated.get_unit_wise_plan_budget', {
       financial_year: filters.financialYear,
       month: 'March',
       table_name_filter: 'Pie Chart',

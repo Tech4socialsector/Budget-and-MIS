@@ -3,7 +3,7 @@
 // (frappe.core.doctype.data_import.data_import.*), confirmed from its
 // actual source (data_import.py, importer.py, data_import.js) rather than
 // reimplementing import logic: unlike Finance Budget's own import
-// (api_1/budget_import.py), a generic "any doctype" tool has no business
+// (api/budget_import.py), a generic "any doctype" tool has no business
 // -key-matching problem to work around - every doctype already has a real
 // document name to match on, which is exactly what Data Import's own
 // "Update Existing Records" mode expects.

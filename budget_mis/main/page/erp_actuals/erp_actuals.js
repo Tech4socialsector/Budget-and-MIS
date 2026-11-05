@@ -7,7 +7,7 @@ frappe.pages["erp-actuals"].on_page_load = function (wrapper) {
 
 	const API_OPTIONS = {
 		"ERP Actuals (YTD)": "budget_mis.api.erp_actuals.get_actuals_from_erp_prod",
-		"ERP Actuals (Month Wise)": "budget_mis.api.erp_actuals.get_actuals_from_erp_month_wise",
+		"ERP Actuals (Month Wise)": "budget_mis.api.erp_actuals.fetch_actuals_month_wise",
 	};
 
 	// --- Loader overlay (shared branding used across MIS pages, e.g. consolidate-report) ---
