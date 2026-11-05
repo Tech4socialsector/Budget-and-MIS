@@ -293,7 +293,7 @@ function toOptions(list) {
 
 const unitOptions = ref([])
 async function loadUnits() {
-  const r = await call('budget_mis.api_1.filter_options.get_units')
+  const r = await call('budget_mis.api.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
   // Pre-select every unit this user's own dropdown shows, for every role -
   // a restricted user's list is their own allocated scope, an unrestricted/
@@ -402,7 +402,7 @@ const themeSelection = computed({
 async function loadThemes() {
   themeLoading.value = true
   try {
-    const rows = await call('budget_mis.api_1.filter_options.get_theme')
+    const rows = await call('budget_mis.api.filter_options.get_theme')
     for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
     themeOptions.value = (rows || []).map((d) => {
       themeLabelToName[d.number_card_title] = d.name
@@ -446,7 +446,7 @@ async function applyThemeSelection() {
   let results
   try {
     results = await Promise.all(
-      themeSelectionNames.value.map((name) => call('budget_mis.api_1.filter_options.get_theme_mappings', { theme_name: name })),
+      themeSelectionNames.value.map((name) => call('budget_mis.api.filter_options.get_theme_mappings', { theme_name: name })),
     )
   } catch (e) {
     if (token === themeMappingToken) themeMappingLoading.value = false
@@ -502,8 +502,8 @@ watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
     return
   }
   const [cc, loc] = await Promise.all([
-    call('budget_mis.api_1.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
-    call('budget_mis.api_1.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
+    call('budget_mis.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
+    call('budget_mis.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
   ])
   costCenterOptions.value = toOptions(cc?.data)
   locationCodeOptions.value = toOptions(loc?.data)
@@ -539,7 +539,7 @@ async function openItemGlDrilldown(item) {
   if (!item?.sequence_id) return
   glDrilldownLoading.value = item.name
   try {
-    const rows = await call('budget_mis.api_1.budget_vs_actual.get_actual_gl_breakup', {
+    const rows = await call('budget_mis.api.budget_vs_actual.get_actual_gl_breakup', {
       financial_year: props.financialYear,
       month: month.value,
       sequence_id: item.sequence_id,
@@ -592,7 +592,7 @@ async function loadActuals() {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const result = await call('budget_mis.api_1.budget_vs_actual.get_combined_actuals_report', {
+    const result = await call('budget_mis.api.budget_vs_actual.get_combined_actuals_report', {
       financial_year: props.financialYear,
       month: month.value,
       unit: baFilters.units.join(',') || undefined,
@@ -693,7 +693,7 @@ async function exportExcel() {
   if (!actualsHeads.value.length) return
   exporting.value = true
   try {
-    const result = await call('budget_mis.api_1.export_reports.export_budget_vs_actual', {
+    const result = await call('budget_mis.api.export_reports.export_budget_vs_actual', {
       financial_year: props.financialYear,
       month: month.value,
       heads_data: JSON.stringify(actualsHeads.value),

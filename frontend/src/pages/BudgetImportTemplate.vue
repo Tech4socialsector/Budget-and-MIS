@@ -128,8 +128,8 @@ async function loadData() {
   error.value = null
   try {
     const [admin, rows] = await Promise.all([
-      call('budget_mis.api_1.budget_import_template.is_import_template_admin'),
-      call('budget_mis.api_1.filter_options.get_user_mappings'),
+      call('budget_mis.api.budget_import_template.is_import_template_admin'),
+      call('budget_mis.api.filter_options.get_user_mappings'),
     ])
     isAdmin.value = Boolean(admin)
     rawRows.value = rows || []

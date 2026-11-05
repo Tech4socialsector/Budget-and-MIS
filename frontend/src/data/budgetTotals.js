@@ -1,5 +1,5 @@
 // Shared total/format helpers for the phase-sheet report shape returned by
-// budget_mis.api.phase_sheet.get_consolidated_report - each head/sub-head/
+// budget_mis.api.budget_summary.get_budget_summary - each head/sub-head/
 // item row carries q1..q4, each a [month1, month2, month3] amount array.
 // Used by BudgetSummaryCards.vue, BudgetSummaryTable.vue and BudgetDashboard.vue
 // so the three views can never drift on how a total is computed.
@@ -25,7 +25,7 @@ export function accentColor(i, muted = false) {
   return muted ? hex + '99' : hex
 }
 
-// Head names are admin-configured template text (see phase_sheet.py's
+// Head names are admin-configured template text (see budget_summary.py's
 // TOP_LEVEL_HEADS), not a fixed enum - this only recognizes the handful of
 // names actually seen in practice and falls back to a generic icon for
 // anything else, rather than failing on a head the template introduces later.

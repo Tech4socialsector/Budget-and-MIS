@@ -237,11 +237,9 @@
     <SectionLabel text="G. Quarter Phasing" />
     <div class="mb-6 w-fit overflow-x-auto rounded border border-gray-200 dark:border-gray-800">
       <table class="fc-table text-sm">
-        <tbody>
-          <QuarterPhasingBlock :fy-label="financialYear" :block="quarterPhasing.current" />
-          <tr><td colspan="6" class="h-3"></td></tr>
-          <QuarterPhasingBlock :fy-label="prevFyForPhasing" :block="quarterPhasing.previous" />
-        </tbody>
+        <QuarterPhasingBlock :fy-label="financialYear" :block="quarterPhasing.current" />
+        <tbody><tr><td colspan="6" class="h-3"></td></tr></tbody>
+        <QuarterPhasingBlock :fy-label="prevFyForPhasing" :block="quarterPhasing.previous" />
       </table>
     </div>
 

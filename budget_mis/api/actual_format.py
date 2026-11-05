@@ -2,143 +2,12 @@ from budget_mis.utils import guest_api, get_allowed_units, require_unit_access
 from budget_mis.api.response_crypto import is_direct_http_call
 
 import frappe
-from budget_mis.api.erp_actuals import fetch_actuals_ytd_legacy
 from budget_mis.api.erp_actuals import group_actuals_ytd
 from budget_mis.api.erp_actuals import group_actuals_by_gl_code
+from budget_mis.api.helper import get_accounting_period_from_month, get_previous_financial_year
 
 
-@guest_api
-def get_actuals_university_ppt(fiscal_year, accounting_period, Unit):
-    # Previously, an empty/omitted Unit meant "no filter at all" (the
-    # `not unit_list or ...` condition below passes every row through) -
-    # any logged-in user could see every unit's actuals org-wide just by
-    # leaving Unit blank. Only scope on a genuine direct HTTP call -
-    # internal callers (e.g. get_both_methods_data) pass their own already-
-    # resolved Unit through and must not be re-narrowed here.
-    if is_direct_http_call(get_actuals_university_ppt):
-        if Unit:
-            require_unit_access(Unit)
-        else:
-            allowed_units = get_allowed_units()
-            if allowed_units is not None:
-                if not allowed_units:
-                    return {"status": "success", "count": 0, "data": []}
-                Unit = ",".join(sorted(allowed_units))
-
-    expenses = frappe.get_list(
-        "Expenses",
-        fields=["gl_code", "head_of_expense"],
-        ignore_permissions=True
-    )
-
-    gl_head_map = {}
-    for e in expenses:
-        gl = e.get("gl_code")
-        head = (e.get("head_of_expense") or "").strip().lower()
-        if gl:
-            gl_head_map[gl] = head
-
-    result = get_accounting_period_from_month(accounting_period, fiscal_year)
-    accounting_period = result.get("accounting_period")
-    fiscal_year = result.get("fiscal_year")
-    actuals_response = fetch_actuals_ytd_legacy(fiscal_year, accounting_period)
-
-    if actuals_response.get("status") != "success":
-        frappe.throw("Failed to fetch Actuals from ERP")
-
-    actual_rows = actuals_response.get("data", [])
-
-    grouped_data = {}
-
-    for row in actual_rows:
-        business_unit = row.get("business_unit") or "UNKNOWN"
-        deptid = row.get("deptid") or "UNKNOWN"
-        gl_code = row.get("account")
-        amount = float(row.get("posted_total_amt") or 0)
-
-        head = gl_head_map.get(gl_code, "operating")
-
-        key = f"{business_unit}::{deptid}"
-
-        if key not in grouped_data:
-            grouped_data[key] = {
-                "business_unit": business_unit,
-                "deptid": deptid,
-                "capital_total": 0,
-                "operating_total": 0,
-                "grand_total": 0
-            }
-
-        if "capital" in head:
-            grouped_data[key]["capital_total"] += amount
-        else:
-            grouped_data[key]["operating_total"] += amount
-
-        grouped_data[key]["grand_total"] = (
-            grouped_data[key]["capital_total"] +
-            grouped_data[key]["operating_total"]
-        )
-
-    unit_list = [u.strip() for u in Unit.split(",")] if Unit else []
-
-    filtered_data = [
-        v for v in grouped_data.values()
-        if not unit_list or v.get("business_unit") in unit_list
-    ]
-    return {
-        "status": "success",
-        "count": len(filtered_data),
-        "data": filtered_data
-    }
-
-
-@guest_api
-def get_accounting_period_from_month(month, financial_year=None):
-    month_map = {
-        "march":12,
-        "april":1 ,
-        "may": 2,
-        "june": 3,
-        "july": 4,
-        "august": 5,
-        "september": 6,
-        "october": 7,
-        "november": 8,
-        "december": 9,
-        "january": 10,
-        "february": 11,
-    }
-
-    month = (month or "").strip().lower()
-    financial_year = (financial_year or "").strip()
-
-    if month not in month_map:
-        frappe.throw("Invalid month. Use April to March")
-
-    accounting_period = month_map[month]
-
-    fiscal_year_start = None
-    if financial_year:
-        try:
-            fiscal_year_start = int(financial_year.split("-")[0])
-        except Exception:
-            frappe.throw("Invalid Financial Year format. Use format like 2025-26")
-
-    return {
-        "accounting_period": accounting_period,
-        "fiscal_year": fiscal_year_start
-    }
-
-@guest_api
-def get_previous_financial_year(financial_year):
-
-    start_year = int(financial_year.split("-")[0])
-    prev_start = start_year - 1
-    prev_end = str(prev_start + 1)[-2:]
-
-    return f"{prev_start}-{prev_end}"
-
-
+# Thin wrapper around erp_actuals.group_actuals_ytd (month/year resolved via get_accounting_period_from_month above), then filters the resulting rows in Python by unit/cost_center(deptid)/location_code(operating_unit) - despite the name this is YTD data, not a single month's actuals, and cost_center/location_code here are matched against the raw ERP deptid/operating_unit fields already present on each row, not resolved doc names.
 @guest_api
 def get_filtered_actuals(month,financial_year,unit=None,cost_center=None,location_code=None):
     # Previously unscoped: an omitted `unit` meant "no filter" and returned
@@ -265,6 +134,7 @@ def get_gl_breakup_for_item(month, financial_year, sequence_id, unit=None, cost_
     }
 
 
+# Calls get_filtered_actuals internally and collapses its rows to one total posted_total_amt per budget line item (sequence_id) - a further aggregation step on top of get_filtered_actuals, not a separate data source.
 @guest_api
 def sum_of_actuals_by_sequence(month, financial_year, unit=None, cost_center=None, location_code=None):
     # Same unit-access scoping as get_filtered_actuals/get_gl_breakup_for_

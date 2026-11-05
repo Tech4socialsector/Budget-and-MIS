@@ -141,6 +141,7 @@ import {
   downloadXlsx,
   normName,
   isGrandTotalSection,
+  isConsolidatedEntry,
 } from '@/data/foundationConsolidatedData'
 import PptTab from '@/components/foundationConsolidated/PptTab.vue'
 import SummaryInrTab from '@/components/foundationConsolidated/SummaryInrTab.vue'
@@ -176,6 +177,11 @@ const financialYearSelection = computed({
 // through them individually.
 const showFullNumbers = ref(false)
 provide('misShowFullNumbers', showFullNumbers)
+
+// Disables CrCell's hover tooltip across every tab on this page (same
+// opt-out Monthly MIS already uses) - too dense a page for a tooltip on
+// every single amount cell.
+provide('misNoTooltip', true)
 
 function defaultFinancialYear(options) {
   const now = new Date()
@@ -428,7 +434,7 @@ async function loadPpt(force) {
   pptLoading.value = true
   pptError.value = null
   try {
-    const page = await call('budget_mis.api_1.foundation_consolidated.get_ppt_page_data', { financial_year: fy })
+    const page = await call('budget_mis.api.foundation_consolidated.get_ppt_page_data', { financial_year: fy })
     // A newer request for this tab (e.g. the user changed FY again while
     // this one was still in flight) has already started - discard this
     // now-stale response instead of overwriting the newer one.
@@ -454,7 +460,7 @@ async function loadPpt(force) {
 
     const cCfg = { key: 'current_year', budgetField: 'ytd', actualField: 'total_posted_amt_ytd' }
     const pCfg = { key: 'previous_year', budgetField: 'ytd', actualField: 'total_posted_amt_ytd' }
-    const mainData = data.filter((e) => e.is_this_sub_item !== 1)
+    const mainData = data.filter((e) => e.is_this_sub_item !== 1 && !isConsolidatedEntry(e))
     pptRows.value = buildPptRows(mainData, cCfg)
     pptPrevRows.value = buildPptRows(mainData, pCfg)
     pptBudgetLabel.value = `${curFY} Budget`
@@ -465,7 +471,7 @@ async function loadPpt(force) {
     pptEducationGroups.value = buildEducationGroups(data, cCfg, pptBudgetLabel.value, pptActualLabel.value)
 
     const uwp = (raw || [])
-      .filter((e) => e.is_this_sub_item === 0 && e.sequence_id !== 9999 && normName(e.table_name) !== 'CONSOLIDATED')
+      .filter((e) => e.is_this_sub_item === 0 && !isConsolidatedEntry(e))
       .sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
     pptOpexTable.value = buildBreakdownTable(uwp, 'opex', curFY)
     pptCapexTable.value = buildBreakdownTable(uwp, 'capex', curFY)
@@ -497,7 +503,7 @@ async function loadSummaryInr(force) {
   summaryInrLoading.value = true
   summaryInrError.value = null
   try {
-    const page = await call('budget_mis.api_1.foundation_consolidated.get_summary_inr_page_data', { financial_year: fy })
+    const page = await call('budget_mis.api.foundation_consolidated.get_summary_inr_page_data', { financial_year: fy })
     if (gen !== requestGen.summary_inr) return
     const hc = page?.headcount
     const ga = page?.actuals_quarter_month_total
@@ -532,7 +538,7 @@ async function loadHeadcount(force) {
   headcountLoading.value = true
   headcountError.value = null
   try {
-    const hc = await call('budget_mis.api_1.foundation_consolidated.get_headcount_page_data', { financial_year: fy })
+    const hc = await call('budget_mis.api.foundation_consolidated.get_headcount_page_data', { financial_year: fy })
     if (gen !== requestGen.headcount) return
     headcountRecords.value = hc?.headcount_data || []
     headcountPlanData.value = hc?.plan_data || []
@@ -562,7 +568,7 @@ async function loadAnnual(force) {
   annualLoading.value = true
   annualError.value = null
   try {
-    const result = await call('budget_mis.api_1.foundation_consolidated.get_annual_budget_page_data', { financial_year: fy })
+    const result = await call('budget_mis.api.foundation_consolidated.get_annual_budget_page_data', { financial_year: fy })
     if (gen !== requestGen.annual_budget) return
     annualData.value = result || []
     if (!annualData.value.length) delete loadedFor.annual_budget
@@ -592,7 +598,7 @@ async function loadActuals(force) {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const result = await call('budget_mis.api_1.foundation_consolidated.get_actuals_page_data', { financial_year: fy })
+    const result = await call('budget_mis.api.foundation_consolidated.get_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.actuals) return
     const data = result?.status === 'success' ? result.data : (Array.isArray(result) ? result : result?.data || [])
     actualsData.value = data || []
@@ -624,7 +630,7 @@ async function loadBudgetActuals(force) {
   budgetActualsLoading.value = true
   budgetActualsError.value = null
   try {
-    const d = await call('budget_mis.api_1.foundation_consolidated.get_budget_actuals_page_data', { financial_year: fy })
+    const d = await call('budget_mis.api.foundation_consolidated.get_budget_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.budget_actuals) return
     const all = d || []
     const consolidatedBlock = all.find((e) => normName(e.table_name) === 'CONSOLIDATED')
@@ -636,7 +642,7 @@ async function loadBudgetActuals(force) {
     // Desk page's current (buggy) behavior rather than guessing a fix.
     budgetActualsMainItemBreakdown.value = consolidatedBlock?.main_item_breakdown || []
     budgetActualsRawData.value = all
-      .filter((e) => e.is_this_sub_item === 0 && e.sequence_id !== 9999 && normName(e.table_name) !== 'CONSOLIDATED')
+      .filter((e) => e.is_this_sub_item === 0 && !isConsolidatedEntry(e))
       .sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
     if (!budgetActualsRawData.value.length) delete loadedFor.budget_actuals
   } catch (e) {

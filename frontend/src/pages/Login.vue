@@ -719,7 +719,7 @@ function resendCode() {
 
 // SSO providers (Social Login Key records with enable_social_login=1 and a
 // usable client_id/client_secret/base_url) - fetched once on mount via
-// api_1.sso.get_sso_providers (the JSON-API equivalent of frappe/www/
+// budget_mis.api.sso.get_sso_providers (the JSON-API equivalent of frappe/www/
 // login.py's own context.provider_logins, which only renders through
 // server-side Jinja and isn't callable from this Vue SPA). Each provider's
 // auth_url is a ready-to-navigate-to OAuth authorize URL - clicking it is
@@ -727,7 +727,7 @@ function resendCode() {
 // to the provider and back.
 const ssoProviders = ref([])
 const ssoProvidersResource = createResource({
-  url: 'budget_mis.api_1.sso.get_sso_providers',
+  url: 'budget_mis.api.sso.get_sso_providers',
   makeParams: () => ({ redirect_to: '/home' }),
   onSuccess(data) {
     ssoProviders.value = Array.isArray(data) ? data : []

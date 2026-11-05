@@ -4,13 +4,6 @@ import frappe
 from collections import defaultdict
 
 
-# Neither function below takes a unit param to scope by - they always
-# return every unit's adjustment rows org-wide. Filtering the OUTPUT by
-# business_unit on a genuine direct HTTP call closes the same cross-tenant
-# leak the rest of this app's endpoints are scoped against, without
-# changing the function signature or breaking internal callers (e.g.
-# api/erp_actuals.py, which needs the full unscoped set to merge into its
-# own already-scoped actuals pipeline).
 def _scope_rows_to_allowed_units(rows, fn):
     if not is_direct_http_call(fn):
         return rows
@@ -22,6 +15,7 @@ def _scope_rows_to_allowed_units(rows, fn):
     return [r for r in rows if str(r.get("business_unit")) in allowed_units]
 
 
+# Reads Monthly Adjustment docs for the given financial_year (up to month, if given) and returns one row per (unit, gl_code, location, cost_center, period) combination.
 @guest_api
 def get_adjustments_month_wise(financial_year=None, month=None):
 
@@ -110,12 +104,9 @@ def get_adjustments_month_wise(financial_year=None, month=None):
     return _scope_rows_to_allowed_units(result, get_adjustments_month_wise)
 
 
-
-
-import frappe
-from collections import defaultdict
-
-
+# Like get_adjustments_month_wise, but collapses all periods up to `month`
+# into a single cumulative row per (unit, gl_code, location, cost_center)
+# instead of one row per period - used by fetch_actuals_ytd's YTD view.
 @guest_api
 def get_monthly_adjustments(financial_year=None, month=None):
 
@@ -189,11 +180,10 @@ def get_monthly_adjustments(financial_year=None, month=None):
             "deptid": key[3],
             "operating_unit": key[2],
             "accounting_period": str(month) if month else "",
-            "fiscal_year": financial_year if financial_year else "",  # ✅
+            "fiscal_year": financial_year if financial_year else "",
             "is_adjustment": 1,
-            "posted_total_amt": round(total, 2)                       # ✅
+            "posted_total_amt": round(total, 2)
         })
 
     frappe.logger().info(f"Total grouped records: {len(result)}")
     return _scope_rows_to_allowed_units(result, get_monthly_adjustments)
-

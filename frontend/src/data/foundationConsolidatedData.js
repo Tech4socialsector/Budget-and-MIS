@@ -4,13 +4,13 @@
 //
 // Two different "expense tree" shapes are in play across this page's 6 tabs:
 //
-// 1. Annual Budget Consolidated tab (budget_mis.api.phase_sheet.get_consolidated_report):
+// 1. Annual Budget Consolidated tab (budget_mis.api.budget_summary.get_budget_summary):
 //    head -> sub_heads[] -> items[], each carrying q1..q4 (lowercase), each a
 //    3-element array of monthly amounts. Same shape BudgetDashboard.vue/
 //    BudgetSummaryTable.vue already use via dashboardData.js/budgetTotals.js.
 //
 // 2. Actuals Consolidated tab, and SummaryINR's previous-FY Quarter Phasing half
-//    (budget_mis.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total):
+//    (budget_mis.api.foundation_consolidated.get_actuals_quarter_and_month_breakup):
 //    head -> sub_heads[] -> items[], each carrying Q1..Q4 (uppercase, a single
 //    already-summed number per quarter - NOT an array) plus a separate `months`
 //    object keyed by fiscal month-number STRING ("4".."12","1".."3", April..March

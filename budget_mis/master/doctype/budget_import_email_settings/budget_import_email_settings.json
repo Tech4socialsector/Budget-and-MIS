@@ -1,0 +1,88 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-03 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "send_notification",
+  "notify_importing_user",
+  "cc_emails",
+  "email_content_section",
+  "email_subject",
+  "email_body",
+  "placeholders_help"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "description": "Master switch for the Budget Import confirmation email. When off, no email is sent for any import, regardless of the settings below.",
+   "fieldname": "send_notification",
+   "fieldtype": "Check",
+   "label": "Send Email When a Budget Import Completes"
+  },
+  {
+   "default": "1",
+   "description": "Also email the user who ran the import (in addition to the CC list below). Only applies while the master switch above is on.",
+   "fieldname": "notify_importing_user",
+   "fieldtype": "Check",
+   "label": "Notify the Importing User"
+  },
+  {
+   "description": "Always copied on the confirmation email, in addition to the importing user (if notified above). One address per line, or comma-separated.",
+   "fieldname": "cc_emails",
+   "fieldtype": "Small Text",
+   "label": "CC Email Addresses"
+  },
+  {
+   "fieldname": "email_content_section",
+   "fieldtype": "Section Break",
+   "label": "Email Content"
+  },
+  {
+   "default": "Budget Import Completed - {{ financial_year }}",
+   "description": "Supports Jinja placeholders - see the reference below.",
+   "fieldname": "email_subject",
+   "fieldtype": "Data",
+   "label": "Email Subject"
+  },
+  {
+   "default": "<p>Hello,</p><p>A budget import has just completed.</p><ul><li><strong>Imported by:</strong> {{ uploaded_by }}</li><li><strong>Financial Year:</strong> {{ financial_year }}</li><li><strong>Finance Budget records created:</strong> {{ finance_budgets_created }}</li><li><strong>Finance Budget records updated:</strong> {{ finance_budgets_updated }}</li><li><strong>Rows imported:</strong> {{ rows_imported }}</li></ul>{{ groups_table }}<p>This is an automated notification from Budget MIS.</p>",
+   "description": "Supports Jinja placeholders - see the reference below.",
+   "fieldname": "email_body",
+   "fieldtype": "Text Editor",
+   "label": "Email Body"
+  },
+  {
+   "fieldname": "placeholders_help",
+   "fieldtype": "HTML",
+   "options": "<div class=\"text-muted small\"><strong>Available placeholders:</strong> <code>{{ uploaded_by }}</code> (full name of the importing user), <code>{{ uploaded_by_email }}</code>, <code>{{ financial_year }}</code>, <code>{{ finance_budgets_created }}</code>, <code>{{ finance_budgets_updated }}</code>, <code>{{ rows_imported }}</code>, <code>{{ import_datetime }}</code> (formatted date/time the import completed), <code>{{ groups_table }}</code> (a ready-made HTML table listing every Unit/Cost Center/Location/Financial Year combination touched by this import, each tagged New or Updated).</div>"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Master",
+ "name": "Budget Import Email Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

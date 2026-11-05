@@ -1,7 +1,7 @@
 // Generate + poll + download helper for the Budget Import Template page
 // (pages/BudgetImportTemplate.vue) - mirrors erpActualsExport.js's blob/
 // Content-Disposition/createObjectURL mechanics, but POST-triggers a
-// background job first (budget_mis.api_1.budget_import_template.
+// background job first (budget_mis.api.budget_import_template.
 // start_budget_template_generation) and polls a GET endpoint
 // (download_generated_template) until the file is ready, rather than a
 // single POST-and-receive-blob round trip - the server job can take long
@@ -43,13 +43,13 @@ function sleep(ms) {
  * for this same check): "Finance user access" only grants read permission
  * to System Manager, so that call throws PermissionError for every
  * non-admin user - exactly the audience this check exists for. This calls
- * budget_mis.api_1.budget_import_template.has_import_template_linked
+ * budget_mis.api.budget_import_template.has_import_template_linked
  * instead, which reads the field the same permission-bypassing way
  * get_user_mappings already does, while still enforcing server-side that a
  * non-admin can only ask about their own user.
  */
 export async function hasImportTemplateLinked(user) {
-  return call('budget_mis.api_1.budget_import_template.has_import_template_linked', { user })
+  return call('budget_mis.api.budget_import_template.has_import_template_linked', { user })
 }
 
 /**
@@ -61,7 +61,7 @@ export async function hasImportTemplateLinked(user) {
 export async function generateAndDownloadTemplate({ user, entityData, onProgress }) {
   onProgress?.('starting')
 
-  await call('budget_mis.api_1.budget_import_template.start_budget_template_generation', {
+  await call('budget_mis.api.budget_import_template.start_budget_template_generation', {
     user,
     entity_data: entityData,
   })
@@ -79,7 +79,7 @@ export async function generateAndDownloadTemplate({ user, entityData, onProgress
       throw new Error('Template generation is taking longer than expected. Please try again in a few minutes.')
     }
 
-    const url = `/api/method/budget_mis.api_1.budget_import_template.download_generated_template?user=${encodeURIComponent(user)}`
+    const url = `/api/method/budget_mis.api.budget_import_template.download_generated_template?user=${encodeURIComponent(user)}`
     const res = await fetch(url, { headers: csrfHeaders() })
 
     if (!res.ok) {

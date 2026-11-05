@@ -144,7 +144,7 @@ onMounted(() => {
 })
 
 // Same April->March fiscal-year convention used by MonthlyMis.vue/
-// ErpActuals.vue (budget_mis.api.actual_format.get_accounting_period_from_month).
+// ErpActuals.vue (budget_mis.api.helper.get_accounting_period_from_month).
 const MONTH_TO_PERIOD = {
   April: 1, May: 2, June: 3, July: 4, August: 5, September: 6,
   October: 7, November: 8, December: 9, January: 10, February: 11, March: 12,
@@ -238,7 +238,7 @@ async function runCheck() {
   startElapsedTimer()
 
   try {
-    const message = await call('budget_mis.api_1.combination_reconciliation.find_unmapped_combinations', {
+    const message = await call('budget_mis.api.combination_reconciliation.find_unmapped_combinations', {
       fiscal_year: fiscalYear,
       accounting_period: accountingPeriod,
       enablers_only: filters.enablersIgnoreLocation ? 1 : 0,

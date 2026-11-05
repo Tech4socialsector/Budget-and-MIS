@@ -423,5 +423,29 @@
   "restrict_by_role": 0,
   "roles": [],
   "sort_order": 9
+ },
+ {
+  "direct_doctype_name": null,
+  "direct_item_type": "Page",
+  "direct_page_route": "TrialBalanceCheck",
+  "direct_route": null,
+  "direct_url": null,
+  "docstatus": 0,
+  "doctype": "App Module Setting",
+  "doctypes": [],
+  "enabled": 1,
+  "icon": "scale",
+  "is_sidebar_module": 0,
+  "label": "Trial Balance Check",
+  "modified": "2026-11-05 17:28:45.593027",
+  "module_name": "trial_balance_check",
+  "name": "trial_balance_check",
+  "restrict_by_role": 1,
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "sort_order": 13
  }
 ]

@@ -10,10 +10,20 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
   Location Code / head-sub-head-item of expense) via an Excel template,
   stored as `Finance Budget` docs with embedded `Finance Budget Amounts`
   child rows (one row per expense line, with April-March monthly columns).
+  Import is a two-phase preview-then-commit flow (`preview_budget_import`/
+  `commit_budget_import` in `budget_import.py`) that classifies each
+  Unit/Cost Center/Location/Financial Year group as a new record or an
+  update to an existing one, shown in the preview, the post-commit import
+  log, and an optional confirmation email (`Budget Import Email Settings`
+  singleton doctype configures recipients and email content).
 - **Actuals**: Real spend is pulled live from a PeopleSoft ERP HTTP API
-  (`budget_mis/api/erp_utils.py`, `erp_actuals.py` / `api_1/erp_actuals.py`),
-  cached server-side (`ERP Credentials.actuals_cache_duration_minutes`)
-  since a single ERP call can take up to 90-120s.
+  (`budget_mis/api/erp_actuals.py`), cached server-side
+  (`ERP Credentials.actuals_cache_duration_minutes`) since a single ERP
+  call can take up to 90-120s. Current-year and previous-year fetches run
+  **sequentially, never concurrently** - the PeopleSoft server is a single
+  shared endpoint that cannot handle two simultaneous heavy queries without
+  both slowing down and tripping timeouts (see `get_monthly_mis_page_data`
+  and `foundation_consolidated.py`'s `_fetch_current_and_previous_actuals`).
 - **Reporting**: Budget vs Actuals, Monthly MIS, Foundation Consolidated,
   and dashboard pages merge the two sides together (the budget tree from
   `get_budget_summary`/`get_budget_ytd_by_sequence`, actuals from
@@ -30,15 +40,20 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
 
 ### Architecture at a glance
 
-- `budget_mis/api/` - the original/legacy API surface (still the only
-  live path for `erp_actuals.py`'s raw ERP HTTP calls, `phase_sheet.py`,
-  `finance_budget.py`, etc).
-- `budget_mis/api_1/` - the newer, actively-developed API surface most
-  current reporting pages call (`budget_summary.py`, `budget_vs_actual.py`,
-  `foundation_consolidated.py`, `monthly_mis.py`, `budget_import.py`,
-  `combination_reconciliation.py`, ...). New reporting work generally
-  belongs here, not in `api/`, unless it's extending something that
-  already lives in the older module.
+- `budget_mis/api/` - the entire backend API surface. An earlier parallel
+  module (`api_1/`) existed during development and has since been fully
+  consolidated back into `api/` (duplicated logic merged, dead code
+  deleted, every frontend/Desk-page call site repointed) - there is only
+  ever one API folder at a time; don't recreate a second parallel one.
+  Notable modules: `erp_actuals.py` (the real PeopleSoft HTTP calls + their
+  grouped/YTD views), `budget_summary.py`/`budget_vs_actual.py`/
+  `phase_sheet.py` (the budget-side trees and budget+actuals merge),
+  `monthly_mis.py`/`monthly_mis_drilldown.py`/`foundation_consolidated.py`
+  (the big dashboard pages), `budget_import.py`/`budget_import_template.py`
+  (the Excel import flow), `export_reports.py`/`monthly_mis_export.py`
+  (Excel/PPTX exports), `response_crypto.py` (response encryption +
+  `is_direct_http_call`), `filter_options.py` (units/cost
+  centers/locations/financial years/themes for every page's filter bar).
 - `budget_mis/ai/` - the AI Assistant's system prompt builder
   (`assistant.py`), its callable tool functions (`tools.py`), and the
   guide-content review/authoring helpers used from Desk.
@@ -86,6 +101,31 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
   `budget_mis/fixtures/*.json` and listed in `hooks.py`'s `fixtures = [...]`
   - re-export after editing these records in Desk, or the change only
   exists on the site you edited it on.
+- **Hand-editing a Workspace JSON file (`budget_mis/main/workspace/*/*.json`)
+  does not take effect on a plain `bench migrate`** if that Workspace
+  already exists in the DB - migrate only creates/removes Workspace
+  records, it never re-syncs an existing one's content from disk. Picking
+  up a hand-edited file needs either making the same edit through Desk's
+  own Workspace editor UI, or deleting that one Workspace record and
+  letting `bench migrate` recreate it. **Avoid
+  `frappe.reload_doc(..., dt="Workspace", ..., force=True)`** as a
+  shortcut for this - it has reproducibly caused the *next* `bench migrate`
+  run to flag that Workspace as orphaned and delete it outright (recovered
+  both times via the `Deleted Document` doctype's JSON snapshot, but don't
+  rely on that path).
+
+### Local development data
+
+Local dev data for `Overview number cards settings` (+ its child tables)
+and `Finance Budget` (+ `Finance Budget Amounts`) can be synced from
+production for realistic testing, given read-only DB credentials: pull
+each table as TSV via a plain `mysql` SELECT (matching columns against the
+local schema first - production has occasionally carried an extra, always-
+empty column the local doctype doesn't define), then replace the local
+rows via `frappe.db.sql` bulk inserts through the ORM's own connection
+rather than a raw file-based import, so parent/child linkage stays
+consistent. This is a full replace, not a merge - back up local rows first
+(`mysqldump` the same tables) if they're not just disposable test data.
 
 ### Installation
 

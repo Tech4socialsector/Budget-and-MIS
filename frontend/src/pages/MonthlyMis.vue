@@ -291,7 +291,7 @@ watch(
 )
 
 // -------------------------------------------------------------------------
-// Load - exactly ONE backend call, to api_1's
+// Load - exactly ONE backend call, to
 // get_monthly_mis_break_up_with_prev_year, which runs get_monthly_mis_break_up
 // for both financial_year and its previous year server-side and returns
 // {current, previous} in one response (replacing the earlier 3-call mix of
@@ -337,7 +337,7 @@ async function loadAll(force) {
     // section, and drill-down data derived from it, instead of this page
     // firing 2 separate HTTP requests that could each independently (and,
     // if concurrent, redundantly) trigger the same PeopleSoft call.
-    const result = await call('budget_mis.api_1.monthly_mis.get_monthly_mis_page_data', {
+    const result = await call('budget_mis.api.monthly_mis.get_monthly_mis_page_data', {
       financial_year: fy,
       month,
       table_name_filter: MIS_TABLE_NAME_FILTER,
@@ -372,7 +372,7 @@ async function loadAll(force) {
 // A raw "Failed to fetch"/"NetworkError..." TypeError (no HTTP response at
 // all - connection dropped or timed out, e.g. a hosted proxy's own request
 // ceiling cutting off this page's slow cold-cache ERP fetch, see
-// api_1/erp_actuals.py's own timeout) reads as a dead end to a user with no
+// api/erp_actuals.py's own timeout) reads as a dead end to a user with no
 // idea what to do about it. Rephrased into something actionable instead of
 // surfacing the browser's own terse wording verbatim.
 const errorMessage = computed(() => {
@@ -501,7 +501,7 @@ function exportMis() {
   const fy = filters.financialYear
   const month = filters.month
   if (!fy || !month) return
-  const url = `/api/method/budget_mis.api.monthly_mis.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=excel`
+  const url = `/api/method/budget_mis.api.monthly_mis_export.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=excel`
   window.open(url, '_blank')
 }
 

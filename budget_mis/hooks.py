@@ -103,6 +103,15 @@ fixtures = ["App Module Setting", "AI Assistant Guide"]
 
 website_route_rules = [
 	{"from_route": "/budget-mis/<path:app_path>", "to_route": "budget-mis"},
+	# Frappe's own www/login.py page (the bare "login" endpoint) would
+	# otherwise render Frappe's native Desk-styled login form - redirect it
+	# to the Vue app shell instead so a guest hitting /login (e.g. a stale
+	# bookmark, or Frappe's own "please log in" bounce) lands on Login.vue,
+	# not Frappe's built-in one. This rewrite happens before login.py's own
+	# already-logged-in redirect logic ever runs, which is fine here: the
+	# Vue router's own beforeEach guard (router.js) already redirects an
+	# authenticated visitor away from the Login route to Home on its own.
+	{"from_route": "/login", "to_route": "budget-mis"},
 ]
 
 # Serves the built service worker (and its workbox chunk) at
@@ -176,19 +185,19 @@ page_renderer = ["budget_mis.website.sw_renderer.ServiceWorkerRenderer"]
 # Hook on document methods and events
 
 # "Overview number cards settings" docs drive get_combination_table_settings_test's
-# own short-TTL cache (api_1/number_card_settings.py) - cleared immediately on
+# own short-TTL cache (api/number_card_settings.py) - cleared immediately on
 # save/delete so an admin's edit takes effect right away instead of waiting
 # out the TTL, rather than this being the only thing standing between an
 # edit and it showing up. "Expenses" rows drive get_combined_actuals's own
-# in-process skeleton cache (api_1/budget_actuals_combined.py) the same way.
+# in-process skeleton cache (api/budget_actuals_combined.py) the same way.
 doc_events = {
 	"Overview number cards settings": {
 		"on_update": "budget_mis.startup.clear_combination_table_settings_cache",
 		"on_trash": "budget_mis.startup.clear_combination_table_settings_cache",
 	},
 	"Expenses": {
-		"on_update": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
-		"on_trash": "budget_mis.api_1.budget_summary.clear_expense_lookup_caches",
+		"on_update": "budget_mis.api.budget_summary.clear_expense_lookup_caches",
+		"on_trash": "budget_mis.api.budget_summary.clear_expense_lookup_caches",
 	},
 	"AI Assistant Guide": {
 		"on_update": "budget_mis.startup.clear_ai_guide_cache",
@@ -311,7 +320,12 @@ on_logout = [
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 
-# default_log_clearing_doctypes = {
-# 	"Logging DocType Name": 30  # days to retain logs
-# }
+# ERP Actuals Call Log logs every real PeopleSoft fetch (hit/miss, success/
+# failure, duration) plus every warm_actuals_cache warm-up decision - high
+# volume over time (one row per real fetch, not per report call - see that
+# doctype's own log_call()), so it's auto-purged by Frappe's own scheduled
+# cleanup like any other log table rather than growing unbounded.
+default_log_clearing_doctypes = {
+	"ERP Actuals Call Log": 30  # days to retain logs
+}
 

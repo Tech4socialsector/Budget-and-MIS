@@ -208,8 +208,8 @@ def get_budget_summary(financial_year=None, unit=None, operating_unit=None, cost
 	them.
 	"""
 	from budget_mis.utils import get_allowed_cost_centers, get_allowed_location_codes
-	from budget_mis.api_1.budget_summary import get_budget_summary
-	from budget_mis.api_1.filter_options import get_theme_mappings
+	from budget_mis.api.budget_summary import get_budget_summary
+	from budget_mis.api.filter_options import get_theme_mappings
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
@@ -321,7 +321,7 @@ def list_operating_units():
 	into get_actuals_summary's `unit` argument, it is not a Unit code and
 	will silently match nothing (reads as a correct 0.00 answer instead of
 	an error)."""
-	from budget_mis.api_1.filter_options import get_theme
+	from budget_mis.api.filter_options import get_theme
 
 	return get_theme()
 
@@ -335,7 +335,7 @@ def resolve_operating_unit(operating_unit):
 	the user what an Operating Unit actually covers; get_actuals_summary
 	resolves it directly, so this tool is for inspection, not a required
 	first step before calling that one."""
-	from budget_mis.api_1.filter_options import get_theme, get_theme_mappings
+	from budget_mis.api.filter_options import get_theme, get_theme_mappings
 
 	theme_name = _resolve_operating_unit_name(operating_unit)
 	mapping = get_theme_mappings(theme_name)
@@ -358,7 +358,7 @@ def _resolve_operating_unit_name(operating_unit):
 	the doctype's own `name` or its human `number_card_title` - the model
 	is only ever shown number_card_title (via list_operating_units), but a
 	user might also type the raw name, so both are accepted."""
-	from budget_mis.api_1.filter_options import get_theme
+	from budget_mis.api.filter_options import get_theme
 
 	operating_unit = str(operating_unit or "").strip()
 	if not operating_unit:
@@ -377,12 +377,12 @@ def _resolve_operating_unit_name(operating_unit):
 def get_actuals_summary(financial_year=None, month=None, unit=None, operating_unit=None, cost_center=None, location_code=None):
 	"""The authoritative year-to-date ACTUAL spend total (as opposed to
 	get_budget_summary's BUDGETED/planned total) for a financial year,
-	through a given month. Built the same way the Budget Dashboard's
-	"Budget vs Actuals" tab computes it (phase_sheet.get_combined_actuals,
-	itself sourced from the single consolidated PeopleSoft actuals path -
-	see budget_mis/api/actuals.py), not by reading or summing raw
-	"Finance Budget", "Monthly Adjustment", or any other doctype's records
-	directly. Never confuse this with get_budget_summary - "actual"/"spent"/
+	through a given month. Built the same way the Budget vs Actuals page
+	computes it (budget_actuals_combined.get_combined_actuals, itself
+	sourced from the single consolidated PeopleSoft actuals path - see
+	budget_mis/api/erp_actuals.py/grouped_actuals.py), not by reading or
+	summing raw "Finance Budget", "Monthly Adjustment", or any other
+	doctype's records directly. Never confuse this with get_budget_summary - "actual"/"spent"/
 	"utilized"/"expenditure so far" means this tool; "budget"/"allocated"/
 	"sanctioned"/"planned" means get_budget_summary.
 
@@ -405,8 +405,10 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 	sees more than their own list views already show them.
 	"""
 	from budget_mis.utils import get_allowed_cost_centers, get_allowed_location_codes
-	from budget_mis.api.phase_sheet import get_combined_actuals
-	from budget_mis.api_1.filter_options import get_theme_mappings
+	from budget_mis.api.budget_actuals_combined import get_combined_actuals
+	from budget_mis.api.helper import get_accounting_period_from_month
+	from budget_mis.api.grouped_actuals import group_actuals_ytd
+	from budget_mis.api.filter_options import get_theme_mappings
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
@@ -505,6 +507,17 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 			if not requested.issubset(allowed_location_codes):
 				frappe.throw(_("You do not have access to one or more of the requested location codes."), frappe.PermissionError)
 
+	# Same shared-cache fetch-once pattern as budget_vs_actual.py's
+	# get_combined_actuals_report - group_actuals_ytd checks its own
+	# server-side cache first and only redoes the real ERP fetch when
+	# nothing cached is found for this exact (fiscal_year, accounting_period).
+	formatted = get_accounting_period_from_month(month, financial_year)
+	actuals_response = group_actuals_ytd(
+		fiscal_year=formatted.get("fiscal_year"),
+		accounting_period=formatted.get("accounting_period"),
+	)
+	grouped_actuals_data = actuals_response.get("data", [])
+
 	heads = get_combined_actuals(
 		financial_year=financial_year,
 		month=month,
@@ -513,6 +526,7 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 		location_code=location_code,
 		erp_cost_center_value=erp_cost_center_value,
 		erp_loc_value=erp_loc_value,
+		grouped_actuals_data=grouped_actuals_data,
 	) or []
 
 	head_summaries = []
@@ -557,7 +571,7 @@ MONTHLY_MIS_SECTIONS = {
 def get_monthly_mis_summary(financial_year=None, month=None, section=None, table_name_filter=None):
 	"""The authoritative Monthly MIS Operating/Capital Expense break-up - the
 	same computation and the same shared server-side ERP actuals cache
-	(budget_mis.api_1.erp_actuals, TTL from ERP Credentials.
+	(budget_mis.api.erp_actuals, TTL from ERP Credentials.
 	actuals_cache_duration_minutes) the Monthly MIS page itself reads, not a
 	re-derivation from raw doctype records. Returns current and previous
 	financial-year figures for the given month, broken down per table/
@@ -588,8 +602,8 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 	- same TTL as the ERP actuals cache, since it's only ever as fresh as
 	that underlying data anyway.
 	"""
-	from budget_mis.api_1.helper import get_actuals_cache_duration_seconds
-	from budget_mis.api_1.monthly_mis import get_monthly_mis_break_up
+	from budget_mis.api.helper import get_actuals_cache_duration_seconds
+	from budget_mis.api.monthly_mis import get_monthly_mis_break_up
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")

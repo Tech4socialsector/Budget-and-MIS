@@ -1,5 +1,4 @@
 import io
-import json
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
@@ -9,120 +8,54 @@ import requests
 from budget_mis.api.adjustments import get_adjustments_month_wise, get_monthly_adjustments
 from budget_mis.utils import guest_api, get_allowed_units
 from budget_mis.api.response_crypto import is_direct_http_call
-from budget_mis.api.erp_utils import get_peoplesoft_prod_credentials, financial_year_label
-from budget_mis.api_1.helper import cache_with_single_flight
+from budget_mis.api.helper import (
+    get_peoplesoft_prod_credentials,
+    format_financial_year,
+    get_actuals_cache_duration_seconds,
+    cache_with_single_flight,
+)
+from budget_mis.master.doctype.erp_actuals_call_log.erp_actuals_call_log import log_call
 
 ACTUALS_CACHE_TTL = 15 * 60
 
 
-# fetch_actuals_month_wise/fetch_actuals_ytd take no unit param at all and
-# are cached+shared across every caller - correct for internal callers
-# (which must keep seeing everything and filter it themselves afterward),
-# but these are also directly reachable from the live Vue "ERP Actuals"
-# page (ErpActuals.vue), so a direct HTTP call previously returned the
-# ENTIRE organization's raw ERP actuals to any logged-in user regardless of
-# their own Finance user access - the same cross-tenant leak already fixed
-# in api_1/grouped_actuals.py, in this older parallel module. Filtering the
-# already-computed/cached result on the way OUT (never mutating the cached
-# object itself) closes this without touching the shared-cache-then-filter
-# behavior internal callers depend on.
-def _scope_rows_to_allowed_units(rows, fn):
-    if not is_direct_http_call(fn):
-        return rows
-    allowed_units = get_allowed_units()
-    if allowed_units is None:
-        return rows
-    if not allowed_units:
-        return []
-    return [r for r in rows if str(r.get("business_unit")) in allowed_units]
-
-
-# * ==============================================================  PeopleSoft API - Testing server  =====================================================================================
+#========================================= ERP Actuals API Month wise =======================================================================
+# Raw PeopleSoft pull for one fiscal_year/accounting_period, merged with Frappe-side adjustment rows for the same period - cached server-side (shared across all users), since this is a real, slow (up to 120s) external PeopleSoft HTTP call. Cache lifetime is ERP Credentials.actuals_cache_duration_minutes (read fresh each call, so changing it takes effect immediately, no restart needed): once that interval passes, the NEXT call for this exact (fiscal_year, accounting_period) re-fetches from the ERP and overwrites the stale entry with the fresh response - every other (fiscal_year, accounting_period) combination has its own separate cache key/expiry and is completely unaffected by this one expiring or refreshing.
+#
+# Logs every call (ERP Actuals Call Log) as a cache Hit or a real Miss
+# (fetched) - the cache-presence check here is read-only, purely to decide
+# which outcome to log; cache_with_single_flight below still does its own
+# real get/set/lock dance exactly as before, so this adds zero behavior
+# change to the actual caching/single-flight guarantee, only observability.
 @guest_api
-def fetch_actuals_ytd_legacy(fiscal_year, accounting_period):
-    try:
-        fiscal_year = int(fiscal_year)
-        accounting_period = int(accounting_period)
-    except (TypeError, ValueError):
-        frappe.throw("fiscal_year and accounting_period must be integers")
-
-    month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
-    if month_wise.get("status") != "success":
-        return month_wise
-
-    rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
-    rows = _scope_rows_to_allowed_units(rows, fetch_actuals_ytd_legacy)
-
-    return {
-        "status": "success",
-        "params": {
-            "fiscal_year": fiscal_year,
-            "accounting_period": accounting_period
-        },
-        "data": rows
-    }
-
-
-# * ==============================================================  PeopleSoft API - Prod, accounting period without opening balance  =====================================================================================
-@guest_api
-def fetch_actuals_ytd(fiscal_year, accounting_period):
-    try:
-        month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        return {
-            "status": "failed",
-            "error": "The ERP system did not respond in time. Please try again in a few minutes."
-        }
-    except Exception:
-        frappe.log_error(
-            title="PeopleSoft API Error",
-            message=frappe.get_traceback()
-        )
-        return {
-            "status": "failed",
-            "error": "Unexpected server error"
-        }
-
-    if month_wise.get("status") != "success":
-        return month_wise
-
-    erp_rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
-    frappe_rows = get_monthly_adjustments(financial_year_label(fiscal_year), accounting_period)
-    combined_rows = _scope_rows_to_allowed_units(erp_rows + frappe_rows, fetch_actuals_ytd)
-
-    return {
-        "status": "success",
-        "fiscal_year": fiscal_year,
-        "accounting_period": accounting_period,
-        "count": len(combined_rows),
-        "data": combined_rows
-    }
-
-
-# * ==============================================================  PeopleSoft API - Prod, month-wise (the one live HTTP call)  =====================================================================================
-@guest_api
-def fetch_actuals_month_wise(fiscal_year, accounting_period):
-    # Same cache key api_1/erp_actuals.py's get_actuals_from_erp_month_wise
-    # uses - the two modules already share one underlying cache entry per
-    # period, so both need the SAME single-flight lock around it; otherwise
-    # one module's lock-aware caller and the other's plain check-then-set
-    # could still race each other into a duplicate ERP call.
+def get_actuals_from_erp_month_wise(fiscal_year, accounting_period):
     cache_key = f"budget_mis:erp_actuals_month_wise:{fiscal_year}:{accounting_period}"
+    was_cached = frappe.cache().get_value(cache_key) is not None
+
+    start = frappe.utils.now_datetime()
     result = cache_with_single_flight(
         cache_key,
-        fetch_fn=lambda: _fetch_actuals_month_wise_raw(fiscal_year, accounting_period),
-        is_cacheable=lambda r: r.get("status") == "success",
-        expires_in_sec=ACTUALS_CACHE_TTL,
+        fetch_fn=lambda: _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda result: result.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
     )
-    if is_direct_http_call(fetch_actuals_month_wise):
-        return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), fetch_actuals_month_wise)}
+    duration_ms = int((frappe.utils.now_datetime() - start).total_seconds() * 1000)
+
+    log_call(
+        call_type="Fetch",
+        fiscal_year=fiscal_year,
+        accounting_period=accounting_period,
+        cache_result="Hit" if was_cached else "Miss (fetched)",
+        status="Success" if result.get("status") == "success" else "Failed",
+        duration_ms=duration_ms,
+        source="get_actuals_from_erp_month_wise",
+        error_message=result.get("error") if result.get("status") != "success" else None,
+    )
+
     return result
 
 
-def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
-    demo_path = frappe.conf.get("demo_actuals_json_path")
-    if demo_path:
-        return _fetch_actuals_month_wise_demo(demo_path, fiscal_year, accounting_period)
+def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):
 
     try:
         username, password = get_peoplesoft_prod_credentials()
@@ -145,7 +78,7 @@ def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
             f"&prompt_fieldvalue={fiscal_year},{accounting_period}"
         )
 
-        erp_rows = []
+        erp_rows = []  # ← initialize once, here
 
         response = requests.get(
             api_url,
@@ -170,7 +103,7 @@ def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
                         }
                         erp_rows.append(row_data)
 
-        frappe_rows = get_adjustments_month_wise(financial_year_label(fiscal_year), accounting_period)
+        frappe_rows = get_adjustments_month_wise(format_financial_year(fiscal_year), accounting_period)
 
         combined_rows = erp_rows + frappe_rows
 
@@ -197,25 +130,81 @@ def _fetch_actuals_month_wise_raw(fiscal_year, accounting_period):
         }
 
 
-def _fetch_actuals_month_wise_demo(demo_path, fiscal_year, accounting_period):
+# fetch_actuals_month_wise/fetch_actuals_ytd take no unit param at all and
+# are cached+shared across every caller - correct for internal callers
+# (which must keep seeing everything and filter it themselves afterward),
+# but these are also directly reachable from the live Vue "ERP Actuals"
+# page (ErpActuals.vue), so a direct HTTP call previously returned the
+# ENTIRE organization's raw ERP actuals to any logged-in user regardless of
+# their own Finance user access. Filtering the already-computed/cached
+# result on the way OUT (never mutating the cached object itself) closes
+# this without touching the shared-cache-then-filter behavior internal
+# callers depend on.
+def _scope_rows_to_allowed_units(rows, fn):
+    if not is_direct_http_call(fn):
+        return rows
+    allowed_units = get_allowed_units()
+    if allowed_units is None:
+        return rows
+    if not allowed_units:
+        return []
+    return [r for r in rows if str(r.get("business_unit")) in allowed_units]
+
+
+# * ==============================================================  PeopleSoft API - Testing server  =====================================================================================
+# Legacy/unused-in-anger sibling of fetch_actuals_ytd below: same month-wise-then-filter-to-YTD shape but does NOT merge in Monthly Adjustment rows (no get_monthly_adjustments call) - kept only for whatever still points at the old "Testing server" PeopleSoft path.
+@guest_api
+def fetch_actuals_ytd_legacy(fiscal_year, accounting_period):
     try:
-        with open(demo_path) as f:
-            all_rows = json.load(f)
-    except (OSError, ValueError):
-        frappe.log_error("Demo Actuals JSON Error", frappe.get_traceback())
+        fiscal_year = int(fiscal_year)
+        accounting_period = int(accounting_period)
+    except (TypeError, ValueError):
+        frappe.throw("fiscal_year and accounting_period must be integers")
+
+    month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
+    if month_wise.get("status") != "success":
+        return month_wise
+
+    rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
+    rows = _scope_rows_to_allowed_units(rows, fetch_actuals_ytd_legacy)
+
+    return {
+        "status": "success",
+        "params": {
+            "fiscal_year": fiscal_year,
+            "accounting_period": accounting_period
+        },
+        "data": rows
+    }
+
+
+# * ==============================================================  PeopleSoft API - Prod, accounting period without opening balance  =====================================================================================
+# Raw (ungrouped) YTD actuals: takes fetch_actuals_month_wise's raw ERP rows, drops the opening-balance row (accounting_period == "0"), and merges in Monthly Adjustment rows via get_monthly_adjustments (the CUMULATIVE-to-date adjustments helper, not get_adjustments_month_wise's per-period version) - this is the production path find_unmapped_combinations and others call; fetch_actuals_ytd_legacy above is its Testing-server-only sibling without the adjustments merge.
+@guest_api
+def fetch_actuals_ytd(fiscal_year, accounting_period):
+    try:
+        month_wise = fetch_actuals_month_wise(fiscal_year, accounting_period)
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         return {
             "status": "failed",
-            "error": "Could not read demo actuals JSON file"
+            "error": "The ERP system did not respond in time. Please try again in a few minutes."
+        }
+    except Exception:
+        frappe.log_error(
+            title="PeopleSoft API Error",
+            message=frappe.get_traceback()
+        )
+        return {
+            "status": "failed",
+            "error": "Unexpected server error"
         }
 
-    erp_rows = [
-        row for row in all_rows
-        if str(row.get("fiscal_year")) == str(fiscal_year)
-        and int(row.get("accounting_period") or 0) <= int(accounting_period)
-    ]
+    if month_wise.get("status") != "success":
+        return month_wise
 
-    frappe_rows = get_adjustments_month_wise(financial_year_label(fiscal_year), accounting_period)
-    combined_rows = erp_rows + frappe_rows
+    erp_rows = [r for r in month_wise.get("data", []) if str(r.get("accounting_period")) != "0"]
+    frappe_rows = get_monthly_adjustments(format_financial_year(fiscal_year), accounting_period)
+    combined_rows = _scope_rows_to_allowed_units(erp_rows + frappe_rows, fetch_actuals_ytd)
 
     return {
         "status": "success",
@@ -226,7 +215,22 @@ def _fetch_actuals_month_wise_demo(demo_path, fiscal_year, accounting_period):
     }
 
 
+# * ==============================================================  PeopleSoft API - Prod, month-wise  =====================================================================================
+# Thin wrapper around get_actuals_from_erp_month_wise (the one real,
+# cached, single-flight-protected HTTP fetch above) that additionally
+# scopes the result to the calling user's allowed units on a genuine
+# direct HTTP call - internal callers (group_actuals_by_dimension etc.)
+# keep seeing the full, unscoped result and filter it themselves later.
+@guest_api
+def fetch_actuals_month_wise(fiscal_year, accounting_period):
+    result = get_actuals_from_erp_month_wise(fiscal_year, accounting_period)
+    if is_direct_http_call(fetch_actuals_month_wise):
+        return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), fetch_actuals_month_wise)}
+    return result
+
+
 # * ==============================================================  PeopleSoft API - grouped by business dimensions  =====================================================================================
+# erp_actuals' OWN group_actuals_by_dimension - distinct from grouped_actuals.py's function of the same name. This one collapses raw ERP month-wise rows to (business_unit, account/GL-code, deptid, operating_unit, accounting_period), summing posted_total_amt - no Expenses/GL code Mapping join yet (that join happens one level up, in group_actuals_month_wise below, which is what grouped_actuals.py's same-named function is actually built on top of).
 @guest_api
 def group_actuals_by_dimension(fiscal_year, accounting_period):
     try:
@@ -280,6 +284,7 @@ def group_actuals_by_dimension(fiscal_year, accounting_period):
 
 
 # * ==============================================================  PeopleSoft API - GL-code level breakdown  =====================================================================================
+# erp_actuals' OWN group_actuals_by_gl_code - distinct from grouped_actuals.py's function of the same name. Built on top of group_actuals_month_wise (already GL-mapped/Expenses-joined, period-wise) and re-collapses by (unit, deptid, operating_unit, head/sub_head/type_of_expense, sequence_id, GL account), dropping the period dimension - this is the source get_gl_breakup_for_item (actual_format.py) filters by sequence_id to drive the budget-line drill-down modal.
 @guest_api
 def group_actuals_by_gl_code(fiscal_year, accounting_period):
     month_wise = group_actuals_month_wise(fiscal_year, accounting_period)
@@ -337,6 +342,7 @@ def group_actuals_by_gl_code(fiscal_year, accounting_period):
 
 
 # * ==============================================================  PeopleSoft API - grouped actuals (YTD, GL codes collapsed)  =====================================================================================
+# erp_actuals' OWN group_actuals_ytd - distinct from grouped_actuals.py's function of the same name. Also built on group_actuals_month_wise, but collapses all the way to one row per (unit, deptid, operating_unit, head/sub_head/type_of_expense, sequence_id) with the GL account AND accounting_period both dropped - the real actuals half of get_combined_actuals (phase_sheet.py), whose budget-only counterpart is get_budget_ytd_by_sequence.
 @guest_api
 def group_actuals_ytd(fiscal_year, accounting_period):
     month_wise = group_actuals_month_wise(fiscal_year, accounting_period)
@@ -397,6 +403,7 @@ def group_actuals_ytd(fiscal_year, accounting_period):
 
 
 # * ==============================================================  PeopleSoft API - grouped actuals, month-wise (Expenses / GL code Mapping join)  =====================================================================================
+# The real workhorse both group_actuals_by_gl_code and group_actuals_ytd above build on: takes group_actuals_by_dimension's raw per-GL-code rows, maps each GL account through "GL code Mapping" to its parent "Expenses" doc (head/sub_head/type_of_expense/sequence_id), and sums by (period, unit, deptid, operating_unit, account, ...expense fields) - a GL code with no mapping row, or whose mapped parent doesn't resolve to a real Expenses doc, is silently dropped from the output rather than erroring.
 @guest_api
 def group_actuals_month_wise(fiscal_year, accounting_period):
     erp_response = group_actuals_by_dimension(fiscal_year, accounting_period)
@@ -511,6 +518,7 @@ ERP_ACTUALS_EXPORT_METHODS = {
 }
 
 
+# Excel export for the ERP Actuals page: either exports client-supplied `rows` as-is (the table the user is already looking at), or re-fetches via fetch_actuals_ytd/fetch_actuals_month_wise keyed by method_key - the re-fetch path calls fn() as a plain internal Python call, so fn's own is_direct_http_call scoping never fires, meaning this function must (and does) re-scope the rows itself before writing the sheet.
 @frappe.whitelist()
 def export_actuals_excel(fiscal_year, accounting_period, rows=None, method_key=None):
     from openpyxl import Workbook
@@ -610,5 +618,4 @@ def export_actuals_excel(fiscal_year, accounting_period, rows=None, method_key=N
 
 # * ==============================================================  Old names kept for the Desk page (main/page/erp_actuals)  =====================================================================================
 get_actuals_from_erp_prod = fetch_actuals_ytd
-get_actuals_from_erp_month_wise = fetch_actuals_month_wise
 export_erp_actuals_excel = export_actuals_excel
