@@ -25,6 +25,83 @@ def _to_list(value):
 	return None
 
 
+# Resolves the manual (no-theme) Unit/Cost Center/Location Code picks into
+# one list of per-unit filter sets, instead of leaving them as 3 flat,
+# independently-ANDed lists - the exact same over-matching bug class
+# _get_combined_actuals_by_theme's own header comment documents (a
+# flattened AND over separately-filtered unit/cost_center/location sets can
+# match (cost-center, location) combinations that were never picked
+# together, because they belong to a DIFFERENT selected unit). Cost Center
+# and Location Code each link to exactly one Unit (set_id/unit fields
+# respectively - neither doctype links to the other), so "which unit does
+# this cost-center/location actually belong to" is real, queryable data,
+# not something that needs a theme/card to define - unlike cost-center-to-
+# location pairing *within* one unit, which genuinely has no such link and
+# stays an independent AND within that unit's own slice, same as it always
+# has been.
+def _per_unit_filter_sets(units, cost_centers, location_codes, erp_cost_centers, erp_locations):
+	units = units or []
+	if not units:
+		return []
+
+	cc_unit = {}
+	if cost_centers:
+		for cc in frappe.get_all("Cost Center", filters={"name": ["in", cost_centers]}, fields=["name", "set_id", "cost_center"]):
+			cc_unit.setdefault(str(cc.set_id), []).append(cc)
+	loc_unit = {}
+	if location_codes:
+		for loc in frappe.get_all("Location Code", filters={"name": ["in", location_codes]}, fields=["name", "unit", "location_code"]):
+			loc_unit.setdefault(str(loc.unit), []).append(loc)
+
+	# erp_cost_center_value/erp_loc_value (sent by the frontend alongside
+	# the doc-name lists, both derived from the same selection) arrive as
+	# already-flattened ERP codes with no doc-name/unit attached - re-derive
+	# each one's owning unit via the same Cost Center/Location Code records
+	# queried above (by cost_center/location_code field instead of name),
+	# so a doc-name-less "theme-only ERP value" selection still ends up
+	# correctly scoped per unit rather than applied to every unit.
+	erp_cc_unit = {}
+	if erp_cost_centers:
+		for cc in frappe.get_all("Cost Center", filters={"cost_center": ["in", erp_cost_centers]}, fields=["set_id", "cost_center"]):
+			erp_cc_unit.setdefault(str(cc.set_id), []).append(cc.cost_center)
+	erp_loc_unit = {}
+	if erp_locations:
+		for loc in frappe.get_all("Location Code", filters={"location_code": ["in", erp_locations]}, fields=["unit", "location_code"]):
+			erp_loc_unit.setdefault(str(loc.unit), []).append(loc.location_code)
+
+	filter_sets = []
+	for unit in units:
+		unit_ccs = [cc.name for cc in cc_unit.get(str(unit), [])]
+		unit_locs = [loc.name for loc in loc_unit.get(str(unit), [])]
+		unit_erp_ccs = erp_cc_unit.get(str(unit), [])
+		unit_erp_locs = erp_loc_unit.get(str(unit), [])
+
+		# Cost centers/locations WERE selected, but none of them belong to
+		# THIS unit - must drop this unit entirely rather than pass through
+		# an empty string, which get_combined_actuals treats as "match any"
+		# (would silently turn "this unit has none of the selected cost
+		# centers" back into "match every cost center for this unit",
+		# exactly the over-matching bug this function exists to avoid). Same
+		# handling as _get_combined_actuals_by_theme's own identical guard.
+		if cost_centers and not unit_ccs:
+			continue
+		if location_codes and not unit_locs:
+			continue
+		if erp_cost_centers and not unit_erp_ccs:
+			continue
+		if erp_locations and not unit_erp_locs:
+			continue
+
+		filter_sets.append({
+			"unit": unit,
+			"cost_center": _safe_join(unit_ccs) if cost_centers else None,
+			"location_code": _safe_join(unit_locs) if location_codes else None,
+			"erp_cost_center_value": _safe_join(unit_erp_ccs) if erp_cost_centers else None,
+			"erp_loc_value": _safe_join(unit_erp_locs) if erp_locations else None,
+		})
+	return filter_sets
+
+
 
 
 # Operating Unit ("theme") cards can resolve to several (unit, cost-center,
@@ -162,10 +239,7 @@ def get_combined_actuals_report(
     # (see _get_combined_actuals_by_theme) instead of independently AND-ing
     # the flattened unit/cost_center/location_code/erp_* params below, which
     # can cross-match (cost-center, location) combinations the card never
-    # defined. Falls through to the plain flattened-filter path when no
-    # theme was selected (manual Unit/Cost Center/Location Code picks have
-    # no "correct pairing" to preserve - independent-set filtering is the
-    # right semantics there).
+    # defined.
     theme_name_list = _to_list(theme_names)
     if theme_name_list:
         return _get_combined_actuals_by_theme(
@@ -173,16 +247,47 @@ def get_combined_actuals_report(
             scope_to_allowed_units=is_direct_http_call(get_combined_actuals_report),
         )
 
-    return get_combined_actuals(
-        financial_year=financial_year,
-        month=month,
-        unit=unit,
-        cost_center=cost_center,
-        location_code=location_code,
-        erp_loc_value=erp_loc_value,
-        erp_cost_center_value=erp_cost_center_value,
-        grouped_actuals_data=grouped_actuals_data,
+    # No theme selected (manual Unit/Cost Center/Location Code picks): fan
+    # out one get_combined_actuals call per selected unit, each scoped to
+    # only THAT unit's own cost-centers/locations (resolved via
+    # _per_unit_filter_sets, same over-matching concern as the theme path
+    # above - a single flattened call here would match, e.g., unit A's cost
+    # center against unit B's location code, neither of which the user ever
+    # picked together). With exactly one unit selected (or none - an
+    # unscoped admin view) there's nothing to cross-match, so this still
+    # resolves to a single call, identical to the old behavior in that
+    # common case.
+    units = _to_list(unit)
+    if not units:
+        return get_combined_actuals(
+            financial_year=financial_year,
+            month=month,
+            unit=unit,
+            cost_center=cost_center,
+            location_code=location_code,
+            erp_loc_value=erp_loc_value,
+            erp_cost_center_value=erp_cost_center_value,
+            grouped_actuals_data=grouped_actuals_data,
+        )
+
+    filter_sets = _per_unit_filter_sets(
+        units, _to_list(cost_center), _to_list(location_code),
+        _to_list(erp_cost_center_value), _to_list(erp_loc_value),
     )
+    trees = [
+        get_combined_actuals(
+            financial_year=financial_year,
+            month=month,
+            unit=fs["unit"],
+            cost_center=fs["cost_center"],
+            location_code=fs["location_code"],
+            erp_loc_value=fs["erp_loc_value"],
+            erp_cost_center_value=fs["erp_cost_center_value"],
+            grouped_actuals_data=grouped_actuals_data,
+        )
+        for fs in filter_sets
+    ]
+    return consolidate_actuals(trees, sort_by_sequence=True) if trees else []
 
 
 def _theme_unit_cc_loc_triples(theme_names, scope_to_allowed_units):
@@ -301,17 +406,25 @@ def get_actual_gl_breakup(
 			if (d.get("business_unit"), d.get("deptid"), d.get("operating_unit")) in valid_triples
 		]
 	else:
+		# No theme: same per-unit resolution get_combined_actuals_report uses
+		# (_per_unit_filter_sets) rather than 3 independent `in` filters,
+		# which would otherwise match unit A's cost center against unit B's
+		# location code - a row whose (unit, cc, loc) triple was never
+		# actually picked together.
 		units = _to_list(unit)
 		if units:
-			data = [d for d in data if d.get("business_unit") in units]
-
-		ccs = _to_list(erp_cost_center_value)
-		if ccs:
-			data = [d for d in data if d.get("deptid") in ccs]
-
-		locs = _to_list(erp_loc_value)
-		if locs:
-			data = [d for d in data if d.get("operating_unit") in locs]
+			filter_sets = _per_unit_filter_sets(units, None, None, _to_list(erp_cost_center_value), _to_list(erp_loc_value))
+			valid_triples = set()
+			for fs in filter_sets:
+				ccs = _to_list(fs["erp_cost_center_value"]) or [None]
+				locs = _to_list(fs["erp_loc_value"]) or [None]
+				for cc in ccs:
+					for loc in locs:
+						valid_triples.add((fs["unit"], cc, loc))
+			data = [
+				d for d in data
+				if (d.get("business_unit"), d.get("deptid") or None, d.get("operating_unit") or None) in valid_triples
+			]
 
 	merged = {}
 	for record in data:
