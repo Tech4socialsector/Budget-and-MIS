@@ -551,6 +551,30 @@ export const GUIDE_SECTIONS = [
     `,
   },
   {
+    id: 'trial-balance-check',
+    title: 'Trial Balance Check',
+    icon: 'scale',
+    moduleName: 'trial_balance_check',
+    summary: 'Unit-wise trial balance, head and sub-head wise. (Admin only)',
+    html: `
+      <p><strong>This tile only appears for System Manager accounts</strong> - if you don't see it on your Home page, that's expected; it's not something your role has access to.</p>
+      <p>Trial Balance Check pulls a unit-wise trial balance straight from the ERP for the period you choose, broken down the same way every other report categorizes spending - by main head (Capital Expenses, Operating Expenses) and sub-head (Program, Partner, People, Travel, Student Support, Other Operating Expenses) - rather than as a flat list of GL codes.</p>
+
+      <h3>How to use it</h3>
+      <ul>
+        <li>${icon('calendar')}Set the <strong>Financial Year</strong> and <strong>YTD Month</strong>, then click <strong>Fetch</strong>.</li>
+        <li>${icon('clock')}Like ERP Actuals, this pulls live data from the ERP, so it can take one to three minutes to come back.</li>
+      </ul>
+
+      <h3>Reading the table</h3>
+      <p>Each row is one Unit, with a <strong>TOTAL</strong> row at the bottom summing every unit. Capital Expenses always shows as its own column; Operating Expenses starts expanded to show its own six sub-head columns (Program, Partner, People, Travel, Student Support, Other Operating Expenses) - click its header to collapse it back down to one column, or expand it again.</p>
+      <ul>
+        <li>${icon('search')}Click any <strong>main-head or sub-head column header</strong> (or <strong>Total</strong>) to drill into that category's breakdown across every unit combined.</li>
+        <li>${icon('mouse-pointer-click')}Click anywhere on a <strong>unit's row</strong> (including the TOTAL row) to drill into that unit's own full breakdown instead - head, then sub-head, then the individual expense type, then the underlying GL code.</li>
+      </ul>
+    `,
+  },
+  {
     id: 'settings-master-data',
     title: 'Settings & Master Data',
     icon: 'database',

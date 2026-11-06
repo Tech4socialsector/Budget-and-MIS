@@ -163,6 +163,7 @@ import {
   flattenBreakup,
   buildDrilldownNode,
 } from '@/data/monthlyMisData'
+import { getCachedMonthlyMisPage, setCachedMonthlyMisPage } from '@/data/monthlyMisCache'
 
 // Single source of table groups for get_monthly_mis_break_up - covers both
 // the Monthly MIS Capex & Opex table (previously its own get_unit_wise_plan
@@ -323,10 +324,42 @@ const drilldownTree = ref({})
 
 let requestGen = 0
 
+function applyPageResult(result) {
+  const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
+  const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
+  curData.value = flattenBreakup(curDict, 'Monthly MIS Capex & Opex')
+  prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
+  breakupData.value = curDict
+
+  const drillDict = result?.drilldown && typeof result.drilldown === 'object' ? result.drilldown : {}
+  const drillEntries = drillDict['Monthly MIS Capex & Opex'] || []
+  const byLabel = {}
+  for (const node of drillEntries) {
+    if (node?.label) byLabel[node.label] = node
+  }
+  drilldownTree.value = byLabel
+}
+
 async function loadAll(force) {
   const fy = filters.financialYear
   const month = filters.month
   if (!fy || !month) return
+
+  // Navigating away and back to this page (no <KeepAlive> in this app, see
+  // monthlyMisCache.js's own header comment) always re-runs onMounted and
+  // re-triggers this exact same fy/month - skip the network round trip
+  // entirely when that combo was already fetched recently, rather than
+  // re-hitting the backend (which would likely still be a fast Redis cache
+  // hit there too, but still a real HTTP request + JSON payload every
+  // time). `force` (Fetch/Retry buttons) always bypasses this.
+  if (!force) {
+    const cached = getCachedMonthlyMisPage(fy, month)
+    if (cached) {
+      applyPageResult(cached)
+      return
+    }
+  }
+
   const gen = ++requestGen
   loading.value = true
   error.value = null
@@ -344,19 +377,8 @@ async function loadAll(force) {
       drilldown_table_filter: 'Monthly MIS Capex & Opex',
     })
     if (gen !== requestGen) return
-    const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
-    const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
-    curData.value = flattenBreakup(curDict, 'Monthly MIS Capex & Opex')
-    prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
-    breakupData.value = curDict
-
-    const drillDict = result?.drilldown && typeof result.drilldown === 'object' ? result.drilldown : {}
-    const drillEntries = drillDict['Monthly MIS Capex & Opex'] || []
-    const byLabel = {}
-    for (const node of drillEntries) {
-      if (node?.label) byLabel[node.label] = node
-    }
-    drilldownTree.value = byLabel
+    applyPageResult(result)
+    setCachedMonthlyMisPage(fy, month, result)
   } catch (e) {
     if (gen !== requestGen) return
     error.value = e

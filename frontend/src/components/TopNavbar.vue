@@ -81,10 +81,10 @@
           <span class="text-sm font-medium">{{ botName }}</span>
         </button>
       </AppTooltip>
-      <!-- Reload/Profile Settings/Go to Desk/Logout all live under this one
-      avatar now (same set AppSidebar.vue's own footer dropdown offers) -
-      the icon-button row next to it is reserved for Search and the theme
-      toggle, not account actions. -->
+      <!-- Reload/Clear Cache/Profile Settings/Go to Desk/Logout all live
+      under this one avatar now (same set AppSidebar.vue's own footer
+      dropdown offers) - the icon-button row next to it is reserved for
+      Search and the theme toggle, not account actions. -->
       <Dropdown :options="profileMenuOptions" placement="right">
         <template #default="{ open }">
           <AppTooltip :text="session.full_name || session.user" placement="bottom">
@@ -260,6 +260,11 @@ const profileMenuOptions = computed(() => [
   {
     label: 'Reload',
     icon: 'lucide-refresh-cw',
+    onClick: () => window.location.reload(),
+  },
+  {
+    label: 'Clear Cache',
+    icon: 'lucide-trash-2',
     onClick: clearFrontendCache,
   },
   {

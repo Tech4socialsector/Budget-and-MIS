@@ -277,12 +277,17 @@ import { findItemsByName, findItemsExcluding, nodeBudget, treeTotal } from '@/da
 
 onMounted(() => setPageTitle('Dashboard'))
 
+// Order/labels per the business's own request: Budget vs Actuals first
+// (also the default landing tab, see activeTab below), then Work Plan,
+// then Budget Overview (this page's original/default dashboard view) last -
+// internal `key` values are left unchanged so the rest of this file's
+// activeTab-keyed logic (loaders, watchers) doesn't need to change.
 const TABS = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'workplan', label: 'Work Plan Views' },
-  { key: 'babreakdown', label: 'Budget vs Actuals Breakdown' },
+  { key: 'babreakdown', label: 'Budget vs Actuals' },
+  { key: 'workplan', label: 'Work Plan' },
+  { key: 'dashboard', label: 'Budget Overview' },
 ]
-const activeTab = ref('dashboard')
+const activeTab = ref('babreakdown')
 
 const showFullNumbers = ref(false)
 function formatAmount(n) {
@@ -1090,9 +1095,38 @@ function renderWorkPlanCharts() {
 }
 
 // --- Tab switching / reactivity -----------------------------------------
-watch(activeTab, (tab) => {
-  if (tab === 'dashboard' && !unitWiseRaw.value.length) loadUnitWise()
-  if (tab === 'workplan') loadPieChart()
+// v-if/v-else-if on activeTab (template above) fully unmounts a tab's
+// <canvas> elements when it's hidden and mounts fresh, empty ones when
+// it's shown again - Chart.js instances from before the switch are torn
+// down correctly (each render*Chart function destroys its own previous
+// instance), but nothing previously re-invoked those render functions on
+// return to an already-loaded tab, since loadUnitWise/loadPieChart both
+// guard against re-fetching data that's already there
+// (!unitWiseRaw.value.length / pieChartLoaded) - leaving the newly
+// recreated canvases blank. The `else` branches here cover exactly that
+// case: data already loaded, just re-render against the new canvas refs
+// once Vue has actually mounted them (nextTick), same unconditional
+// multi-render approach the showFullNumbers watcher below already uses.
+watch(activeTab, async (tab) => {
+  if (tab === 'dashboard') {
+    if (!unitWiseRaw.value.length) {
+      loadUnitWise()
+    } else {
+      await nextTick()
+      renderShareChart()
+      renderQuarterlyTrendChart()
+      renderMonthlyBudgetChart()
+      renderMonthlyByUnitChart()
+    }
+  }
+  if (tab === 'workplan') {
+    if (!pieChartLoaded) {
+      loadPieChart()
+    } else {
+      await nextTick()
+      renderWorkPlanCharts()
+    }
+  }
 })
 watch(() => filters.financialYear, () => {
   if (activeTab.value === 'dashboard') { loadUnitWise(); loadQuarterlyTrend() }

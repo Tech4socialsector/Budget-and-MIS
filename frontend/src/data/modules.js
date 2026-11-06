@@ -6,6 +6,22 @@ import { useCall } from 'frappe-ui'
 // `immediate: false` - this module loads before login (imported by router.js),
 // so it must not fetch until the caller knows there's an authenticated session.
 //
+// Deliberately NOT given a cacheKey: useCall persists a cacheKey'd response
+// to IndexedDB (frappe-ui's idbStore) and shows that stale value immediately
+// on every subsequent load/reload while the real fetch is still in flight -
+// get_app_modules' own result is role-dependent (App Module Setting.
+// restrict_by_role filtering, api/modules.py), so a cached response from a
+// user's PREVIOUS role would render the wrong module icons/tiles right after
+// a role change + refresh, until the fresh fetch happened to resolve and
+// overwrite it. Always fetching fresh avoids this entirely - this call is
+// cheap (a handful of small doctype records) and already only fires once per
+// session via router.js's own ensureModulesLoaded guard (plus its periodic
+// revalidation on tab visibility change), so there's no real cost to caching
+// here in the first place. A browser that already has a stale app-modules
+// IndexedDB entry from before this change just has inert, never-read dead
+// data sitting there now - nothing in this file looks it up anymore, so it
+// causes no further harm.
+//
 // Shape returned by budget_mis.api.modules.get_app_modules:
 // sidebar modules: { name, label, icon, is_sidebar_module: true, doctypes: [{ doctype_name, label, icon, route }] }
 // direct modules:  { name, label, icon, is_sidebar_module: false, direct: { type: 'Page'|'DocType'|'URL', ... } }
@@ -13,7 +29,6 @@ export const modulesResource = useCall({
   url: '/api/v2/method/budget_mis.api.modules.get_app_modules',
   method: 'GET',
   immediate: false,
-  cacheKey: 'annual-budget-app-modules',
 })
 
 export function isSidebarModule(mod) {

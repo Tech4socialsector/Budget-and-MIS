@@ -25,6 +25,17 @@ onMounted(async () => {
   const { Workbox } = await import('workbox-window')
   const wb = new Workbox('/budget-mis/sw.js', { scope: '/budget-mis/' })
 
+  // A page already on its way out (any window.location.reload()/navigation
+  // elsewhere in the app - the Reload/Clear Cache menu entries, the bfcache-
+  // restore guard in main.js, etc) must not ALSO get this handler's own
+  // reload once the new service worker takes control a moment later - the
+  // page is reloading either way, so a second one just double-reloads for
+  // no reason. beforeunload fires for every kind of unload (a plain
+  // reload() included), so this one listener covers every call site without
+  // each of them needing its own awareness of the service worker.
+  let unloading = false
+  window.addEventListener('beforeunload', () => { unloading = true })
+
   // Auto-update: a new build takes over and reloads the page on its own,
   // rather than waiting on a "Refresh" toast the user has to notice and
   // click. That toast previously left a stale bundle (old JS/CSS) being
@@ -39,7 +50,10 @@ onMounted(async () => {
     autoUpdated = true
     if (!controllingListenerAdded) {
       controllingListenerAdded = true
-      wb.addEventListener('controlling', () => window.location.reload())
+      wb.addEventListener('controlling', () => {
+        if (unloading) return
+        window.location.reload()
+      })
     }
     updateServiceWorker.value()
   }

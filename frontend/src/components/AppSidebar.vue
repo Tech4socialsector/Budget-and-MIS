@@ -342,7 +342,7 @@ const sections = computed(() => {
   }]
 })
 
-// Same four items TopNavbar.vue's own profile dropdown offers (see its
+// Same five items TopNavbar.vue's own profile dropdown offers (see its
 // profileMenuOptions) - kept in sync so the account menu behaves
 // identically whether it's reached from here (a module open) or there
 // (no module open).
@@ -354,6 +354,11 @@ const profileMenuOptions = computed(() => [
   {
     label: 'Reload',
     icon: 'lucide-refresh-cw',
+    onClick: () => window.location.reload(),
+  },
+  {
+    label: 'Clear Cache',
+    icon: 'lucide-trash-2',
     onClick: clearFrontendCache,
   },
   {
