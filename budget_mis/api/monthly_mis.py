@@ -358,12 +358,28 @@ def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, dri
     # sense, but each individual fetch actually completes within its own
     # normal (cached-hit-fast, cold-cache-up-to-120s) time instead of both
     # starving each other into timing out entirely.
-    current_actuals_data = group_actuals_ytd(
+    current_actuals_result = group_actuals_ytd(
         fiscal_year=current_formatted.get("fiscal_year"), accounting_period=current_formatted.get("accounting_period")
-    ).get("data", [])
-    previous_actuals_data = group_actuals_ytd(
+    )
+    previous_actuals_result = group_actuals_ytd(
         fiscal_year=previous_formatted.get("fiscal_year"), accounting_period=previous_formatted.get("accounting_period")
-    ).get("data", [])
+    )
+
+    # A failed/timed-out ERP fetch used to be silently treated as "zero
+    # actuals" here (plain .get("data", [])), since group_actuals_ytd
+    # degrades a failed upstream status into a success-shaped {"data": []}
+    # by the time it gets this far - the whole break_up/drilldown tree would
+    # then build on empty actuals with no error raised anywhere, showing the
+    # user a page that looks correct but has no actuals in it. Raise
+    # instead, so this surfaces as a real, retryable error on the page
+    # (MonthlyMis.vue's own existing error banner/Retry button) rather than
+    # silently wrong numbers.
+    for result in (current_actuals_result, previous_actuals_result):
+        if result.get("status") not in ("success", None):
+            frappe.throw(result.get("error") or "Failed to fetch actuals data from the ERP. Please try again.")
+
+    current_actuals_data = current_actuals_result.get("data", [])
+    previous_actuals_data = previous_actuals_result.get("data", [])
 
     scope = is_direct_http_call(get_monthly_mis_page_data)
     current_break_up = get_monthly_mis_break_up(

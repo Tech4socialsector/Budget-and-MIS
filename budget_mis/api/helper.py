@@ -69,16 +69,34 @@ def format_financial_year(year):
 # never stuck waiting on a stale lock past this grace period). Everyone
 # else: polls the real cache key (not the lock) every poll_interval_sec,
 # capped at max_wait_sec - if the lock holder never finishes in time (e.g.
-# its own worker died), the last waiter gives up waiting and runs the fetch
-# itself exactly once, rather than returning an error for a fetch that may
-# well have actually succeeded moments later.
-def cache_with_single_flight(cache_key, fetch_fn, is_cacheable, expires_in_sec, max_wait_sec=100, poll_interval_sec=0.5):
+# its own worker died), a waiter whose own wait window elapses tries to
+# become the new lock holder itself (via the same nx=True acquire) rather
+# than unconditionally calling fetch_fn() - if it succeeds, this is exactly
+# the lock-holder path above, just entered late; if it loses that race (a
+# DIFFERENT timed-out waiter grabbed the lock a moment earlier), it polls
+# the cache key once more for that fetch's result instead of also firing
+# its own redundant PeopleSoft call.
+#
+# LOCK_TTL_SEC must comfortably exceed the slowest real fetch this guards
+# (the PeopleSoft HTTP call itself uses requests.get(timeout=90) -
+# api/erp_actuals.py), not just the typical case - a lock held for longer
+# than its own TTL expires out from under its holder while the fetch is
+# still genuinely running, letting a second caller acquire the "freed" lock
+# and fire a second concurrent PeopleSoft call for the same period. This
+# was a real bug (TTL was 30s against a fetch documented as taking up to
+# 90-120s), the likely cause of Monthly MIS's intermittent failures under
+# load - two concurrent 90s+ calls to the same PeopleSoft endpoint are far
+# more likely to genuinely time out or get rejected than one.
+LOCK_TTL_SEC = 150
+
+
+def cache_with_single_flight(cache_key, fetch_fn, is_cacheable, expires_in_sec, max_wait_sec=160, poll_interval_sec=0.5):
     cached = frappe.cache().get_value(cache_key)
     if cached is not None:
         return cached
 
     lock_key = frappe.cache().make_key(f"{cache_key}:lock")
-    got_lock = frappe.cache().set(lock_key, "1", nx=True, ex=30)
+    got_lock = frappe.cache().set(lock_key, "1", nx=True, ex=LOCK_TTL_SEC)
 
     if got_lock:
         try:
@@ -97,18 +115,34 @@ def cache_with_single_flight(cache_key, fetch_fn, is_cacheable, expires_in_sec, 
         if cached is not None:
             return cached
 
-    # The lock holder never finished (crashed worker, or genuinely still
-    # running past max_wait_sec) - run the fetch ourselves rather than
-    # leaving this caller with nothing. Doesn't re-acquire the lock: that
-    # lock's own 30s TTL has already elapsed by the time max_wait_sec (100s
-    # default) is reached, so a fresh caller arriving right now would
-    # already be free to acquire it and race this fallback fetch - an
-    # acceptable, rare edge case (lock holder genuinely stuck), not the
-    # normal path.
-    result = fetch_fn()
-    if is_cacheable(result):
-        frappe.cache().set_value(cache_key, result, expires_in_sec=expires_in_sec)
-    return result
+    # The lock holder never finished within max_wait_sec (comfortably
+    # longer than LOCK_TTL_SEC, so this is a genuinely stuck/crashed
+    # worker, not just a slow-but-healthy fetch) - try to become the new
+    # lock holder via the same atomic nx=True acquire used above, so at
+    # most one of however many waiters hit this point simultaneously
+    # actually fires a new fetch.
+    if frappe.cache().set(lock_key, "1", nx=True, ex=LOCK_TTL_SEC):
+        try:
+            result = fetch_fn()
+            if is_cacheable(result):
+                frappe.cache().set_value(cache_key, result, expires_in_sec=expires_in_sec)
+            return result
+        finally:
+            frappe.cache().delete(lock_key)
+
+    # Lost the race for the fallback lock too - someone else (another
+    # timed-out waiter) is already retrying; give their fetch one more
+    # short window before giving up and returning whatever they produce
+    # (or nothing, if they also fail - the caller's own is_cacheable/status
+    # checks are what ultimately decide how that's surfaced).
+    waited = 0.0
+    while waited < poll_interval_sec * 20:
+        time.sleep(poll_interval_sec)
+        waited += poll_interval_sec
+        cached = frappe.cache().get_value(cache_key)
+        if cached is not None:
+            return cached
+    return fetch_fn()
 
 
 # Converts a month name + financial year into an accounting_period number (April=1 ... March=12) and the fiscal year start.
