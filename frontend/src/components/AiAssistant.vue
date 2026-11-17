@@ -245,6 +245,56 @@ back to the badge/bubble tint without needing a second accent color. */
   color: #93c5fd;
 }
 
+/* A reply with a budget/actuals breakdown (renderFormatted's own pipe-table
+parsing) gets a real table instead of raw "| a | b |" text - compact and
+chat-bubble-scaled (no sticky header, no min-width scroll gutter the way
+this app's full-page report tables use via .fc-table), since this only
+ever needs to fit the AI panel's own width, not a whole page. A light card
+surface + border distinguishes it from the bubble's own flat tint so column
+edges stay legible on either light or dark mode. */
+.ai-assistant-table-wrap {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(21, 42, 67, 0.12);
+}
+:root.dark .ai-assistant-table-wrap {
+  border-color: rgba(226, 232, 240, 0.15);
+}
+.ai-assistant-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+:root.dark .ai-assistant-table {
+  background-color: rgba(15, 23, 42, 0.4);
+}
+.ai-assistant-table-th {
+  padding: 0.375rem 0.625rem;
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+  background-color: theme('colors.fc-blue-mid');
+  color: #fff;
+}
+.ai-assistant-table-th:first-child {
+  text-align: left;
+}
+.ai-assistant-table-td {
+  padding: 0.375rem 0.625rem;
+  text-align: right;
+  white-space: nowrap;
+  border-top: 1px solid rgba(21, 42, 67, 0.08);
+}
+:root.dark .ai-assistant-table-td {
+  border-top-color: rgba(226, 232, 240, 0.1);
+}
+.ai-assistant-table-td:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
 /* Same tint as .ai-assistant-bubble-bot, so the "thinking" placeholder
 reads as a preview of the reply bubble that's about to land in its place,
 not a visually unrelated gray box. */
@@ -573,19 +623,22 @@ const appTitle = computed(() => brandingResource.data?.app_title || 'Budget & MI
 const userInitial = computed(() => (session.full_name || session.user || '?').charAt(0).toUpperCase())
 
 // The model's replies routinely use a handful of real markdown features
-// (**bold**, "### " headings, "* "/"- " bullet lists - e.g. a budget
-// breakdown reply), but this chat only ever rendered plain text wrapped in
-// whitespace-pre-wrap, so a heading/list showed its literal "### "/"* "
+// (**bold**, "### " headings, "* "/"- " bullet lists, and pipe tables for
+// anything with several rows/columns - e.g. a budget breakdown reply), but
+// this chat only ever rendered plain text wrapped in whitespace-pre-wrap,
+// so a heading/list/table showed its literal "### "/"* "/"| a | b |"
 // markers instead of being formatted - whitespace-pre-wrap only preserves
-// raw text layout, it can't turn a line into a real <h3> or <li>. Rather
-// than pull in a full markdown library for the handful of block types the
-// assistant's own system prompt actually asks it to use, this is a small
-// line-based renderer: escapes HTML first (text can never inject markup),
-// then walks lines turning consecutive "* "/"- " lines into one <ul>,
-// "### " lines into a heading, and everything else into a paragraph -
-// **bold** is applied last, within already-escaped text. No whitespace
-// -pre-wrap is needed once content is real block-level HTML (see the
-// template's own class list for this element).
+// raw text layout, it can't turn a line into a real <h3>/<li>/<table>.
+// Rather than pull in a full markdown library for the handful of block
+// types the assistant's own system prompt actually asks it to use, this is
+// a small line-based renderer: escapes HTML first (text can never inject
+// markup), then walks lines turning consecutive "* "/"- " lines into one
+// <ul>, "### " lines into a heading, a GFM-style pipe table (a header row,
+// a "|---|---|" separator row, then data rows) into a real <table>, and
+// everything else into a paragraph - **bold** is applied last, within
+// already-escaped text. No whitespace-pre-wrap is needed once content is
+// real block-level HTML (see the template's own class list for this
+// element).
 function renderFormatted(text) {
   const escapeHtml = (s) =>
     String(s ?? '')
@@ -593,6 +646,17 @@ function renderFormatted(text) {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
   const inline = (s) => escapeHtml(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+
+  // A pipe-table row like "| a | b |" or "a | b" - splits on unescaped `|`,
+  // trims each cell, and drops the leading/trailing empty cells a
+  // `|`-bounded row produces.
+  const splitRow = (line) => {
+    const cells = line.split('|').map((c) => c.trim())
+    if (cells.length && cells[0] === '') cells.shift()
+    if (cells.length && cells[cells.length - 1] === '') cells.pop()
+    return cells
+  }
+  const isSeparatorRow = (line) => /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$/.test(line)
 
   const lines = String(text ?? '').trim().split('\n')
   const html = []
@@ -603,10 +667,30 @@ function renderFormatted(text) {
     listBuffer = []
   }
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i].trim()
     const bulletMatch = line.match(/^[*-]\s+(.*)$/)
     const headingMatch = line.match(/^#{1,6}\s+(.*)$/)
+    const nextLine = (lines[i + 1] || '').trim()
+
+    if (line.includes('|') && isSeparatorRow(nextLine)) {
+      flushList()
+      const headerCells = splitRow(line)
+      const bodyRows = []
+      i += 2
+      while (i < lines.length && lines[i].trim().includes('|')) {
+        bodyRows.push(splitRow(lines[i].trim()))
+        i += 1
+      }
+      const thead = `<tr>${headerCells.map((c) => `<th class="ai-assistant-table-th">${inline(c)}</th>`).join('')}</tr>`
+      const tbody = bodyRows
+        .map((row) => `<tr>${row.map((c) => `<td class="ai-assistant-table-td">${inline(c)}</td>`).join('')}</tr>`)
+        .join('')
+      html.push(`<div class="ai-assistant-table-wrap"><table class="ai-assistant-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`)
+      continue
+    }
+
     if (bulletMatch) {
       listBuffer.push(bulletMatch[1])
     } else if (headingMatch) {
@@ -618,6 +702,7 @@ function renderFormatted(text) {
     } else {
       flushList()
     }
+    i += 1
   }
   flushList()
   return html.join('')

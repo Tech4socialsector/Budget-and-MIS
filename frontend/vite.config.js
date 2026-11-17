@@ -37,6 +37,16 @@ export default defineConfig({
         // a user never sees stale budget data while offline; they'll just
         // get a clear network-error state from the app itself instead.
         globPatterns: ['**/*.{js,css,png,svg,ico}'],
+        // The only PNGs Vite ever emits into the hashed assets/ folder are
+        // src/data/userGuideContent.js's own User Guide screenshots (27
+        // files, ~5MB) - every real app-shell icon (favicon.png,
+        // app-icon.png, app-logo-light/dark.png) is served un-hashed from
+        // the build root via public/, not assets/, so this glob can't
+        // accidentally exclude one of those. These screenshots are only
+        // ever viewed on-demand inside the in-app User Guide page, not
+        // needed for the offline app shell, so there's no reason to force
+        // every user to download them upfront on first load.
+        globIgnores: ['assets/*.png'],
         // Neither 'index.html' nor '/budget-mis' can ever be
         // glob-precached: Frappe serves a Jinja-templated
         // budget-mis.html (with a per-request CSRF token) for every

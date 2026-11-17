@@ -62,6 +62,9 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
         p = fy.split("-")
         return f"{int(p[0])-1}-{str(int(p[1])-1).zfill(2)}"
 
+    def is_covid(lbl):
+        return "COVID" in (lbl or "").upper()
+
     def to_cr(paisa):
         if not paisa: return None
         if show_full_numbers:
@@ -98,23 +101,76 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
     # get_unit_wise_plan and get_monthly_mis_break_up below; fetching them
     # once here and passing them through avoids a second ~15s live ERP round
     # trip for data that's identical for the same financial_year/month.
+    #
+    # The previous-year fetch (for prev_raw) is genuinely different data -
+    # last year's YTD actuals - so it can't be shared with the above, but it
+    # IS fully independent of it: nothing about fetching current-year
+    # actuals depends on last year's, or vice versa. Each one is a real,
+    # uncached-on-a-cold-key PeopleSoft HTTP round trip (12-32s observed via
+    # ERP Actuals Call Log), and running them sequentially (as this used to)
+    # means every export pays the sum of both. They're fetched concurrently
+    # instead, each in its own thread with its own frappe.init/connect (a
+    # thread does not inherit the request's frappe.local - Frappe's db/cache
+    # handles are thread-local, not shared - so each worker here needs its
+    # own site connection, same as any other genuinely multi-threaded Frappe
+    # code), cutting the wait to roughly the SLOWER of the two instead of
+    # their sum.
     from budget_mis.api.erp_actuals import group_actuals_ytd
     from budget_mis.api.helper import get_accounting_period_from_month as _acct_period
-    _period = _acct_period(month, financial_year)
-    try:
-        shared_grouped_actuals = group_actuals_ytd(
-            fiscal_year=_period.get("fiscal_year"),
-            accounting_period=_period.get("accounting_period"),
-        ).get("data", [])
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        frappe.log_error("ERP Timeout", "Request timed out")
-        frappe.throw("The ERP system did not respond in time. Please try again in a few minutes.")
+    import threading
+
+    _cur_period = _acct_period(month, financial_year)
+    _prev_period = _acct_period(month, PREV_FY)
+    _site = frappe.local.site
+    _fetch_results, _fetch_errors = {}, {}
+
+    def _fetch_grouped_actuals(key, fiscal_year_arg, accounting_period_arg):
+        frappe.init(site=_site)
+        frappe.connect()
+        try:
+            _fetch_results[key] = group_actuals_ytd(
+                fiscal_year=fiscal_year_arg,
+                accounting_period=accounting_period_arg,
+            ).get("data", [])
+            # group_actuals_ytd's own ERP Actuals Call Log write (and
+            # anything else transactional it touches, e.g. a fresh cache
+            # miss's log_call insert) happens on THIS thread's own DB
+            # connection - unlike a normal request, nothing auto-commits
+            # it when the thread exits, so it must be committed explicitly
+            # here or it's silently rolled back by frappe.destroy() below.
+            frappe.db.commit()
+        except Exception as e:  # noqa: BLE001 - re-raised on the main thread below
+            _fetch_errors[key] = e
+        finally:
+            frappe.destroy()
+
+    _threads = [
+        threading.Thread(target=_fetch_grouped_actuals, args=(
+            "cur", _cur_period.get("fiscal_year"), _cur_period.get("accounting_period"))),
+        threading.Thread(target=_fetch_grouped_actuals, args=(
+            "prev", _prev_period.get("fiscal_year"), _prev_period.get("accounting_period"))),
+    ]
+    for t in _threads:
+        t.start()
+    for t in _threads:
+        t.join()
+
+    if "cur" in _fetch_errors or "prev" in _fetch_errors:
+        err = _fetch_errors.get("cur") or _fetch_errors.get("prev")
+        if isinstance(err, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)):
+            frappe.log_error("ERP Timeout", "Request timed out")
+            frappe.throw("The ERP system did not respond in time. Please try again in a few minutes.")
+        raise err
+
+    shared_grouped_actuals = _fetch_results["cur"]
+    prev_grouped_actuals = _fetch_results["prev"]
 
     cur_raw  = get_unit_wise_plan(financial_year, month,
                                    table_name_filter="Monthly MIS Capex & Opex",
                                    _grouped_actuals_data=shared_grouped_actuals)
     prev_raw = get_unit_wise_plan(PREV_FY, month,
-                                   table_name_filter="Monthly MIS Capex & Opex")
+                                   table_name_filter="Monthly MIS Capex & Opex",
+                                   _grouped_actuals_data=prev_grouped_actuals)
     BREAKUP_LABELS = (
         "Education - District Institutes,Education- Azim Premji Schools,"
         "Azim Premji University (Bangalore Campus),"
@@ -136,7 +192,8 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
             lbl = (row.get("label") or "").strip()
             if not lbl or row.get("sequence_id") == 9999: continue
             r = dict(ob=0, oa=0, cb=0, ca=0, vb=0, va=0, tb=0, ta=0,
-                     is_sub=int(row.get("is_this_sub_item") or 0), sub_heads=[])
+                     is_sub=int(row.get("is_this_sub_item") or 0),
+                     hide_number=int(row.get("hide_number") or 0), sub_heads=[])
             for sec in sorted(row.get("actuals") or [],
                                key=lambda x: x.get("sequence_id", 0)):
                 nm = (sec.get("name") or "").replace("  ", " ").strip().upper()
@@ -361,29 +418,75 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
         row = section_title(row, title)
         row = two_row_hdr(row, "Unit", CUR_LBL, PREV_LBL)
         tCB = tCA = tPB = tPA = 0.0
+        cv_cb = cv_ca = cv_pb = cv_pa = 0.0
         for lbl in order:
             cm = cur_map.get(lbl, {}); pm = prev_map.get(lbl, {})
             is_sub = cm.get("is_sub",0) or pm.get("is_sub",0)
+            # "Hide number?" on this combination's own Combination of unit
+            # settings row - matches ExpenseTable.vue/buildExpTotals'
+            # exact behavior: this row's own cells render blank (not a
+            # real 0, which would look like a genuine zero) and it's
+            # excluded from Total/Grand Total, but the row's label still
+            # shows - same as the live page, NOT the same as the
+            # Operating Expenses Breakdown cards, which never apply this
+            # flag at all (see write_unit_card/card_rows).
+            hide_number = cm.get("hide_number", 0) or pm.get("hide_number", 0)
             bg  = C_SUBROW if is_sub else C_WHITE
             cb  = to_cr(cm.get(bk,0)); ca = to_cr(cm.get(ak,0))
             pb  = to_cr(pm.get(bk,0)); pa = to_cr(pm.get(ak,0))
+            # Covid-19 is pulled out of the main list entirely (matching
+            # _build_pptx's main_slide()) and held aside for its own row
+            # below - "Total" is every OTHER top-level unit, "Grand Total"
+            # is Total + Covid-19, same as the reference Excel layout.
+            if is_covid(lbl):
+                cv_cb, cv_ca, cv_pb, cv_pa = flt(cb), flt(ca), flt(pb), flt(pa)
+                continue
+            if hide_number:
+                data_row_7(row, ("  " if is_sub else "")+lbl,
+                           None, None, None, None, None, None, bg=bg)
+                row += 1
+                continue
             data_row_7(row, ("  " if is_sub else "")+lbl,
                        cb, ca, pct_val(ca,cb), pb, pa, pct_val(pa,pb), bg=bg)
             row += 1
             if not is_sub:
                 tCB+=flt(cb); tCA+=flt(ca); tPB+=flt(pb); tPA+=flt(pa)
         total_row_7(row, tCB, tCA, tPB, tPA)
+        row += 1
+        data_row_7(row, "Covid-19", rnd(cv_cb), rnd(cv_ca), pct_val(cv_ca,cv_cb),
+                   rnd(cv_pb), rnd(cv_pa), pct_val(cv_pa,cv_pb))
+        row += 1
+        grand_row_7(row, "Grand Total",
+                    tCB+cv_cb, tCA+cv_ca, tPB+cv_pb, tPA+cv_pa)
         row += 2
         return row
 
     def write_breakup_section(row, title, keys, col_label="Areas of Work"):
         row = section_title(row, title)
         row = two_row_hdr(row, col_label, "Operating Expense", "Capital Expense")
+        # BreakupTable.vue only shows a key's own "Total" subtotal row when
+        # that key has more than 1 row (sec.rows.length > 1) - a 1-row
+        # section's own "Total" would just repeat that single row's own
+        # numbers. ADDITIONALLY (singleQualifyingSectionLabel in
+        # BreakupTable.vue), if exactly ONE key across this whole section
+        # ends up with >1 row, that one key's own subtotal is ALSO
+        # identical to the section's final "Total {title}" grand-total row
+        # (nothing else contributes more than a single row to sum), so it
+        # must be suppressed too - only the grand-total row should show.
+        # get_breakup_entries(key) is pure/cheap (just filters the already-
+        # fetched breakup_raw dict, no new fetch), so calling it twice per
+        # key (once here to count, once below to render) duplicates no
+        # expensive work.
+        qualifying_keys = [k for k in keys if len([
+            e for e in get_breakup_entries(k) if (e.get("label") or "").strip()
+        ]) > 1]
+        single_qualifying_key = qualifying_keys[0] if len(qualifying_keys) == 1 else None
         g_ob=g_oa=g_cb=g_ca=0.0
         for key in keys:
             entries = get_breakup_entries(key)
             row = section_hdr_row(row, key)
             s_ob=s_oa=s_cb=s_ca=0.0
+            n_key_rows = 0
             for e in entries:
                 lbl2 = (e.get("label") or "").strip()
                 if not lbl2: continue
@@ -393,8 +496,10 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
                            rnd(v["cb"]), rnd(v["ca"]), pct_val(v["ca"],v["cb"]))
                 row += 1
                 s_ob+=v["ob"]; s_oa+=v["oa"]; s_cb+=v["cb"]; s_ca+=v["ca"]
-            total_row_7(row, s_ob, s_oa, s_cb, s_ca)
-            row += 1
+                n_key_rows += 1
+            if n_key_rows > 1 and key != single_qualifying_key:
+                total_row_7(row, s_ob, s_oa, s_cb, s_ca)
+                row += 1
             g_ob+=s_ob; g_oa+=s_oa; g_cb+=s_cb; g_ca+=s_ca
         grand_row_7(row, f"Total {title}", g_ob, g_oa, g_cb, g_ca)
         row += 2
@@ -411,14 +516,24 @@ def export_monthly_mis(financial_year, month, export_format="excel", show_full_n
         prev_sh_map = {sh["name"]: sh for sh in (sub_heads_prev or [])}
         for sh in (sub_heads_cur or []):
             sn = sh["name"]; psh = prev_sh_map.get(sn, {"b":0,"a":0,"items":[]})
+            # Skip check must use the RAW sub-head totals (sh["b"]/sh["a"],
+            # which include Grants) rather than dcb/dca (the Grants-
+            # subtracted display values) - see the matching PPTX fix in
+            # card_rows() above for the full reasoning: a category whose
+            # own direct amount is 0 but whose nested Grants item isn't
+            # (e.g. "Supporting Madrasas") has a non-zero raw total but an
+            # all-zero dcb/dca, so checking dcb/dca here was dropping the
+            # whole category (and its Grants row) instead of just truly
+            # empty ones.
+            if not any([sh.get("b", 0), sh.get("a", 0), psh.get("b", 0), psh.get("a", 0)]):
+                continue
             g_cb=g_ca=g_pb=g_pa=0.0
             if sn.upper().replace("  "," ") == "PROGRAM EXPENSES":
-                for it in sh.get("items",[]): 
+                for it in sh.get("items",[]):
                     if it["name"]==GRANTS_NAME: g_cb=it["b"]; g_ca=it["a"]
                 for it in psh.get("items",[]):
                     if it["name"]==GRANTS_NAME: g_pb=it["b"]; g_pa=it["a"]
             dcb=sh["b"]-g_cb; dca=sh["a"]-g_ca; dpb=psh["b"]-g_pb; dpa=psh["a"]-g_pa
-            if not any([dcb,dca,dpb,dpa]): continue
             data_row_7(row, sn, rnd(dcb), rnd(dca), pct_val(dca,dcb),
                        rnd(dpb), rnd(dpa), pct_val(dpa,dpb), off=off)
             row += 1
@@ -601,11 +716,21 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN
 
-    C_BLUE   = RGBColor(0x15, 0x65, 0xC0)
+    # Matches the real Azim Premji Foundation logo's own colors (sampled
+    # directly from apf_logo.png: a bright cyan-blue square + an orange
+    # dot) instead of the generic navy-blue/orange this deck used before -
+    # C_ORANGE was already a near-exact match (F26B21 vs the logo's
+    # F07025), kept as-is; C_BLUE changed from 1565C0 (navy) to 008FC9
+    # (the logo's real blue), with C_LTBLUE/C_GREY re-tinted from that same
+    # new blue at the same tint ratios the old navy-based ones used (~92%/
+    # ~95% toward white), so the whole table's blue family stays internally
+    # consistent instead of just swapping the one color that's visible in
+    # the header bar.
+    C_BLUE   = RGBColor(0x00, 0x8F, 0xC9)
     C_ORANGE = RGBColor(0xF2, 0x6B, 0x21)
-    C_LTBLUE = RGBColor(0xE3, 0xF2, 0xFD)
+    C_LTBLUE = RGBColor(0xEB, 0xF6, 0xFB)
     C_WHITE  = RGBColor(0xFF, 0xFF, 0xFF)
-    C_GREY   = RGBColor(0xF0, 0xF4, 0xFF)
+    C_GREY   = RGBColor(0xF3, 0xFA, 0xFD)
     C_BLACK  = RGBColor(0x00, 0x00, 0x00)
 
     def prev_fy(fy):
@@ -646,9 +771,9 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         left = prs.slide_width - width - Inches(0.3)
         slide.shapes.add_picture(LOGO_PATH, left, top, width=width)
 
-    def add_accent_bar(slide):
+    def add_accent_bar(slide, top=Inches(0.95)):
         """Thin orange bar under the header, matching the reference deck."""
-        bar = slide.shapes.add_shape(1, Emu(0), Inches(0.95), prs.slide_width, Pt(4))
+        bar = slide.shapes.add_shape(1, Emu(0), top, prs.slide_width, Pt(4))
         bar.fill.solid(); bar.fill.fore_color.rgb = C_ORANGE
         bar.line.fill.background()
         bar.shadow.inherit = False
@@ -668,12 +793,42 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         add_logo(slide)
         add_accent_bar(slide)
 
+    # python-pptx has no high-level API for a table cell's own border, and
+    # leaving it unset doesn't mean "no border" - PowerPoint/LibreOffice/
+    # OnlyOffice then fall back to a bold default grid line of their own
+    # (worse once _strip_table_style below has already removed the table's
+    # styleId, which is exactly the thick-grid-line look seen in the real
+    # exported deck). EMU_PER_PT matches openpyxl's own "thin" Excel border
+    # in visual weight (0.75pt) so the PPTX and Excel exports read the same.
+    EMU_PER_PT = 12700
+    THIN_BORDER_EMU = int(0.75 * EMU_PER_PT)
+    BORDER_GRAY = "D9D9D9"
+
+    def _set_thin_cell_border(cell):
+        from pptx.oxml.ns import qn
+        tcPr = cell._tc.get_or_add_tcPr()
+        # CT_TableCellProperties requires lnL/lnR/lnT/lnB (in that order)
+        # to come before any fill child already on tcPr (set_cell always
+        # calls cell.fill.solid() before this) - inserting each at index 0
+        # in reverse tag order produces that required order regardless of
+        # what's already there.
+        for tag in ("lnB", "lnT", "lnR", "lnL"):
+            for existing in tcPr.findall(qn(f"a:{tag}")):
+                tcPr.remove(existing)
+            ln = tcPr.makeelement(qn(f"a:{tag}"), {"w": str(THIN_BORDER_EMU), "cap": "flat"})
+            fill = ln.makeelement(qn("a:solidFill"), {})
+            color = fill.makeelement(qn("a:srgbClr"), {"val": BORDER_GRAY})
+            fill.append(color)
+            ln.append(fill)
+            tcPr.insert(0, ln)
+
     def set_cell(cell, text, bg=None, fg=C_BLACK, bold=False, size=10, align=PP_ALIGN.RIGHT):
         cell.text = "" if text is None else str(text)
         if bg is not None:
             cell.fill.solid(); cell.fill.fore_color.rgb = bg
         else:
             cell.fill.solid(); cell.fill.fore_color.rgb = C_WHITE
+        _set_thin_cell_border(cell)
         cell.margin_left = Pt(3); cell.margin_right = Pt(3)
         cell.margin_top = Pt(1); cell.margin_bottom = Pt(1)
         for p in cell.text_frame.paragraphs:
@@ -682,6 +837,26 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
                 r.font.size = Pt(size); r.font.bold = bold; r.font.color.rgb = fg
             if not p.runs:
                 r = p.add_run(); r.font.size = Pt(size); r.font.bold = bold; r.font.color.rgb = fg
+
+    def _strip_table_style(tbl):
+        """Disable PowerPoint's default table style (banding/border theme
+        applied via <a:tblPr firstRow/bandRow> + a built-in styleId) so our
+        own per-cell fills are the ONLY thing rendered - otherwise the theme
+        still draws its own row-band borders UNDER/THROUGH a vertically
+        merged cell (e.g. the "Unit"/col_label header cell spanning the two
+        header rows), showing as a stray horizontal seam line across it that
+        the orange header row next to it doesn't have, since that row isn't
+        merged. python-pptx has no high-level API for this - it has to be
+        done by editing the table's <a:tblPr> directly."""
+        from pptx.oxml.ns import qn
+        tbl_pr = tbl._tbl.find(qn("a:tblPr"))
+        if tbl_pr is None:
+            return
+        tbl_pr.set("firstRow", "0")
+        tbl_pr.set("bandRow", "0")
+        style_id = tbl_pr.find(qn("a:tableStyleId"))
+        if style_id is not None:
+            tbl_pr.remove(style_id)
 
     TABLE_TOP = Inches(1.15)
     TABLE_BOTTOM_MARGIN = Inches(0.2)
@@ -712,7 +887,12 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
     p2 = tf.add_paragraph(); p2.alignment = PP_ALIGN.CENTER
     run2 = p2.add_run(); run2.text = YTD_LBL
     run2.font.size = Pt(32); run2.font.bold = True; run2.font.color.rgb = C_BLACK
-    add_logo(slide, width=Inches(2.2), top=Inches(0.3))
+    # Same logo size/position and accent-bar position as every content
+    # slide's header (add_header's own add_logo()/add_accent_bar() calls) -
+    # the title slide previously used a much larger logo (2.2in vs 1.4in
+    # wide) with the bar left at its default top, which cut straight
+    # through the middle of the bigger logo.
+    add_logo(slide)
     add_accent_bar(slide)
 
     # ── Main section slide (Operating/Capital/Overall Foundation) ──────────
@@ -726,10 +906,17 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         for lbl in order:
             cm = cur_map.get(lbl, {}); pm = prev_map.get(lbl, {})
             is_sub = cm.get("is_sub", 0) or pm.get("is_sub", 0)
+            # Same hide_number handling as write_main_section (Excel
+            # builder) - blank this row's own cells and exclude it from
+            # Total/Grand Total, matching ExpenseTable.vue exactly.
+            hide_number = cm.get("hide_number", 0) or pm.get("hide_number", 0)
             cb = to_cr(cm.get(bk, 0)); ca = to_cr(cm.get(ak, 0))
             pb = to_cr(pm.get(bk, 0)); pa = to_cr(pm.get(ak, 0))
             if is_covid(lbl):
                 cv_cb, cv_ca, cv_pb, cv_pa = cb or 0, ca or 0, pb or 0, pa or 0
+                continue
+            if hide_number:
+                rows_data.append((lbl, is_sub, None, None, None, None))
                 continue
             if not is_sub:
                 tCB += flt(cb); tCA += flt(ca); tPB += flt(pb); tPA += flt(pa)
@@ -742,6 +929,7 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         tbl_shape = slide.shapes.add_table(n_rows, 7, Inches(0.4), TABLE_TOP,
                                             Inches(12.5), row_h * n_rows)
         tbl = tbl_shape.table
+        _strip_table_style(tbl)
         for rr in tbl.rows:
             rr.height = row_h
         tbl.columns[0].width = Inches(3.5)
@@ -790,10 +978,21 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
 
         rows_data = []  # (kind, payload)
         g_ob = g_oa = g_cb = g_ca = 0.0
+        # Same singleQualifyingSectionLabel suppression as BreakupTable.vue
+        # / write_breakup_section above: a key's own "Total" row only shows
+        # when it has >1 row, AND (additionally) when it's not the sole key
+        # in this whole section with >1 row - in that case its subtotal
+        # would be numerically identical to the final "Total {title}" row
+        # below it, since nothing else contributes more than a single row.
+        qualifying_keys = [k for k in keys if len([
+            e for e in get_breakup_entries(k) if (e.get("label") or "").strip()
+        ]) > 1]
+        single_qualifying_key = qualifying_keys[0] if len(qualifying_keys) == 1 else None
         for key in keys:
             entries = get_breakup_entries(key)
             rows_data.append(("sec", key))
             s_ob = s_oa = s_cb = s_ca = 0.0
+            n_key_rows = 0
             for e in entries:
                 lbl2 = (e.get("label") or "").strip()
                 if not lbl2:
@@ -801,8 +1000,10 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
                 v = exAct(e.get("actuals", []))
                 rows_data.append(("row", (lbl2, v)))
                 s_ob += v["ob"]; s_oa += v["oa"]; s_cb += v["cb"]; s_ca += v["ca"]
+                n_key_rows += 1
             s_tb, s_ta = s_ob + s_cb, s_oa + s_ca
-            rows_data.append(("tot", ("Total", s_ob, s_oa, s_cb, s_ca, s_tb, s_ta)))
+            if n_key_rows > 1 and key != single_qualifying_key:
+                rows_data.append(("tot", ("Total", s_ob, s_oa, s_cb, s_ca, s_tb, s_ta)))
             g_ob += s_ob; g_oa += s_oa; g_cb += s_cb; g_ca += s_ca
         g_tb, g_ta = g_ob + g_cb, g_oa + g_ca
 
@@ -811,6 +1012,7 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         tbl_shape = slide.shapes.add_table(n_rows, 10, Inches(0.3), TABLE_TOP,
                                             Inches(12.7), row_h * n_rows)
         tbl = tbl_shape.table
+        _strip_table_style(tbl)
         for rr in tbl.rows:
             rr.height = row_h
         tbl.columns[0].width = Inches(2.8)
@@ -911,6 +1113,20 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
         for sh in (sub_heads_cur or []):
             sn = sh["name"]
             psh = prev_sh_map.get(sn, {"b": 0, "a": 0, "items": []})
+            # Skip check must use the RAW sub-head totals (sh["b"]/sh["a"],
+            # which already include Grants) - not dcb/dca (the Grants-
+            # subtracted display values computed below), matching the
+            # equivalent web-app logic in monthlyMisData.js's buildCard
+            # (`if (!c.b && !c.a && !p.b && !p.a) continue`, checked
+            # before its own Grants subtraction). A category like
+            # "Supporting Madrasas"'s PROGRAM EXPENSES, whose own direct
+            # amount is 0 but whose nested Grants item isn't, has a
+            # non-zero RAW total but an all-zero dcb/dca once Grants is
+            # subtracted out - checking dcb/dca here incorrectly dropped
+            # the whole category (and its Grants row right after it)
+            # instead of just skipping it when truly empty.
+            if not any([sh.get("b", 0), sh.get("a", 0), psh.get("b", 0), psh.get("a", 0)]):
+                continue
             g_cb = g_ca = g_pb = g_pa = 0.0
             if sn.upper().replace("  ", " ") == "PROGRAM EXPENSES":
                 for it in sh.get("items", []):
@@ -921,8 +1137,6 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
                         g_pb, g_pa = it["b"], it["a"]
             dcb, dca = sh["b"] - g_cb, sh["a"] - g_ca
             dpb, dpa = psh["b"] - g_pb, psh["a"] - g_pa
-            if not any([dcb, dca, dpb, dpa]):
-                continue
             out.append((sn, dcb, dca, dpb, dpa, False))
             if g_cb or g_ca or g_pb or g_pa:
                 out.append(("Grants", g_cb, g_ca, g_pb, g_pa, True))
@@ -935,6 +1149,7 @@ def _build_pptx(financial_year, month, unit_lbl, order, cur_map, prev_map,
                                         available=max_height)
         tbl_shape = slide.shapes.add_table(n_rows, 7, left, top, width, row_h * n_rows)
         tbl = tbl_shape.table
+        _strip_table_style(tbl)
         for rr in tbl.rows:
             rr.height = row_h
         tbl.columns[0].width = int(width * 0.34)
@@ -1159,10 +1374,17 @@ def _build_slide_pdf_html(financial_year, month, unit_lbl, order, cur_map, prev_
         for lbl in order:
             cm = cur_map.get(lbl, {}); pm = prev_map.get(lbl, {})
             is_sub = cm.get("is_sub", 0) or pm.get("is_sub", 0)
+            # Same hide_number handling as write_main_section/_build_pptx's
+            # own main_slide - blank this row's own cells and exclude it
+            # from Total/Grand Total, matching ExpenseTable.vue exactly.
+            hide_number = cm.get("hide_number", 0) or pm.get("hide_number", 0)
             cb = to_cr(cm.get(bk, 0)); ca = to_cr(cm.get(ak, 0))
             pb = to_cr(pm.get(bk, 0)); pa = to_cr(pm.get(ak, 0))
             if is_covid(lbl):
                 cv_cb, cv_ca, cv_pb, cv_pa = cb or 0, ca or 0, pb or 0, pa or 0
+                continue
+            if hide_number:
+                rows_data.append((lbl, is_sub, None, None, None, None))
                 continue
             if not is_sub:
                 tCB += flt(cb); tCA += flt(ca); tPB += flt(pb); tPA += flt(pa)
@@ -1221,10 +1443,22 @@ def _build_slide_pdf_html(financial_year, month, unit_lbl, order, cur_map, prev_
         # grouped onto slides without ever splitting a section across two.
         sections = []
         g_ob = g_oa = g_cb = g_ca = 0.0
+        # Same singleQualifyingSectionLabel suppression as BreakupTable.vue
+        # / write_breakup_section / the PPTX breakup_slide above: a key's
+        # own "Total" row only shows when it has >1 row, AND when it's not
+        # the sole key in this whole section with >1 row - in that case its
+        # subtotal would be numerically identical to the final
+        # "Total {title}" grand-total row, since nothing else contributes
+        # more than a single row to sum.
+        qualifying_keys = [k for k in keys if len([
+            e for e in get_breakup_entries(k) if (e.get("label") or "").strip()
+        ]) > 1]
+        single_qualifying_key = qualifying_keys[0] if len(qualifying_keys) == 1 else None
         for key in keys:
             entries = get_breakup_entries(key)
             sec_rows = [("sec", key)]
             s_ob = s_oa = s_cb = s_ca = 0.0
+            n_key_rows = 0
             for e in entries:
                 lbl2 = (e.get("label") or "").strip()
                 if not lbl2:
@@ -1232,8 +1466,10 @@ def _build_slide_pdf_html(financial_year, month, unit_lbl, order, cur_map, prev_
                 v = exAct(e.get("actuals", []))
                 sec_rows.append(("row", (lbl2, v)))
                 s_ob += v["ob"]; s_oa += v["oa"]; s_cb += v["cb"]; s_ca += v["ca"]
+                n_key_rows += 1
             s_tb, s_ta = s_ob + s_cb, s_oa + s_ca
-            sec_rows.append(("tot", ("Total", s_ob, s_oa, s_cb, s_ca, s_tb, s_ta)))
+            if n_key_rows > 1 and key != single_qualifying_key:
+                sec_rows.append(("tot", ("Total", s_ob, s_oa, s_cb, s_ca, s_tb, s_ta)))
             g_ob += s_ob; g_oa += s_oa; g_cb += s_cb; g_ca += s_ca
             sections.append(sec_rows)
         g_tb, g_ta = g_ob + g_cb, g_oa + g_ca
@@ -1367,6 +1603,20 @@ def _build_slide_pdf_html(financial_year, month, unit_lbl, order, cur_map, prev_
         for sh in (sub_heads_cur or []):
             sn = sh["name"]
             psh = prev_sh_map.get(sn, {"b": 0, "a": 0, "items": []})
+            # Skip check must use the RAW sub-head totals (sh["b"]/sh["a"],
+            # which already include Grants) - not dcb/dca (the Grants-
+            # subtracted display values computed below), matching the
+            # equivalent web-app logic in monthlyMisData.js's buildCard
+            # (`if (!c.b && !c.a && !p.b && !p.a) continue`, checked
+            # before its own Grants subtraction). A category like
+            # "Supporting Madrasas"'s PROGRAM EXPENSES, whose own direct
+            # amount is 0 but whose nested Grants item isn't, has a
+            # non-zero RAW total but an all-zero dcb/dca once Grants is
+            # subtracted out - checking dcb/dca here incorrectly dropped
+            # the whole category (and its Grants row right after it)
+            # instead of just skipping it when truly empty.
+            if not any([sh.get("b", 0), sh.get("a", 0), psh.get("b", 0), psh.get("a", 0)]):
+                continue
             g_cb = g_ca = g_pb = g_pa = 0.0
             if sn.upper().replace("  ", " ") == "PROGRAM EXPENSES":
                 for it in sh.get("items", []):
@@ -1377,8 +1627,6 @@ def _build_slide_pdf_html(financial_year, month, unit_lbl, order, cur_map, prev_
                         g_pb, g_pa = it["b"], it["a"]
             dcb, dca = sh["b"] - g_cb, sh["a"] - g_ca
             dpb, dpa = psh["b"] - g_pb, psh["a"] - g_pa
-            if not any([dcb, dca, dpb, dpa]):
-                continue
             out.append((sn, dcb, dca, dpb, dpa, False))
             if g_cb or g_ca or g_pb or g_pa:
                 out.append(("Grants", g_cb, g_ca, g_pb, g_pa, True))
