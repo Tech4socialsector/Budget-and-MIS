@@ -130,6 +130,117 @@ def _get_actuals_from_erp_month_wise_raw(fiscal_year, accounting_period):
         }
 
 
+#========================================= ERP Trial Balance API =======================================================================
+# Real PeopleSoft trial balance pull for one fiscal_year/accounting_period -
+# same shape as _get_actuals_from_erp_month_wise_raw above (same base URL
+# host/path convention, same isconnectedquery/maxrows/prompt_* query
+# params, same generic <Row> child-tag-name-lowercased parsing), just a
+# different query name (Z_MIS_TB_BY_PERIOD instead of Z_MIS_ACTUALS_BY_PERIOD)
+# and a different response shape once parsed - no "Adjustments" merge here
+# (adjustments are a Monthly MIS/actuals-only concept, not something a
+# trial balance pull needs). Caching/single-flight/call-logging is the
+# caller's own job (budget_mis.api.trial_balance.get_trial_balance_from_erp),
+# same division of responsibility as get_actuals_from_erp_month_wise vs
+# this function's own sibling above.
+#
+# Confirmed against a real live response: this query returns only
+# business_unit/account/deptid/operating_unit/posted_total_amt - the exact
+# same 5 fields this file's own actuals pull gets, with NO separate GL
+# account-description field at all (account is purely the GL code number,
+# e.g. "40100", nothing else). budget_mis's own GL-code-adjacent doctypes
+# (GL Code, GL code Mapping) don't carry a description either, so "account"
+# here is left unset (None) rather than faked from the GL code itself -
+# trial_balance.py's own _build_unit_drilldown_tree GL-line label
+# (f"{gl_code} - {account}".strip(" -")) already collapses cleanly to just
+# the bare GL code when account is falsy, instead of a misleading
+# "40100 - 40100".
+def fetch_trial_balance_from_erp_raw(fiscal_year, accounting_period):
+    try:
+        username, password = get_peoplesoft_prod_credentials()
+
+        if not username or not password:
+            frappe.throw("ERP credentials are not configured")
+
+        base_url = (
+            "https://pserp.azimpremjifoundation.org:8053/"
+            "PSIGW/RESTListeningConnector/"
+            "PSFT_EP/ExecuteQuery.v1/PUBLIC/"
+            "Z_MIS_TB_BY_PERIOD/XMLP/NONFILE"
+        )
+
+        api_url = (
+            f"{base_url}"
+            f"?isconnectedquery=N"
+            f"&maxrows=100000"
+            f"&prompt_uniquepromptname=FISCAL_YEAR,ACCOUNTING_PERIOD"
+            f"&prompt_fieldvalue={fiscal_year},{accounting_period}"
+        )
+
+        raw_rows = []
+
+        response = requests.get(
+            api_url,
+            headers={"Accept": "application/xml"},
+            auth=(username, password),
+            timeout=90,
+        )
+
+        if response.status_code != 200:
+            frappe.log_error("ERP HTTP Error (Trial Balance)", response.text[:500])
+        else:
+            try:
+                root = ET.fromstring(response.content)
+            except ET.ParseError:
+                frappe.log_error("XML Parse Error (Trial Balance)", response.text[:500])
+            else:
+                for row_elem in root.iter():
+                    if row_elem.tag.lower().endswith("row"):
+                        row_data = {
+                            child.tag.split("}")[-1].lower(): child.text
+                            for child in row_elem
+                        }
+                        raw_rows.append(row_data)
+
+        rows = []
+        for r in raw_rows:
+            rows.append({
+                "business_unit": r.get("business_unit"),
+                "gl_code": r.get("account"),
+                "account": None,
+                "amount": float(r.get("posted_total_amt") or 0),
+            })
+
+        return {
+            "status": "success",
+            "fiscal_year": fiscal_year,
+            "accounting_period": accounting_period,
+            "count": len(rows),
+            "data": rows,
+            # The untouched PeopleSoft dicts (pre-remapping) - kept
+            # alongside `data` rather than only exposing the remapped
+            # shape, so a caller that needs to inspect the real field
+            # names/values PeopleSoft actually sent (e.g.
+            # get_trial_balance_raw_from_erp below) can do so from this
+            # same cached fetch, without triggering a second live ERP
+            # call just to see the raw response.
+            "raw_rows": raw_rows,
+        }
+
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        frappe.log_error("ERP Timeout (Trial Balance)", "Request timed out")
+        return {
+            "status": "failed",
+            "error": "The ERP system did not respond in time. Please try again in a few minutes.",
+        }
+
+    except Exception:
+        frappe.log_error("API Error (Trial Balance)", frappe.get_traceback())
+        return {
+            "status": "failed",
+            "error": "Unexpected server error",
+        }
+
+
 # fetch_actuals_month_wise/fetch_actuals_ytd take no unit param at all and
 # are cached+shared across every caller - correct for internal callers
 # (which must keep seeing everything and filter it themselves afterward),

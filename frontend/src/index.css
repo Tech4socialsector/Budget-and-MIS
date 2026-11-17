@@ -401,6 +401,7 @@ tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
   color: #86b6ef;
 }
 
+
 .fc-sticky-col {
   position: sticky;
   left: 0;

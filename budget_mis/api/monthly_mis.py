@@ -73,6 +73,7 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
             combo = entry.get("combination_settings", {})
             seq_id = combo.get("sequence_id", 0)
             is_sub = combo.get("is_this_sub_item", 0)
+            hide_number = combo.get("hide_number", 0)
 
             all_unit_actuals = []
 
@@ -95,7 +96,21 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
             consolidated = consolidate_actuals(all_unit_actuals)
             totals = calculate_grand_total(consolidated)
 
-            if is_sub == 0:
+            # A hide_number row still has its actuals fetched/consolidated
+            # above as normal (other combinations may share the same
+            # cached ERP data this pulls from) and contributes nothing to
+            # the running Overall/Capex/Opex totals, but the REAL figures
+            # are still returned in "actuals" below (NOT blanked here) -
+            # "Hide number?" only controls whether the Operating/Capital
+            # Expense and Overall Foundation tables display this row's own
+            # numbers (ExpenseTable.vue/ConsolidatedTable.vue blank them
+            # using the hide_number flag carried alongside), it does NOT
+            # apply to the Operating Expenses Breakdown cards
+            # (UnitDetailGrid.vue/buildUnitDetailGrid), which always show
+            # every unit's real figures regardless of this flag - those
+            # cards never look at hide_number at all, so this function must
+            # keep returning the true numbers for them to read.
+            if is_sub == 0 and not hide_number:
                 overall_ytd += totals["grand_total_ytd"]
                 overall_actual += totals["grand_total_actual"]
                 for head in consolidated:
@@ -122,6 +137,7 @@ def get_monthly_mis_break_up(financial_year, month, table_name_filter=None, is_p
                 "table_name": table_name,
                 "sequence_id": seq_id,
                 "is_this_sub_item": is_sub,
+                "hide_number": hide_number,
                 "actuals": consolidated
             })
 
@@ -396,9 +412,42 @@ def get_monthly_mis_page_data(financial_year, month, table_name_filter=None, dri
         _grouped_actuals_data=current_actuals_data,
         _force_scope_to_allowed_units=scope,
     )
-
+    # Previous-year drill-down tree is NOT built here - get_monthly_mis_drilldown_tree
+    # does a frappe.get_doc + full unit-tree walk per number-card entry, so
+    # building it unconditionally on every page load doubled this
+    # function's own compute cost for users who never open a "Prev" column
+    # drill-down (a real, confirmed regression - see get_monthly_mis_prev_drilldown
+    # below, fetched lazily by the frontend only on first Prev click instead).
     return {
         "current": current_break_up,
         "previous": previous_break_up,
         "drilldown": drilldown_tree,
     }
+
+
+# Lazy counterpart to get_monthly_mis_page_data's current-year drilldown -
+# called by the frontend only when a user actually clicks a "Prev" column
+# cell (MonthlyMis.vue's openDrilldown), instead of get_monthly_mis_page_data
+# building it unconditionally on every load regardless of whether any
+# drill-down is ever opened. Reuses the exact same previous-year ERP fetch
+# (group_actuals_ytd) get_monthly_mis_page_data already made, so this is a
+# fast cache hit, not a second cold PeopleSoft round trip, under normal use.
+@guest_api
+def get_monthly_mis_prev_drilldown(financial_year, month, table_name_filter=None):
+    previous_financial_year = get_previous_financial_year(financial_year)
+    previous_formatted = get_accounting_period_from_month(month, previous_financial_year)
+
+    previous_actuals_result = group_actuals_ytd(
+        fiscal_year=previous_formatted.get("fiscal_year"), accounting_period=previous_formatted.get("accounting_period")
+    )
+    if previous_actuals_result.get("status") not in ("success", None):
+        frappe.throw(previous_actuals_result.get("error") or "Failed to fetch actuals data from the ERP. Please try again.")
+
+    scope = is_direct_http_call(get_monthly_mis_prev_drilldown)
+    return get_monthly_mis_drilldown_tree(
+        previous_financial_year,
+        month,
+        table_name_filter,
+        _grouped_actuals_data=previous_actuals_result.get("data", []),
+        _force_scope_to_allowed_units=scope,
+    )

@@ -17,17 +17,48 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
   log, and an optional confirmation email (`Budget Import Email Settings`
   singleton doctype configures recipients and email content).
 - **Actuals**: Real spend is pulled live from a PeopleSoft ERP HTTP API
-  (`budget_mis/api/erp_actuals.py`), cached server-side
-  (`ERP Credentials.actuals_cache_duration_minutes`) since a single ERP
-  call can take up to 90-120s. Current-year and previous-year fetches run
-  **sequentially, never concurrently** - the PeopleSoft server is a single
-  shared endpoint that cannot handle two simultaneous heavy queries without
-  both slowing down and tripping timeouts (see `get_monthly_mis_page_data`
-  and `foundation_consolidated.py`'s `_fetch_current_and_previous_actuals`).
+  (`budget_mis/api/erp_actuals.py`), cached server-side via
+  `cache_with_single_flight` (`budget_mis/api/helper.py`) - a
+  distributed-lock "fetch once, everyone else waits" wrapper built on
+  `frappe.cache()` (real Redis, shared across worker processes), keyed by
+  `(fiscal_year, accounting_period)` and shared by every caller
+  (Monthly MIS, Budget vs Actuals, Foundation Consolidated, the Trial
+  Balance Check module, etc). The lock's own TTL is set comfortably above
+  the slowest real fetch (the PeopleSoft call itself can take up to 90s) -
+  a lock TTL shorter than that is a real, previously-hit bug (the lock
+  expires out from under a still-running fetch, letting a second caller
+  acquire it and fire a second concurrent PeopleSoft call for the same
+  period). Current-year and previous-year fetches for a given report still
+  run sequentially rather than concurrently for the same underlying reason
+  - the PeopleSoft server is a single shared endpoint that slows down and
+  trips timeouts under concurrent heavy queries (see
+  `get_monthly_mis_page_data`). Every real PeopleSoft fetch and the
+  login-time cache warm-up plan are logged to the `ERP Actuals Call Log`
+  doctype (`budget_mis/master/doctype/erp_actuals_call_log/`). The current-
+  and previous-year fetches a given report needs are usually run
+  sequentially for this reason (see `get_monthly_mis_page_data`) - the one
+  exception is `monthly_mis_export.py`'s `export_monthly_mis`, which runs
+  its two fetches concurrently (each in its own thread with its own
+  `frappe.init`/`frappe.connect`/`frappe.db.commit`/`frappe.destroy`, since
+  Frappe's db/cache handles are thread-local) specifically because an
+  export request is a one-off, not something many users are hitting at
+  once for the same period, so the usual "don't pile concurrent load on
+  PeopleSoft" concern doesn't apply the same way there.
 - **Reporting**: Budget vs Actuals, Monthly MIS, Foundation Consolidated,
-  and dashboard pages merge the two sides together (the budget tree from
-  `get_budget_summary`/`get_budget_ytd_by_sequence`, actuals from
-  `group_actuals_ytd` and friends, combined in `get_combined_actuals`).
+  Trial Balance Check, and dashboard pages merge the two sides together
+  (the budget tree from `get_budget_summary`/`get_budget_ytd_by_sequence`,
+  actuals from `group_actuals_ytd` and friends, combined in
+  `get_combined_actuals`). A caller selecting several Units/Cost
+  Centers/Location Codes at once (no Operating Unit theme picked) must fan
+  out one `get_combined_actuals` call per Unit and sum the results, rather
+  than passing all the flattened lists into one call - the latter ANDs
+  three independent sets together and can cross-match combinations that
+  were never actually picked together (e.g. one unit's cost center against
+  a different unit's location code). See `budget_vs_actual.py`'s
+  `_per_unit_filter_sets`/`_get_combined_actuals_by_theme` for the
+  established per-unit/per-theme fan-out pattern - this was a real,
+  previously-hit bug (Budget vs Actuals and Monthly MIS showing different
+  totals for what should have been the same scope).
 - **Access control**: every Finance user is restricted to a configured set
   of Units/Cost Centers/Location Codes (`Finance User Access`); reporting
   endpoints scope themselves to this set on direct HTTP calls via
@@ -40,20 +71,41 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
 
 ### Architecture at a glance
 
-- `budget_mis/api/` - the entire backend API surface. An earlier parallel
-  module (`api_1/`) existed during development and has since been fully
-  consolidated back into `api/` (duplicated logic merged, dead code
-  deleted, every frontend/Desk-page call site repointed) - there is only
-  ever one API folder at a time; don't recreate a second parallel one.
-  Notable modules: `erp_actuals.py` (the real PeopleSoft HTTP calls + their
-  grouped/YTD views), `budget_summary.py`/`budget_vs_actual.py`/
-  `phase_sheet.py` (the budget-side trees and budget+actuals merge),
-  `monthly_mis.py`/`monthly_mis_drilldown.py`/`foundation_consolidated.py`
-  (the big dashboard pages), `budget_import.py`/`budget_import_template.py`
-  (the Excel import flow), `export_reports.py`/`monthly_mis_export.py`
-  (Excel/PPTX exports), `response_crypto.py` (response encryption +
-  `is_direct_http_call`), `filter_options.py` (units/cost
-  centers/locations/financial years/themes for every page's filter bar).
+- `budget_mis/api/` - the entire backend API surface. A parallel module
+  (`api_1/`) existed during an earlier development phase and has since
+  been fully consolidated back into `api/` (duplicated logic merged into
+  shared helpers, dead code deleted, every frontend/Desk-page call site
+  repointed) - there is only ever one API folder at a time; don't recreate
+  a second parallel one. Notable modules: `helper.py` (shared cross-file
+  helpers - `cache_with_single_flight`, financial-year/accounting-period
+  conversions, actuals-tree consolidation), `erp_actuals.py`/
+  `grouped_actuals.py` (the real PeopleSoft HTTP calls and their
+  grouped/YTD views - note these two files each define their own, genuinely
+  different, same-named functions like `group_actuals_ytd`; check which
+  module a caller actually imports from), `budget_summary.py`/
+  `budget_vs_actual.py`/`budget_actuals_combined.py` (the budget-side trees
+  and the shared budget+actuals merge, `get_combined_actuals`),
+  `monthly_mis.py`/`foundation_consolidated.py` (the big dashboard pages),
+  `trial_balance.py` (the Trial Balance Check module - pulls live from
+  PeopleSoft's `Z_MIS_TB_BY_PERIOD` query, same host/auth/cache-with-
+  single-flight convention as `erp_actuals.py`'s own actuals pull; that
+  query's real response carries no GL account-description field at all
+  (just `business_unit`/`account`/`deptid`/`operating_unit`/
+  `posted_total_amt`), so a drill-down GL line shows the bare GL code with
+  no description, unlike Budget vs Actuals' GL-level drill-down; its own
+  `get_trial_balance_from_erp` is System-Manager-only on a direct HTTP
+  call, matching the frontend's own nav restriction on that tab),
+  `budget_import.py`/
+  `budget_import_template.py` (the Excel import flow), `export_reports.py`
+  (Foundation Consolidated's own Excel exports)/`monthly_mis_export.py`
+  (Monthly MIS's Excel/PDF/PowerPoint export - a dropdown on the page, not
+  a single button; the PDF/PPTX builders render the same slide-by-slide
+  layout via `openpyxl`/`python-pptx`/`frappe.utils.pdf.get_pdf`),
+  `response_crypto.py` (response encryption + `is_direct_http_call`),
+  `filter_options.py`
+  (units/cost centers/locations/financial years/themes for every page's
+  filter bar), `modules.py` (the role-filtered Home-tile/sidebar module
+  list every page's nav reads).
 - `budget_mis/ai/` - the AI Assistant's system prompt builder
   (`assistant.py`), its callable tool functions (`tools.py`), and the
   guide-content review/authoring helpers used from Desk.
@@ -113,6 +165,50 @@ real PeopleSoft ERP actuals, with a Vue 3 frontend (`frontend/`) served at
   run to flag that Workspace as orphaned and delete it outright (recovered
   both times via the `Deleted Document` doctype's JSON snapshot, but don't
   rely on that path).
+- **Never give `useCall` (frappe-ui) a `cacheKey` for a response that's
+  role- or user-dependent.** A cache-keyed `useCall` persists its response
+  to the browser's IndexedDB and shows that stale value immediately on the
+  very next load/session, before the real fetch resolves - fine for a
+  genuinely static resource (branding, meta), but a real bug for anything
+  gated by the current user's roles/permissions (`get_app_modules`'s
+  role-filtered module list, `get_app_config`'s `can_manage_settings`
+  permission flag). Both were caching-keyed and both leaked a previous
+  session/user's value across a role change + page reload until this was
+  fixed (`frontend/src/data/modules.js`, `frontend/src/data/appConfig.js`) -
+  the fix is simply omitting `cacheKey`, since these calls are already
+  cheap and only fire once per page load/session via their own
+  `if (!resource.data) resource.fetch()` guards.
+- **A plain `window.location.reload()` anywhere in the app can race the PWA
+  service worker's own auto-update logic** (`PwaUpdatePrompt.vue`) into a
+  double reload: if a SW update happens to already be `waiting` at that
+  exact moment, re-registering on the reloaded page re-fires Workbox's
+  `waiting` → `skipWaiting()` → `controlling` chain, which schedules its
+  own second reload once the new worker takes over. Fixed with a single
+  `beforeunload` listener in `PwaUpdatePrompt.vue` that flags an in-progress
+  reload and skips the SW's own redundant one - covers every reload call
+  site in the app (the account-menu Reload/Clear Cache entries, the
+  bfcache-restore guard, the Vite chunk-preload-error recovery, etc.)
+  without each of them needing their own SW-awareness.
+- **`Combination of unit settings.hide_number` ("Hide number?") is a
+  display-only flag, scoped to specific tables - never blank the actuals
+  a backend function returns because of it.** It only controls whether the
+  Monthly MIS page's Operating/Capital Expense and Overall Foundation
+  tables (`ExpenseTable.vue`/`ConsolidatedTable.vue`, via the `hideNumber`
+  flag carried on each row) show that combination's figures as blank
+  cells, excluded from Total/Grand Total - the Operating Expenses
+  Breakdown cards (`UnitDetailGrid.vue`/`buildUnitDetailGrid`) and the
+  Excel/PDF/PPTX export never look at this flag at all and always show
+  every unit's real numbers. `get_monthly_mis_break_up`/
+  `get_unit_wise_actuals_breakup`/`get_unit_wise_plan_budget` (`monthly_mis.py`/
+  `foundation_consolidated.py`) always return the true, unblanked actuals
+  alongside a `hide_number` flag on each entry - an earlier version of this
+  blanked the figures in the backend itself, which silently zeroed them
+  out for every consumer, including ones that were never meant to hide
+  anything. A row with this flag set is still excluded from the row's own
+  table's Total/Grand Total sums (both backend running totals and the
+  frontend's own `buildExpTotals`/`buildConsolidatedRows`), since those
+  sums would otherwise double back in a "hidden" row's real amount despite
+  its own cells rendering blank.
 
 ### Local development data
 

@@ -166,6 +166,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import LucideIcon from '@/components/LucideIcon.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { modulesResource } from '@/data/modules'
+import { appConfigResource } from '@/data/appConfig'
 import { GUIDE_SECTIONS, appIconLockup } from '@/data/userGuideContent'
 
 const props = defineProps({
@@ -190,8 +191,16 @@ const allowedModuleNames = computed(() => new Set((modulesResource.data || []).m
 // viewer's own role-filtered module list (above) actually includes it -
 // the same restriction their real Home page tiles already enforce, so a
 // restricted viewer can't read about (or type the direct URL to open) a
-// module their role doesn't have.
-const visibleSections = computed(() => GUIDE_SECTIONS.filter((s) => !s.moduleName || allowedModuleNames.value.has(s.moduleName)))
+// module their role doesn't have. A `systemManagerOnly` topic (currently
+// just Trial Balance Check, now a tab inside Monthly MIS rather than its
+// own module/Home tile) is gated the same way that tab itself is -
+// appConfigResource's can_manage_settings flag (System-Manager-only, see
+// api/branding.py's get_app_config) - since it has no App Module Setting
+// record of its own anymore for allowedModuleNames to check.
+const visibleSections = computed(() => GUIDE_SECTIONS.filter((s) => {
+  if (s.systemManagerOnly) return !!appConfigResource.data?.can_manage_settings
+  return !s.moduleName || allowedModuleNames.value.has(s.moduleName)
+}))
 
 // Finance Unit Coordinator's own "Dashboard" tile is server-side redirected
 // to Budget vs Actual (DASHBOARD_REDIRECT_BY_ROLE in api/modules.py) -
@@ -267,7 +276,13 @@ function handleKeydown(e) {
   if (e.key === 'ArrowRight' && nextSection.value) goToTopic(nextSection.value.id)
   if (e.key === 'ArrowLeft' && previousSection.value) goToTopic(previousSection.value.id)
 }
-onMounted(() => document.addEventListener('keydown', handleKeydown))
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+  // Same if-not-already-loaded guard every other consumer of this shared
+  // resource uses (ProfileSettingsModal.vue, MonthlyMis.vue) - only the
+  // first of them to mount this session actually fetches it.
+  if (!appConfigResource.data) appConfigResource.fetch()
+})
 onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 // Reads the active topic's own rendered <h3> sub-headings for the

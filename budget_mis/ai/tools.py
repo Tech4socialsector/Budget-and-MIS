@@ -375,16 +375,22 @@ def _resolve_operating_unit_name(operating_unit):
 
 
 def get_actuals_summary(financial_year=None, month=None, unit=None, operating_unit=None, cost_center=None, location_code=None):
-	"""The authoritative year-to-date ACTUAL spend total (as opposed to
-	get_budget_summary's BUDGETED/planned total) for a financial year,
-	through a given month. Built the same way the Budget vs Actuals page
-	computes it (budget_actuals_combined.get_combined_actuals, itself
-	sourced from the single consolidated PeopleSoft actuals path - see
-	budget_mis/api/erp_actuals.py/grouped_actuals.py), not by reading or
-	summing raw "Finance Budget", "Monthly Adjustment", or any other
-	doctype's records directly. Never confuse this with get_budget_summary - "actual"/"spent"/
-	"utilized"/"expenditure so far" means this tool; "budget"/"allocated"/
-	"sanctioned"/"planned" means get_budget_summary.
+	"""The authoritative BUDGET-vs-ACTUAL summary for a financial year,
+	year-to-date through a given month - both figures together, paired the
+	exact same way the real Budget vs Actuals page pairs them. Calls that
+	page's own backend report (budget_vs_actual.get_combined_actuals_report)
+	directly rather than re-deriving the numbers here, so this tool's output
+	can never drift from what a user looking at that page themselves would
+	see - including its per-unit fan-out when several units/cost-centers/
+	locations are involved (summing one get_combined_actuals call per unit
+	rather than a single flattened filter, which would cross-match
+	combinations that were never actually picked together). Use this for
+	ANY question that needs an actual/spent total, a budget total paired
+	with it, or both - get_budget_summary is a DIFFERENT, FULL-YEAR-ONLY
+	total (no month, no actuals) for when the user explicitly wants the
+	whole year's sanctioned amount with nothing to do with spend-so-far;
+	this tool is correct for everything else, including a YTD/up-to-a-month
+	BUDGET figure on its own, since it's returned here too.
 
 	Pass EITHER `unit` (a literal Unit code like "APU") OR `operating_unit`
 	(a name from list_operating_units, e.g. "Azim Premji School") - never
@@ -400,15 +406,12 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 	scoped only by this user's own cost-center/location access.
 
 	Always scoped to the calling user's own unit/cost-center/location access
-	(get_combined_actuals itself applies no such scoping when called
+	(get_combined_actuals_report itself applies no such scoping when called
 	internally), so a restricted Finance user asking this assistant never
 	sees more than their own list views already show them.
 	"""
 	from budget_mis.utils import get_allowed_cost_centers, get_allowed_location_codes
-	from budget_mis.api.budget_actuals_combined import get_combined_actuals
-	from budget_mis.api.helper import get_accounting_period_from_month
-	from budget_mis.api.grouped_actuals import group_actuals_ytd
-	from budget_mis.api.filter_options import get_theme_mappings
+	from budget_mis.api.budget_vs_actual import get_combined_actuals_report
 
 	if not financial_year:
 		financial_year = frappe.db.get_single_value("Master Settings", "current_financial_year")
@@ -427,20 +430,16 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 	erp_cost_center_value = None
 	erp_loc_value = None
 
+	theme_name = None
 	if operating_unit:
+		# Passed straight through to get_combined_actuals_report as
+		# theme_names below, rather than flattened into unit/cost_center/
+		# location_code here - that report's own _get_combined_actuals_by_theme
+		# already fans out one call per the theme's real (unit, cost-center,
+		# location) row and sums, which correctly preserves each row's exact
+		# pairing; flattening first (as this tool used to do) can cross-match
+		# combinations the theme never actually defined together.
 		theme_name = _resolve_operating_unit_name(operating_unit)
-		mapping = get_theme_mappings(theme_name)
-		unit = ",".join(sorted({u["value"] for u in mapping.get("units") or [] if u.get("value")})) or None
-		cost_center = ",".join(sorted({c["value"] for c in mapping.get("cost_centers") or [] if c.get("value")})) or None
-		location_code = ",".join(sorted({l["value"] for l in mapping.get("location_codes") or [] if l.get("value")})) or None
-		erp_cost_center_value = ",".join(sorted({
-			c["erp_cost_center_value"] for c in mapping.get("cost_centers") or [] if c.get("erp_cost_center_value")
-		})) or None
-		erp_loc_value = ",".join(sorted({
-			l["erp_loc_value"] for l in mapping.get("location_codes") or [] if l.get("erp_loc_value")
-		})) or None
-		if not unit and not erp_cost_center_value and not erp_loc_value:
-			frappe.throw(_("Operating Unit '{0}' has no units/cost centers/location codes configured.").format(operating_unit))
 
 	# Resolve a plain user-given cost_center/location_code (e.g. "111100",
 	# "1001" - the ERP code shown in the real page's own filter dropdowns,
@@ -486,7 +485,9 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 			return {
 				"financial_year": financial_year,
 				"month": month,
-				"grand_total_ytd": 0,
+				"grand_total_budget_ytd": 0,
+				"grand_total_actual_ytd": 0,
+				"grand_total_utilization_pct": 0,
 				"heads": [],
 				"note": "You do not have access to any budget units.",
 			}
@@ -507,18 +508,16 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 			if not requested.issubset(allowed_location_codes):
 				frappe.throw(_("You do not have access to one or more of the requested location codes."), frappe.PermissionError)
 
-	# Same shared-cache fetch-once pattern as budget_vs_actual.py's
-	# get_combined_actuals_report - group_actuals_ytd checks its own
-	# server-side cache first and only redoes the real ERP fetch when
-	# nothing cached is found for this exact (fiscal_year, accounting_period).
-	formatted = get_accounting_period_from_month(month, financial_year)
-	actuals_response = group_actuals_ytd(
-		fiscal_year=formatted.get("fiscal_year"),
-		accounting_period=formatted.get("accounting_period"),
-	)
-	grouped_actuals_data = actuals_response.get("data", [])
-
-	heads = get_combined_actuals(
+	# Calls the real Budget vs Actuals report backend directly (internal
+	# Python call - unit=None here still means "give me the full/already-
+	# resolved result", this function's own is_direct_http_call check never
+	# fires, so the scoping/theme-fan-out above is what actually applies,
+	# same convention as every other tool in this file). This is the same
+	# function the live page's own API call hits, including its shared
+	# group_actuals_ytd cache (fetch-once, server-side) and its per-unit
+	# fan-out when several units/cost-centers/locations are involved - this
+	# tool's numbers can never drift from what the page itself would show.
+	heads = get_combined_actuals_report(
 		financial_year=financial_year,
 		month=month,
 		unit=unit,
@@ -526,21 +525,31 @@ def get_actuals_summary(financial_year=None, month=None, unit=None, operating_un
 		location_code=location_code,
 		erp_cost_center_value=erp_cost_center_value,
 		erp_loc_value=erp_loc_value,
-		grouped_actuals_data=grouped_actuals_data,
+		theme_names=theme_name,
 	) or []
 
 	head_summaries = []
-	grand_total = 0.0
+	grand_budget = 0.0
+	grand_actual = 0.0
 	for head in heads:
-		total = float(head.get("total_posted_amt_ytd") or 0)
-		grand_total += total
-		head_summaries.append({"head": head.get("name"), "total_ytd": round(total, 2)})
+		budget = float(head.get("ytd") or 0)
+		actual = float(head.get("total_posted_amt_ytd") or 0)
+		grand_budget += budget
+		grand_actual += actual
+		head_summaries.append({
+			"head": head.get("name"),
+			"budget_ytd": round(budget, 2),
+			"actual_ytd": round(actual, 2),
+			"utilization_pct": round((actual / budget * 100), 2) if budget else 0,
+		})
 
 	return {
 		"financial_year": financial_year,
 		"month": month,
 		"unit": operating_unit or unit or "all units you have access to",
-		"grand_total_ytd": round(grand_total, 2),
+		"grand_total_budget_ytd": round(grand_budget, 2),
+		"grand_total_actual_ytd": round(grand_actual, 2),
+		"grand_total_utilization_pct": round((grand_actual / grand_budget * 100), 2) if grand_budget else 0,
 		"heads": head_summaries,
 	}
 
@@ -637,6 +646,7 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 		return " ".join(str(name or "").split()).upper()
 
 	tables = []
+	any_hidden = False
 	for table_name, entries in break_up.items():
 		rows = []
 		for entry in entries:
@@ -648,7 +658,23 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 			# entirely (CAPEX TOTAL/OPEX TOTAL/OVERALL GRAND TOTAL) and
 			# carries no per-entry OPERATING/CAPITAL/GRAND TOTAL heads at
 			# all, so including it here would add an all-zero row.
+			#
+			# hide_number ("Hide number?" on that combination's own
+			# Combination of unit settings row) only controls whether the
+			# Monthly MIS page's Operating/Capital Expense and Overall
+			# Foundation tables display this entry's figures - the entry's
+			# own "actuals" here are the real, unblanked numbers (same as
+			# every other consumer of get_monthly_mis_break_up), but this
+			# tool skips it anyway rather than reporting it as if it were
+			# a visible row on the page, since the assistant's whole point
+			# is to describe what a user would see there. any_hidden
+			# tracks whether this happened at all, so the result's own
+			# note can tell the assistant to disclose the omission instead
+			# of silently answering as if every combination were included.
 			if entry.get("is_this_sub_item") or entry.get("settings_doc") == "CONSOLIDATED":
+				continue
+			if entry.get("hide_number"):
+				any_hidden = True
 				continue
 			actuals = {_norm(a.get("name")): a for a in entry.get("actuals", [])}
 			opex = actuals.get("OPERATING EXPENSES") or {}
@@ -665,11 +691,20 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 			})
 		tables.append({"table_name": table_name, "rows": rows})
 
+	note = "Figures are in raw rupees, year-to-date through the given month, same as the Monthly MIS page."
+	if any_hidden:
+		note += (
+			" One or more combinations configured with \"Hide number?\" were deliberately left out of "
+			"these totals (same as the page itself) - if the user asks about a specific unit/combination "
+			"that doesn't appear here, say it's configured to not display a number rather than reporting "
+			"it as zero or missing data."
+		)
+
 	result = {
 		"financial_year": financial_year,
 		"month": month,
 		"tables": tables,
-		"note": "Figures are in raw rupees, year-to-date through the given month, same as the Monthly MIS page.",
+		"note": note,
 	}
 	frappe.cache().set_value(cache_key, result, expires_in_sec=get_actuals_cache_duration_seconds())
 	return result
@@ -953,9 +988,12 @@ TOOL_SCHEMAS = [
 		"function": {
 			"name": "get_budget_summary",
 			"description": (
-				"The ONLY correct source for a budget total, grand total, or per-head total for a financial year. "
-				"Always call this for any question about how much budget is allocated, sanctioned, or planned - "
-				"never compute a total yourself and never use search_records or get_record on 'Finance Budget' "
+				"The ONLY correct source for the FULL-YEAR budget total, grand total, or per-head total for a "
+				"financial year - this has NO month argument and NO actuals figure, it is always the whole year's "
+				"sanctioned amount. For a budget figure paired with a specific month (year-to-date/'up to this "
+				"month'/'so far', or anything alongside actuals), use get_actuals_summary instead - it returns a "
+				"correctly month-scoped budget total too, do not assume only this tool has budget data. "
+				"Never compute a total yourself and never use search_records or get_record on 'Finance Budget' "
 				"for this, since each 'Finance Budget' record is a single line item, not an aggregate. "
 				"If the user doesn't name a financial year, call this with no financial_year argument - it defaults "
 				"to the app's current financial year, and its reply tells you which year that was. If the user names "
@@ -994,15 +1032,19 @@ TOOL_SCHEMAS = [
 		"function": {
 			"name": "get_actuals_summary",
 			"description": (
-				"The ONLY correct source for an ACTUAL/spent/utilized expenditure total, as opposed to a budgeted/"
-				"planned total (use get_budget_summary for that instead). Always call this for any question about "
-				"how much has actually been spent, utilized, or posted so far - never compute a total yourself and "
-				"never use search_records or get_record on 'Finance Budget' or 'Monthly Adjustment' for this. "
-				"Actuals are always reported year-to-date through a specific month, so a month is required - if the "
-				"user doesn't name one, ask them which month instead of guessing. If the user names an Operating "
-				"Unit (e.g. 'Azim Premji School') rather than a literal Unit code, pass it as operating_unit, never "
-				"as unit - passing an Operating Unit's name as unit will not match anything and silently returns a "
-				"0.00 total instead of an error. Call list_operating_units first if unsure which one a name is."
+				"The ONLY correct source for an ACTUAL/spent/utilized expenditure total, AND/OR a YEAR-TO-DATE "
+				"budget total paired with it for the same month - calls the real Budget vs Actuals page's own "
+				"backend report directly, so these numbers always match that page exactly. Always call this for "
+				"any question about how much has actually been spent, utilized, or posted so far, OR a 'budget up "
+				"to this month'/'budget year to date'/'budget so far' question - get_budget_summary is a DIFFERENT, "
+				"full-year-only total with no month and no actuals; do NOT use it, and do NOT claim a YTD budget "
+				"figure is unavailable, when a month is given - never compute a total yourself and never use "
+				"search_records or get_record on 'Finance Budget' or 'Monthly Adjustment' for this. "
+				"A month is required - if the user doesn't name one, ask them which month instead of guessing. If "
+				"the user names an Operating Unit (e.g. 'Azim Premji School') rather than a literal Unit code, pass "
+				"it as operating_unit, never as unit - passing an Operating Unit's name as unit will not match "
+				"anything and silently returns a 0.00 total instead of an error. Call list_operating_units first if "
+				"unsure which one a name is."
 			),
 			"parameters": {
 				"type": "object",

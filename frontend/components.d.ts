@@ -55,6 +55,7 @@ declare module 'vue' {
     SortEditor: typeof import('./src/components/SortEditor.vue')['default']
     SummaryInrTab: typeof import('./src/components/foundationConsolidated/SummaryInrTab.vue')['default']
     TopNavbar: typeof import('./src/components/TopNavbar.vue')['default']
+    TrialBalanceCheckTab: typeof import('./src/components/monthlyMis/TrialBalanceCheckTab.vue')['default']
     UnitDetailGrid: typeof import('./src/components/monthlyMis/UnitDetailGrid.vue')['default']
     UserTemplateCard: typeof import('./src/components/budgetImportTemplate/UserTemplateCard.vue')['default']
   }

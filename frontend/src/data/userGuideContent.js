@@ -46,6 +46,18 @@ import monthlyMisEnablersBreakdownImage from '@/assets/user-guide/monthly-mis-en
 import monthlyMisBreakdownGridImage from '@/assets/user-guide/monthly-mis-breakdown-grid.png'
 import budgetImportTemplateImage from '@/assets/user-guide/budget-import-template.png'
 import budgetImportTemplateReviewImage from '@/assets/user-guide/budget-import-template-review.png'
+import foundationConsolidatedPptImage from '@/assets/user-guide/foundation-consolidated-ppt.png'
+import foundationConsolidatedSummaryInrImage from '@/assets/user-guide/foundation-consolidated-summary-inr.png'
+import foundationConsolidatedHeadcountImage from '@/assets/user-guide/foundation-consolidated-headcount.png'
+import foundationConsolidatedAnnualBudgetImage from '@/assets/user-guide/foundation-consolidated-annual-budget.png'
+import foundationConsolidatedActualsImage from '@/assets/user-guide/foundation-consolidated-actuals.png'
+import foundationConsolidatedBudgetActualsImage from '@/assets/user-guide/foundation-consolidated-budget-actuals.png'
+import erpActualsInitialImage from '@/assets/user-guide/erp-actuals-initial.png'
+import erpActualsResultsImage from '@/assets/user-guide/erp-actuals-results.png'
+import budgetImportInitialImage from '@/assets/user-guide/budget-import-initial.png'
+import budgetImportPreviewImage from '@/assets/user-guide/budget-import-preview.png'
+import dataImportListImage from '@/assets/user-guide/data-import-list.png'
+import dataImportPreviewImage from '@/assets/user-guide/data-import-preview.png'
 
 // The exact logo+"Budget & MIS" wordmark image (not a separately-rendered
 // icon component + text span) shown wherever a `brand: true` section's
@@ -60,7 +72,12 @@ export { default as appIconLockup } from '@/assets/user-guide/app-icon-lockup.pn
 // 2px, round caps/joins) as LucideIcon.vue, so an icon dropped into a
 // bullet point looks identical to one rendered through the component
 // elsewhere in the app, just inline with the bullet's own text color.
-import iconNodes from 'lucide-static/icon-nodes.json'
+// Reads from the same precomputed subset LucideIcon.vue uses (every name
+// called below is a static literal already covered by it) rather than the
+// full ~660KB lucide-static/icon-nodes.json, since every call site here is
+// a hardcoded string, not a runtime/DB-driven value that could need a name
+// outside that subset.
+import iconNodes from '@/assets/lucide-icon-subset.json'
 export function icon(name) {
   const children = iconNodes[name]
   if (!children) return ''
@@ -130,7 +147,7 @@ export const GUIDE_SECTIONS = [
       <p>Click the <strong>Sign In</strong> button. If your email and password are correct, you'll move on to the next step (if your account needs a verification code - see below) or straight into the app. If something's wrong, the form shakes briefly and shows an error message just above the button - check that your email and password are both typed correctly (caps lock is a common culprit) and try again.</p>
 
       <h3>Signing in with Office 365 instead</h3>
-      <p>If your organization has this set up, you'll see a <strong>"Sign in with Office 365"</strong> button below the Sign In button (separated by a thin "or" divider). Click it instead of typing a password - you'll be taken to Microsoft's own sign-in page, and brought back into the app automatically once you've signed in there. This option only appears if your account is set up for it; if you don't see it, use your email and password instead.</p>
+      <p>If your organization has this set up, you'll see a <strong>"Sign in with [Provider Name]"</strong> button below the Sign In button (separated by a thin "or" divider) - "Office 365" for most Foundation accounts, though the exact label follows whatever your organization's own sign-in provider is named. Click it instead of typing a password - you'll be taken to that provider's own sign-in page, and brought back into the app automatically once you've signed in there. This option only appears if your account is set up for it; if you don't see it, use your email and password instead.</p>
 
       <h3>If you're asked for a verification code</h3>
       <p>Depending on how your account is set up, after you submit your email and password you may be taken to a second screen asking for a one-time verification code, instead of going straight into the app.</p>
@@ -243,16 +260,16 @@ export const GUIDE_SECTIONS = [
       </ul>
     ` : `
       <p>The Dashboard is the Foundation-wide financial overview - budget totals, breakdowns by unit and sub-unit, and a handful of at-a-glance insights, all for the <strong>Financial Year</strong> you select at the top. It's built for a quick read of where things stand, not for drilling into individual transactions - for that level of detail, use Budget Summary or Budget vs Actuals instead.</p>
-      <p>Everything below - the three tabs, the top banner, the insight cards, and the Unit/Sub Unit breakdown - all lives on this one page. Switching tabs doesn't take you anywhere else; it just changes what's shown underneath the same Financial Year filter at the top.</p>
+      <p>Everything below - the three tabs, the top banner, the insight cards, and the Unit/Sub Unit breakdown - all lives on this one page. Switching tabs doesn't take you anywhere else; it just changes what's shown underneath the same Financial Year filter at the top. <strong>Budget vs Actuals</strong> is the tab that opens by default.</p>
 
       <h3>The three tabs</h3>
       <ul>
-        <li>${icon('chart-pie')}<strong>Dashboard</strong> - the main overview covered in detail below: Overall Grand Total, Capex/Opex totals, a row of insight cards, then a breakdown by Unit and by Sub Unit.</li>
-        <li>${icon('layers')}<strong>Work Plan Views</strong> - the same budget split a different way: <strong>Direct Work</strong> versus <strong>Grants &amp; Donations</strong>, instead of by Unit. It has its own Grand Total, Direct Work, and Grants &amp; Donations cards, a pie chart showing that split visually, its own set of insight cards, and two further charts breaking Direct Work and Grants down unit-wise.</li>
-        <li>${icon('trending-up')}<strong>Budget vs Actuals Breakdown</strong> - a scaled-down version of the full Budget vs Actuals page, right here on the Dashboard: its own YTD Month/Unit/Cost Center/Location Code filters and <strong>Get Report</strong> button, then the same kind of Budget-vs-Actual cards, without leaving for the separate Budget vs Actuals page.</li>
+        <li>${icon('trending-up')}<strong>Budget vs Actuals</strong> - the default tab: a scaled-down version of the full Budget vs Actuals page, right here on the Dashboard. Its own YTD Month/Unit/Cost Center/Location Code filters and <strong>Get Report</strong> button, then the same kind of Budget-vs-Actual cards, without leaving for the separate Budget vs Actuals page.</li>
+        <li>${icon('layers')}<strong>Work Plan</strong> - the same budget split a different way: <strong>Direct Work</strong> versus <strong>Grants &amp; Donations</strong>, instead of by Unit. It has its own Grand Total, Direct Work, and Grants &amp; Donations cards, a pie chart showing that split visually, its own set of insight cards, and two further charts breaking Direct Work and Grants down unit-wise.</li>
+        <li>${icon('chart-pie')}<strong>Budget Overview</strong> - the overview covered in detail below: Overall Grand Total, Capex/Opex totals, a row of insight cards, then a breakdown by Unit and by Sub Unit.</li>
       </ul>
-      <img src="${dashboardWorkPlanViewsImage}" alt="Work Plan Views tab: Direct Work vs Grants & Donations split, with unit-wise breakdown donut charts" class="guide-inline-image" />
-      <img src="${dashboardBudgetVsActualsBreakdownImage}" alt="Budget vs Actuals Breakdown tab: filters, Grand Total card, Expense Head and Sub Head cards, and the detailed table" class="guide-inline-image" />
+      <img src="${dashboardBudgetVsActualsBreakdownImage}" alt="Budget vs Actuals tab: filters, Grand Total card, Expense Head and Sub Head cards, and the detailed table" class="guide-inline-image" />
+      <img src="${dashboardWorkPlanViewsImage}" alt="Work Plan tab: Direct Work vs Grants & Donations split, with unit-wise breakdown donut charts" class="guide-inline-image" />
 
       <h3>The top banner</h3>
       <p>Three large cards sit right under the Financial Year filter: <strong>Overall Grand Total</strong> (every unit, every category, combined), <strong>Capex Total</strong> (capital expenses only), and <strong>Opex Total</strong> (operating expenses only). All three are clickable and open a drill-down into exactly what makes up that figure.</p>
@@ -274,7 +291,7 @@ export const GUIDE_SECTIONS = [
       </ul>
 
       <h3>Charts</h3>
-      <p>Four charts round out the Dashboard tab, each reading the same Financial Year you've already selected:</p>
+      <p>Four charts round out the Budget Overview tab, each reading the same Financial Year you've already selected:</p>
       <ul>
         <li>${icon('chart-pie')}<strong>Budget Share</strong> - a doughnut chart showing what percentage of the Foundation-wide total each Unit holds. Click a slice to drill into that unit's own figures.</li>
         <li>${icon('chart-column-stacked')}<strong>Quarterly Allocation Trend</strong> - a stacked bar chart of Capital, Operating, and COVID Support spending for each of the four quarters, with the quarter's grand total labelled above each bar.</li>
@@ -380,26 +397,44 @@ export const GUIDE_SECTIONS = [
     // this module, same restriction the real Home page tile enforces.
     moduleName: 'foundation_consolidated',
     summary: 'Six consolidated views in one place. (Admin only)',
+    image: foundationConsolidatedPptImage,
     html: `
       <p><strong>This tile only appears for System Manager accounts</strong> - if you don't see it on your Home page, that's expected; it's not something your role has access to.</p>
       <p>Foundation Consolidated is the most complete reporting page in the app - six different views of the Foundation's budget and actuals, all built from the same Financial Year you pick once at the top.</p>
 
       <h3>The six tabs</h3>
+      <p>Drill-down into the real head / sub-head / item (and, on some tabs, GL code) tree behind a figure is only available on four of the six tabs - <strong>Foundation Level / Overall Metrics</strong>, <strong>Summary in INR</strong>, <strong>Annual Budget Consolidated</strong>, and <strong>Actuals Consolidated</strong>. <strong>Headcount</strong> and <strong>Budget & Actuals</strong> have no drill-down at all - every row on those two is already the final figure.</p>
       <ul>
-        <li>${icon('globe')}<strong>Foundation Level / Overall Metrics</strong> - the big picture: this year's budget against last year's actuals, split into Operating, Capital, and COVID spending, plus a breakdown for Education and by unit.</li>
-        <li>${icon('indian-rupee')}<strong>Summary in INR</strong> - a consolidated summary in plain rupee figures, including headcount numbers.</li>
-        <li>${icon('users')}<strong>Headcount</strong> - planned headcount against actual headcount.</li>
-        <li>${icon('wallet')}<strong>Annual Budget Consolidated</strong> - the complete annual budget, broken down across every unit.</li>
-        <li>${icon('trending-up')}<strong>Actuals Consolidated</strong> - the complete actuals, broken down across every unit.</li>
-        <li>${icon('git-compare')}<strong>Budget & Actuals</strong> - both budget and actuals shown together, across every unit.</li>
+        <li>${icon('globe')}<strong>Foundation Level / Overall Metrics</strong> - two main tables (this year's budget vs. last year's actuals, and last year's budget vs. last year's actuals), each split into Operating/Capital/COVID/Total; several "Education" tables, one per group; and two further breakdown tables (Operating Expenses by category, Capital Expenses by item), each with one column per unit and a highlighted Grand Total column. Click a row to drill down, all the way to individual GL codes.</li>
       </ul>
+      <img src="${foundationConsolidatedPptImage}" alt="Foundation Level / Overall Metrics tab showing the Operating/Capital/Covid/Total budget vs. actual tables" class="guide-inline-image" />
+      <ul>
+        <li>${icon('indian-rupee')}<strong>Summary in INR</strong> - the densest tab, eight sections: Unit Wise Plan vs Actual; a Breakdown of Unit Wise Plan by expense category; an Opex vs. Capex percentage split; Headcount (Closing &amp; Average, shown only once at least two years of headcount data exist); a Cost per Employee comparison (cost per person per year/month, with a highlighted increase/decrease); Other Operating Expenses by unit; Quarter Phasing (Capex/Opex/Total across this year's and last year's four quarters, with a "% Phasing" row under each); and Capital Expenditure by item. Only the first two sections (Unit Wise Plan and its Breakdown) support drill-down - the rest are already-final ratios, totals, or line items.</li>
+      </ul>
+      <img src="${foundationConsolidatedSummaryInrImage}" alt="Summary in INR tab's Unit Wise Plan table, with the Breakdown of Unit Wise Plan section starting below it" class="guide-inline-image" />
+      <ul>
+        <li>${icon('users')}<strong>Headcount</strong> - not simply "planned vs. actual": Closing Headcount and Average Headcount tables across every financial year you have data for, plus year-over-year % change tables for both, and (once two or more years exist) a combined Headcount + Opex Spend comparison tying headcount change to cost change. No drill-down on this tab.</li>
+      </ul>
+      <img src="${foundationConsolidatedHeadcountImage}" alt="Headcount tab's Headcount Summary table, with the Closing H/C table across multiple years starting below it" class="guide-inline-image" />
+      <ul>
+        <li>${icon('wallet')}<strong>Annual Budget Consolidated</strong> - not a per-unit table; one expandable Head → Sub Head → Item tree (units are already consolidated into it) with Q1-Q4 columns. A search box filters by name, an <strong>Expand Quarters</strong> switch reveals every quarter's monthly columns at once (you can also expand a single quarter by clicking its own header), and <strong>Expand Line Items</strong> opens every row at once. A small arrow icon next to a head/sub-head row (not the row itself, which just expands/collapses it) opens the drill-down.</li>
+      </ul>
+      <img src="${foundationConsolidatedAnnualBudgetImage}" alt="Annual Budget Consolidated tab with Expand Line Items on, showing Capital Expenses expanded into its own line items with Q1-Q4 and Total columns" class="guide-inline-image" />
+      <ul>
+        <li>${icon('trending-up')}<strong>Actuals Consolidated</strong> - the same kind of expandable Head → Sub Head → Item tree, search box, and Expand Quarters/Line Items switches as Annual Budget Consolidated, just built from actuals instead of budget figures - though under the hood its data and column structure aren't identical to that tab's.</li>
+      </ul>
+      <img src="${foundationConsolidatedActualsImage}" alt="Actuals Consolidated tab with Expand Line Items on, showing the same Capital Expenses line items as actuals instead of budget" class="guide-inline-image" />
+      <ul>
+        <li>${icon('git-compare')}<strong>Budget & Actuals</strong> - one Head → Sub Head → Item tree with a Plan/Actual column pair <em>per unit</em>, plus a Grand Total pair at the end - a search box and Expand Line Items switch, but no Expand Quarters (there's no time dimension on this tab) and no drill-down. <strong>Known issue:</strong> the Grand Total Plan/Actual column currently always shows as blank or zero regardless of the real unit figures - that's a backend gap, not a sign the other columns are wrong.</li>
+      </ul>
+      <img src="${foundationConsolidatedBudgetActualsImage}" alt="Budget & Actuals tab showing one Plan/Actual column pair per unit (Azim Premji University campuses, District Institute, Schools) across Capital/Operating/Covid/Grand Total rows" class="guide-inline-image" />
 
       <h3>How it works</h3>
       <ul>
         <li>${icon('clock')}Each tab loads its own data the first time you open it, so the first click on a tab may take a moment - after that, switching back and forth is instant as long as you haven't changed the Financial Year.</li>
         <li>${icon('refresh-cw')}Changing the <strong>Financial Year</strong> clears everything and reloads just the tab you're currently on - the others will reload the next time you open them.</li>
-        <li>${icon('file-spreadsheet')}Each tab has its own <strong>Export</strong> button for just that tab's data, or use <strong>Export All</strong> at the top to export every tab at once (you'll need to have opened every tab at least once first, so the app has something to export for each one).</li>
-        <li>${icon('toggle-left')}<strong>Show full numbers</strong> applies across every tab, switching between exact rupee figures and a rounded Cr (crore) view.</li>
+        <li>${icon('file-spreadsheet')}Each tab has its own <strong>Export</strong> button for just that tab's data - it only works once that tab has finished loading, so clicking it right after switching tabs (before data appears) shows a message asking you to wait. <strong>Export All</strong> at the top exports every tab at once, but needs every one of the six tabs to have been opened at least once first; if any haven't, it tells you which ones are still missing instead of exporting a partial file.</li>
+        <li>${icon('toggle-left')}<strong>Show full numbers</strong> applies across every tab, switching between exact rupee figures and a rounded Cr (crore) view. Amount cells on this page don't show the hover tooltip some other reports use - that's expected here, not a bug.</li>
       </ul>
     `,
   },
@@ -410,19 +445,18 @@ export const GUIDE_SECTIONS = [
     summary: 'Month-by-month, year-over-year spending.',
     image: monthlyMisOpexImage,
     html: `
-      <p>Monthly MIS shows how spending has progressed so far this year, always comparing this year's YTD figures against the same YTD period last year, section by section, from the Foundation's overall numbers down to individual units and sub-units. It's one long page - every section below sits on the same page, one after another, rather than behind separate tabs.</p>
+      <p>Monthly MIS shows how spending has progressed so far this year, always comparing this year's YTD figures against the same YTD period last year, section by section, from the Foundation's overall numbers down to individual units and sub-units. Every section described below sits together on this one "Monthly MIS" tab, one after another, rather than behind separate tabs - the only other tab on this page is <strong>Trial Balance Check</strong> (System Manager accounts only), covered in its own topic.</p>
 
       <h3>Filters</h3>
       <ul>
-        <li>${icon('calendar')}<strong>Financial Year</strong> and <strong>Month (YTD up to)</strong> - the whole page shows figures cumulatively, from the start of that financial year up to and including the month you pick. Changing either reloads every section on the page together.</li>
-        <li>${icon('refresh-cw')}<strong>Refresh</strong> re-runs the report with your current filters, in case the underlying ERP data has changed since you opened the page.</li>
-        <li>${icon('toggle-left')}<strong>Show full numbers</strong> toggles every table on the page between a rounded Cr (crore) figure and the full exact rupee amount; <strong>Export</strong> downloads the whole report as an Excel file.</li>
+        <li>${icon('calendar')}<strong>Financial Year</strong> and <strong>Month (YTD up to)</strong> sit above the tabs and are shared by both of them - the whole page shows figures cumulatively, from the start of that financial year up to and including the month you pick. Changing either reloads every section on whichever tab you're on.</li>
+        <li>${icon('refresh-cw')}<strong>Refresh</strong>, <strong>Show full numbers</strong>, and <strong>Export</strong> only appear on the Monthly MIS tab itself (Trial Balance Check doesn't use them). Refresh re-runs the report with your current filters, in case the underlying ERP data has changed since you opened the page; Show full numbers toggles every table between a rounded Cr (crore) figure and the full exact rupee amount; Export opens a dropdown offering the whole report as an <strong>Excel</strong>, <strong>PDF</strong>, or <strong>PowerPoint</strong> file.</li>
       </ul>
       <p>Your choice of Financial Year and Month is remembered the next time you open this page, so you don't need to reset it on every visit.</p>
 
       <h3>Operating Expense and Capital Expense</h3>
-      <p>The first two sections split every unit's spending into <strong>Operating Expense</strong> and <strong>Capital Expense</strong>, each as its own table of Budget/Actuals/% of Budget, shown for both the current financial year and the previous one side by side - so a jump or drop against last year is visible at a glance, not just this year's number in isolation.</p>
-      <img src="${monthlyMisOpexImage}" alt="Monthly MIS Operating Expense section: Budget, Actuals and % of Budget for each unit, for 2026-27 and 2025-26 side by side" class="guide-inline-image" />
+      <p>The first two sections split every unit's spending into <strong>Operating Expense</strong> and <strong>Capital Expense</strong>, each as its own table of Budget/Actuals/% of Budget, shown for both the current financial year and the previous one side by side - so a jump or drop against last year is visible at a glance, not just this year's number in isolation. Each table ends in a <strong>Total</strong> row, then a separate <strong>Covid-19</strong> row, then a <strong>Grand Total</strong> row (Total plus Covid-19) - matching the same layout used in the exported file.</p>
+      <img src="${monthlyMisOpexImage}" alt="Monthly MIS Operating Expense section with the Export dropdown open showing Excel, PDF and PowerPoint options, and the table's Total, Covid-19 and Grand Total rows" class="guide-inline-image" />
 
       <h3>Overall Foundation</h3>
       <p>Next, one consolidated table combining Operating and Capital into a single Foundation-wide view, broken down the same way by Areas of Work (Education, Health, Livelihoods, Azim Premji University, Philanthropy, Scholarship Programme, Other Initiatives, Enablers), again comparing this year's YTD to last year's.</p>
@@ -443,9 +477,9 @@ export const GUIDE_SECTIONS = [
       <img src="${monthlyMisUniversityImage}" alt="Monthly MIS University section listing each Azim Premji University campus with its own schools, operations and enablers breakdown" class="guide-inline-image" />
 
       <h3>Operating Expenses Breakdown</h3>
-      <p>The final section re-slices the same Operating Expense figures one more way: by <strong>Expense Category</strong> (Program Expenses, Grants, People Expenses, Travel Expenses, Student Support Expenses, Other Operating Expenses, Medical Expenses) instead of by unit - first for the <strong>Total Foundation</strong>, then as a grid of smaller tables, one per unit and sub-unit (Education, Health, Livelihoods, Azim Premji University, each campus, and so on), each comparing this year's YTD to last year's side by side.</p>
+      <p>The final section re-slices the same Operating Expense figures one more way: by <strong>Expense Category</strong> (Program Expenses, Grants, People Expenses, Travel Expenses, Student Support Expenses, Other Operating Expenses, Medical Expenses) instead of by unit - first for the <strong>Total Foundation</strong>, then as a grid of smaller tables, one per unit and sub-unit (Education, Health, Livelihoods, Azim Premji University, each campus, and so on, plus its own small <strong>Covid-19</strong> table when there's a Covid-19 amount to show), each comparing this year's YTD to last year's side by side.</p>
       <img src="${monthlyMisEnablersBreakdownImage}" alt="Monthly MIS Enablers section followed by the Operating Expenses Breakdown's Total Foundation table by expense category" class="guide-inline-image" />
-      <img src="${monthlyMisBreakdownGridImage}" alt="Operating Expenses Breakdown grid showing separate expense-category tables for Education, Health, Livelihoods, Azim Premji University and its campuses" class="guide-inline-image" />
+      <img src="${monthlyMisBreakdownGridImage}" alt="Operating Expenses Breakdown grid showing separate expense-category tables for sub-units including Supporting Madrasas and a standalone Covid-19 table" class="guide-inline-image" />
 
       <h3>Drilling into a row</h3>
       <p>Click any row in any of these tables to open the same kind of <strong>Drill Down</strong> window used elsewhere in the app - Budget, Actual, Variance, and Utilization for that row, plus a Line Items table breaking it down further. For rows from the Operating/Capital Expense and Overall Foundation tables, this goes all the way down to individual GL codes, the same as Budget vs Actuals; rows from the Education/Health/Livelihoods/University/Enablers breakdown sections open a single-level line-item view instead.</p>
@@ -457,6 +491,7 @@ export const GUIDE_SECTIONS = [
     icon: 'database',
     moduleName: 'erp_actuals',
     summary: 'Pull live raw actuals straight from the ERP. (Admin only)',
+    image: erpActualsInitialImage,
     html: `
       <p><strong>This tile only appears for System Manager accounts</strong> - if you don't see it on your Home page, that's expected; it's not something your role has access to.</p>
       <p>ERP Actuals pulls raw spending data straight from the Foundation's ERP system (PeopleSoft), live, for the period you choose. Unlike the other reports, nothing here is pre-loaded - you trigger the pull yourself, and it can take one to three minutes to come back.</p>
@@ -467,9 +502,11 @@ export const GUIDE_SECTIONS = [
         <li>${icon('calendar')}Set the <strong>Financial Year</strong> and <strong>Month</strong>, then click <strong>Fetch</strong>.</li>
         <li>${icon('clock')}A timer shows how long the fetch has been running; past a minute, a message lets you know it's still working, with the option to cancel if you've changed your mind.</li>
       </ul>
+      <img src="${erpActualsInitialImage}" alt="ERP Actuals page before any fetch - API, Financial Year and Month filters with a Fetch button" class="guide-inline-image" />
 
       <h3>Reading the results</h3>
-      <p>A summary strip shows the Status, Fiscal Year, Accounting Period, and how many rows came back, followed by the full raw data table. Every column has its own filter - click a column header to pick which values to show. Results are shown 100 rows at a time, with Previous/Next buttons to page through them, and a <strong>Clear filters</strong> button once you've filtered anything. <strong>Export to Excel</strong> downloads exactly what's currently visible on screen, after your filters are applied.</p>
+      <p>A summary strip shows the Status, Fiscal Year, Accounting Period, and how many rows came back, followed by the full raw data table. Every column has its own filter - click a column header's dropdown arrow to pick which values to show, with <strong>Select All</strong>/<strong>Clear All</strong> shortcuts. Results are shown 100 rows at a time, with Previous/Next buttons to page through them, and a <strong>Clear filters</strong> button once you've filtered anything. <strong>Export to Excel</strong> downloads exactly what's currently visible on screen, after your filters are applied.</p>
+      <img src="${erpActualsResultsImage}" alt="ERP Actuals results table with the operating_unit column filter dropdown open, showing Select All/Clear All and a list of values to check" class="guide-inline-image" />
     `,
   },
   {
@@ -483,7 +520,7 @@ export const GUIDE_SECTIONS = [
 
       <h3>How to use it</h3>
       <ul>
-        <li>${icon('id-card')}You'll see one card with your name and the rows you're allowed to budget for. (Finance MIS Admins instead see a card for every user, with a search box to find a particular person.)</li>
+        <li>${icon('id-card')}You'll see one card with your name and the rows you're allowed to budget for. (Admin users instead see a card for every user, with a search box to find a particular person.)</li>
         <li>${icon('download')}Click <strong>Download all</strong> for the full template, or tick just the rows you need first and the button switches to <strong>Download selected</strong> for a smaller, filtered template.</li>
         <li>${icon('square-check')}Either way, a <strong>Review Selected Items</strong> screen lists exactly what's about to be downloaded - every row for Download all, or just your ticked rows for Download selected - so you can note down the Cost Centers and Location Codes and avoid creating duplicates when you import. Tick <strong>I have noted down the selected items and I am ready to proceed</strong> to continue; the template only generates after you confirm.</li>
         <li>${icon('loader-circle')}Generating a template can take a short while, so you'll see a progress indicator while it works.</li>
@@ -497,17 +534,22 @@ export const GUIDE_SECTIONS = [
     title: 'Budget Import',
     icon: 'upload',
     summary: 'Upload your filled-in budget template.',
+    image: budgetImportInitialImage,
     html: `
       <p>Budget Import is where you upload a filled-in Budget Import Template to actually add your budget figures into the system. It's built specifically for budget data, so it understands exactly which rows are new and which are updates to something already entered.</p>
 
       <h3>Step by step</h3>
       <ul>
-        <li>${icon('paperclip')}Click <strong>Attach File</strong> and choose your completed template (.xlsx file only).</li>
-        <li>${icon('eye')}The app automatically checks it and shows a preview: how many rows will be created, how many will update existing records, and the total amount - with a green or red dot next to each row showing whether it's ready to import or has a problem.</li>
+        <li>${icon('paperclip')}Drag your completed template onto the upload box, or click <strong>click to browse</strong> to choose it (.xlsx file only, up to 10 MB).</li>
+      </ul>
+      <img src="${budgetImportInitialImage}" alt="Budget Import page before any file is uploaded, showing the drag-and-drop upload box" class="guide-inline-image" />
+      <ul>
+        <li>${icon('eye')}The app automatically checks it and shows a preview: how many rows are in the file, how many will be created, how many will update existing records, and the total amount - each row expands to show its own line items.</li>
         <li>${icon('triangle-alert')}If any rows have a problem, you'll see a message explaining how many, and the import won't proceed until you fix the file and upload it again.</li>
         <li>${icon('upload')}Once everything looks right, click <strong>Start Import</strong>. An Import Log afterward confirms how many records were created and how many were updated.</li>
         <li>${icon('rotate-ccw')}<strong>Choose a different file</strong> lets you start over with a new upload at any point.</li>
       </ul>
+      <img src="${budgetImportPreviewImage}" alt="Budget Import preview showing rows in file, rows to create, rows to update, total amount, and an expanded row's line items" class="guide-inline-image" />
     `,
   },
   {
@@ -516,17 +558,22 @@ export const GUIDE_SECTIONS = [
     icon: 'import',
     moduleName: 'data_import',
     summary: 'Bulk-import any record type (admins only).',
+    image: dataImportListImage,
     html: `
-      <p>Data Import is a general-purpose tool for loading data into any part of the system - not just budgets. It's intended for administrators setting up or bulk-updating master data (like Units, Cost Centers, or GL Codes), so it's only available to System Manager accounts.</p>
+      <p>Data Import is a general-purpose tool for loading data into any part of the system - not just budgets. It's intended for administrators setting up or bulk-updating master data (like Units, Cost Centers, or GL Codes - though in practice it lists every importable record type the system knows about, not just these), so it's only available to System Manager accounts.</p>
 
       <h3>How it works</h3>
       <ul>
-        <li>${icon('list')}The page lists every import you've run before, with its status and a link to view the full details.</li>
-        <li>${icon('plus')}Click <strong>New Import</strong> to start one: choose what kind of record you're importing and whether you're inserting new ones or updating existing ones, then download a template for it if you need one.</li>
-        <li>${icon('columns-3')}Attach your file and click <strong>Load Preview</strong> to see which columns matched correctly (green) and which didn't (red), with a way to manually map columns if something doesn't line up on its own.</li>
-        <li>${icon('import')}Click <strong>Start Import</strong> to run it - a live progress bar shows how far along it is, with the option to cancel partway through.</li>
-        <li>${icon('file-text')}Afterward, a log shows exactly what happened to every row, with buttons to export any rows that failed, or the whole log, for your records.</li>
+        <li>${icon('list')}The page lists every import you've run before, with its Document Type, Import Type, Status, and Date, plus a <strong>View</strong> link for the full details.</li>
       </ul>
+      <img src="${dataImportListImage}" alt="Data Import landing page listing past imports with Document Type, Import Type, Status and Date columns" class="guide-inline-image" />
+      <ul>
+        <li>${icon('plus')}Click <strong>New Import</strong> to start one: choose the <strong>Document Type</strong> and whether you're inserting new records or updating existing ones, then click <strong>Download Template</strong> if you need a blank file to fill in.</li>
+        <li>${icon('columns-3')}Click <strong>Attach</strong> to upload your file, then <strong>Load Preview</strong> to see which columns matched correctly (green dot) and which didn't (red dot) - any unmatched column is also listed under "Import File Errors and Warnings." <strong>Map Columns</strong> shows how each of your file's columns lines up with a system field, but it's a read-only view in the current version - it doesn't let you fix a mismatch yourself, so a column that didn't match needs to be renamed in your file and re-uploaded instead.</li>
+        <li>${icon('import')}Click <strong>Start Import</strong> to run it - a live progress bar shows how far along it is, with the option to cancel partway through (for 5 rows or fewer, it jumps straight to done instead of animating).</li>
+        <li>${icon('file-text')}Afterward, an Import Log shows how many rows succeeded and failed, with <strong>Export Errored Rows</strong> and <strong>Export Import Log</strong> buttons, plus a link straight to the imported records if it succeeded.</li>
+      </ul>
+      <img src="${dataImportPreviewImage}" alt="Data Import preview for a Cost Center import showing matched (green) and unmatched (red) column indicators, an unmatched-column warning, and the Map Columns/Show Warnings buttons" class="guide-inline-image" />
     `,
   },
   {
@@ -554,15 +601,16 @@ export const GUIDE_SECTIONS = [
     id: 'trial-balance-check',
     title: 'Trial Balance Check',
     icon: 'scale',
-    moduleName: 'trial_balance_check',
+    systemManagerOnly: true,
     summary: 'Unit-wise trial balance, head and sub-head wise. (Admin only)',
     html: `
-      <p><strong>This tile only appears for System Manager accounts</strong> - if you don't see it on your Home page, that's expected; it's not something your role has access to.</p>
-      <p>Trial Balance Check pulls a unit-wise trial balance straight from the ERP for the period you choose, broken down the same way every other report categorizes spending - by main head (Capital Expenses, Operating Expenses) and sub-head (Program, Partner, People, Travel, Student Support, Other Operating Expenses) - rather than as a flat list of GL codes.</p>
+      <p><strong>This is only visible to System Manager accounts</strong> - if you don't see a "Trial Balance Check" tab on the Monthly MIS page, that's expected; it's not something your role has access to.</p>
+      <p>Trial Balance Check lives as its own tab on the <strong>Monthly MIS</strong> page (alongside the Monthly MIS tab itself). It pulls a unit-wise trial balance straight from the ERP for the period you choose, broken down the same way every other report categorizes spending - by main head (Capital Expenses, Operating Expenses) and sub-head (Program, Partner, People, Travel, Student Support, Other Operating Expenses) - rather than as a flat list of GL codes.</p>
 
       <h3>How to use it</h3>
       <ul>
-        <li>${icon('calendar')}Set the <strong>Financial Year</strong> and <strong>YTD Month</strong>, then click <strong>Fetch</strong>.</li>
+        <li>${icon('layout-grid')}Open <strong>Monthly MIS</strong> and click the <strong>Trial Balance Check</strong> tab at the top of the page.</li>
+        <li>${icon('calendar')}Set the <strong>Financial Year</strong> and <strong>Month</strong> filters at the top of the page - these are shared with the Monthly MIS tab, so whichever you pick there carries over here too, and this tab loads automatically whenever they change.</li>
         <li>${icon('clock')}Like ERP Actuals, this pulls live data from the ERP, so it can take one to three minutes to come back.</li>
       </ul>
 

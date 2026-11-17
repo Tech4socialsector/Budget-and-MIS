@@ -269,6 +269,7 @@ def get_unit_wise_actuals_breakup(financial_year, month, table_name_filter=None,
 
     for s in settings:
         for combo in s.get("combination_settings", []):
+            hide_number = combo.get("hide_number", 0)
             all_unit_actuals = []
 
             for gu in s.get("grouped_units", []):
@@ -302,7 +303,19 @@ def get_unit_wise_actuals_breakup(financial_year, month, table_name_filter=None,
                     opex_local += head.get("ytd", 0)
                     opex_actual_local += head.get("total_posted_amt_ytd", 0)
 
-            if combo.get("is_this_sub_item") == 0:
+            # hide_number ("Hide number?" on Combination of unit settings)
+            # still fetches/consolidates this row's own actuals above as
+            # normal, and excludes it from every running total AND from
+            # the breakdown aggregation (all_consolidated_for_breakdown -
+            # otherwise a hidden row's figures would still leak into the
+            # downstream main_item_breakdown this feeds) - but the REAL
+            # figures are still returned in "actuals" below (not blanked),
+            # same reasoning as get_monthly_mis_break_up's own hide_number
+            # handling: this flag only controls whether a SPECIFIC table
+            # (Operating/Capital Expense, Overall Foundation) blanks this
+            # row's display, it must never apply to every consumer of this
+            # function's output by construction.
+            if combo.get("is_this_sub_item") == 0 and not hide_number:
                 overall_ytd += totals["grand_total_ytd"]
                 overall_actual += totals["grand_total_actual"]
                 capex_total_ytd += capex_local
@@ -326,6 +339,7 @@ def get_unit_wise_actuals_breakup(financial_year, month, table_name_filter=None,
                 "table_name": combo.get("table_name"),
                 "sequence_id": combo.get("sequence_id"),
                 "is_this_sub_item": combo.get("is_this_sub_item"),
+                "hide_number": hide_number,
                 "actuals": consolidated,
             })
 
@@ -614,6 +628,7 @@ def get_unit_wise_plan_budget(financial_year, month, table_name_filter=None):
 
     for s in settings:
         for combo in s.get("combination_settings", []):
+            hide_number = combo.get("hide_number", 0)
             all_unit_actuals = []
 
             for gu in s.get("grouped_units", []):
@@ -642,7 +657,7 @@ def get_unit_wise_plan_budget(financial_year, month, table_name_filter=None):
                 elif "OPERATING" in name:
                     opex_local += head.get("ytd", 0)
 
-            if combo.get("is_this_sub_item") == 0:
+            if combo.get("is_this_sub_item") == 0 and not hide_number:
                 overall_ytd += totals["grand_total_ytd"]
                 capex_total_ytd += capex_local
                 opex_total_ytd += opex_local
@@ -661,6 +676,7 @@ def get_unit_wise_plan_budget(financial_year, month, table_name_filter=None):
                 "table_name": combo.get("table_name"),
                 "sequence_id": combo.get("sequence_id"),
                 "is_this_sub_item": combo.get("is_this_sub_item"),
+                "hide_number": hide_number,
                 "actuals": consolidated,
             })
 
@@ -671,10 +687,15 @@ def get_unit_wise_plan_budget(financial_year, month, table_name_filter=None):
     # *_page_data entrypoints' CONSOLIDATED entry above (which puts
     # CAPEX/OPEX/OVERALL in their own separate "actuals" list, not appended
     # to a real tree) - kept exactly as BudgetDashboard.vue already expects it.
+    # A hide_number row is excluded here too (not just from overall_ytd/
+    # capex_total_ytd/opex_total_ytd above) so its figures can't leak back
+    # in via this re-derivation from final_results.
     final_consolidated_actuals = consolidate_actuals([
         result["actuals"][:-1]
         for result in final_results
-        if result.get("label") != "CONSOLIDATED TOTAL" and result.get("is_this_sub_item") == 0
+        if result.get("label") != "CONSOLIDATED TOTAL"
+        and result.get("is_this_sub_item") == 0
+        and not result.get("hide_number")
     ])
     final_consolidated_totals = calculate_grand_total(final_consolidated_actuals)
 
