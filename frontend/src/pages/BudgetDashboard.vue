@@ -262,7 +262,44 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Chart } from 'chart.js/auto'
+// Named, tree-shaken imports instead of chart.js/auto - this page only
+// ever renders bar/line/pie/doughnut charts (grep the `type:` passed to
+// `new Chart(...)` below), so auto-registering every controller/element/
+// scale/plugin Chart.js ships pulled in a much larger chunk than needed,
+// unlike BudgetActualBarChart.vue/BudgetActualDonutCard.vue, which already
+// did this. Chart.register() is idempotent, so registering the same set
+// here doesn't conflict with those components registering their own
+// (smaller) subset elsewhere.
+import {
+  Chart,
+  BarController,
+  LineController,
+  PieController,
+  DoughnutController,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+Chart.register(
+  BarController,
+  LineController,
+  PieController,
+  DoughnutController,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+)
 import { MultiSelect, ErrorMessage, Switch } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'

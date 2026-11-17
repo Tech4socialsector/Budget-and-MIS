@@ -162,4 +162,5 @@ function openDirect(direct, tileLabel) {
     window.open(direct.url, '_blank', 'noopener')
   }
 }
+
 </script>

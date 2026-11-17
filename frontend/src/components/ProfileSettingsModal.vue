@@ -178,10 +178,10 @@ watch(show, (visible) => {
   confirmPassword.value = ''
   passwordError.value = null
   if (!languagesResource.data) languagesResource.fetch()
-  // Nothing else in the app fetches this anymore (it used to be TopNavbar's
-  // own onMounted, before Help & Support moved out to a Home tile and that
-  // call went with it) - this dialog is the only remaining consumer of
-  // can_manage_settings, so it owns fetching it.
+  // MonthlyMis.vue also fetches this now (it reuses can_manage_settings to
+  // decide whether to show its own Trial Balance Check tab) - same
+  // if-not-already-loaded guard there, so whichever of the two mounts
+  // first owns the one real fetch for the session.
   if (!appConfigResource.data) appConfigResource.fetch()
 })
 

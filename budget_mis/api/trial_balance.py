@@ -1,10 +1,14 @@
-import json
-import os
-
 import frappe
 
 from budget_mis.utils import guest_api
-from budget_mis.api.helper import get_peoplesoft_prod_credentials
+from budget_mis.api.response_crypto import is_direct_http_call
+from budget_mis.api.helper import (
+    get_peoplesoft_prod_credentials,
+    get_actuals_cache_duration_seconds,
+    cache_with_single_flight,
+)
+from budget_mis.api.erp_actuals import fetch_trial_balance_from_erp_raw
+from budget_mis.master.doctype.erp_actuals_call_log.erp_actuals_call_log import log_call
 
 # Column order for the Trial Balance Check table, short code -> full
 # head/sub-head name shown as the column header, grouped under the same 2
@@ -58,40 +62,127 @@ MAIN_HEADS = [
     {"key": "opex", "label": "Operating Expenses", "head_names": ["OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES"], "columns": OPEX_SUB_ROWS},
 ]
 
-# Stand-in for the real PeopleSoft trial balance pull, which isn't wired up
-# yet - a realistic {business_unit, category, amount} dataset built from a
-# sample trial balance export, mapped onto each of the 10 real Unit doctype
-# records (different amounts per unit), so the page/table can be exercised
-# end-to-end before that API exists. Delete TEST_DATA_PATH and this fallback
-# once _fetch_trial_balance_from_erp_raw does a real fetch.
-TEST_DATA_PATH = os.path.join(os.path.dirname(__file__), "trial_balance_test_data.json")
-
-
-def _load_test_rows():
-    with open(TEST_DATA_PATH) as f:
-        return json.load(f)
-
-
+# Trial Balance Check is a System-Manager-only tab inside Monthly MIS -
+# that restriction lived purely in the frontend (the tab was only ever
+# rendered for a System Manager, same gating App Module Setting.
+# restrict_by_role already uses elsewhere in this app) until now, which per
+# this app's own documented trap (a frontend restriction is not a backend
+# permission check) meant any logged-in user who knew this method's name
+# could call it directly and get the same org-wide trial balance data. Only
+# checked on a genuine direct HTTP call, so internal Python callers (none
+# today, but matching the rest of this app's convention) aren't blocked.
 @guest_api
 def get_trial_balance_from_erp(fiscal_year, accounting_period):
+    if is_direct_http_call(get_trial_balance_from_erp) and "System Manager" not in frappe.get_roles():
+        frappe.throw("Not permitted", frappe.PermissionError)
+
     username, password = get_peoplesoft_prod_credentials()
 
     if not username or not password:
         frappe.throw("ERP credentials are not configured")
 
-    # TODO: once the real trial balance pull is wired up, build `rows` as a
-    # list of {"business_unit": ..., "gl_code": ..., "account": ...,
-    # "amount": ...} dicts (no "category"/"head"/"sub_head" - those, and the
-    # whole per-unit drill-down tree, are resolved from gl_code inside
-    # build_trial_balance_table via the real GL code Mapping -> Expenses
-    # join) and pass them in instead of _load_test_rows().
-    rows = _load_test_rows()
+    cache_key = f"budget_mis:trial_balance:{fiscal_year}:{accounting_period}"
+    was_cached = frappe.cache().get_value(cache_key) is not None
+
+    start = frappe.utils.now_datetime()
+    result = cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: fetch_trial_balance_from_erp_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda result: result.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
+    )
+    duration_ms = int((frappe.utils.now_datetime() - start).total_seconds() * 1000)
+
+    log_call(
+        call_type="Fetch",
+        fiscal_year=fiscal_year,
+        accounting_period=accounting_period,
+        cache_result="Hit" if was_cached else "Miss (fetched)",
+        status="Success" if result.get("status") == "success" else "Failed",
+        duration_ms=duration_ms,
+        source="get_trial_balance_from_erp",
+        error_message=result.get("error") if result.get("status") != "success" else None,
+    )
+
+    if result.get("status") != "success":
+        return {
+            "status": result.get("status", "failed"),
+            "fiscal_year": fiscal_year,
+            "accounting_period": accounting_period,
+            "error": result.get("error"),
+        }
+
+    rows = result.get("data", [])
 
     return {
         "status": "success",
         "fiscal_year": fiscal_year,
         "accounting_period": accounting_period,
         "table": build_trial_balance_table(rows),
+    }
+
+
+# Diagnostic passthrough - returns the untouched PeopleSoft rows for one
+# fiscal_year/accounting_period exactly as Z_MIS_TB_BY_PERIOD sent them
+# (business_unit/account/deptid/operating_unit/posted_total_amt, lower-
+# cased tag names, no remapping/pivoting at all), for inspecting the real
+# field names/values directly (e.g. confirming whether a given
+# accounting_period value shows up in this query's response at all) rather
+# than only ever seeing them already resolved into the Trial Balance Check
+# table's own shape. Same cache key as get_trial_balance_from_erp above, so
+# calling both for the same fiscal_year/accounting_period only ever
+# triggers one real ERP fetch between them, whichever is called first -
+# and same System-Manager-only + ERP-credentials-configured gating, since
+# this is still real org-wide financial data, just unprocessed.
+@guest_api
+def get_trial_balance_raw_from_erp(fiscal_year, accounting_period):
+    if is_direct_http_call(get_trial_balance_raw_from_erp) and "System Manager" not in frappe.get_roles():
+        frappe.throw("Not permitted", frappe.PermissionError)
+
+    username, password = get_peoplesoft_prod_credentials()
+
+    if not username or not password:
+        frappe.throw("ERP credentials are not configured")
+
+    cache_key = f"budget_mis:trial_balance:{fiscal_year}:{accounting_period}"
+    was_cached = frappe.cache().get_value(cache_key) is not None
+
+    start = frappe.utils.now_datetime()
+    result = cache_with_single_flight(
+        cache_key,
+        fetch_fn=lambda: fetch_trial_balance_from_erp_raw(fiscal_year, accounting_period),
+        is_cacheable=lambda result: result.get("status") == "success",
+        expires_in_sec=get_actuals_cache_duration_seconds(),
+    )
+    duration_ms = int((frappe.utils.now_datetime() - start).total_seconds() * 1000)
+
+    log_call(
+        call_type="Fetch",
+        fiscal_year=fiscal_year,
+        accounting_period=accounting_period,
+        cache_result="Hit" if was_cached else "Miss (fetched)",
+        status="Success" if result.get("status") == "success" else "Failed",
+        duration_ms=duration_ms,
+        source="get_trial_balance_raw_from_erp",
+        error_message=result.get("error") if result.get("status") != "success" else None,
+    )
+
+    if result.get("status") != "success":
+        return {
+            "status": result.get("status", "failed"),
+            "fiscal_year": fiscal_year,
+            "accounting_period": accounting_period,
+            "error": result.get("error"),
+        }
+
+    raw_rows = result.get("raw_rows", [])
+
+    return {
+        "status": "success",
+        "fiscal_year": fiscal_year,
+        "accounting_period": accounting_period,
+        "count": len(raw_rows),
+        "rows": raw_rows,
     }
 
 

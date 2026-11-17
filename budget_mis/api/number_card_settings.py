@@ -280,6 +280,10 @@ def _get_combination_table_settings_raw_by_doc(table_name_filter=None):
                 "table_name": row.table_name,
                 "sequence_id": row.sequence_id,
                 "is_this_sub_item": row.is_this_sub_item,
+                # Checked -> this combination's number is hidden from
+                # display downstream (Monthly MIS / Overview number cards),
+                # not shown.
+                "hide_number": row.hide_number,
             })
 
         # Matches get_combination_table_settings_1's own skip rule: a doc

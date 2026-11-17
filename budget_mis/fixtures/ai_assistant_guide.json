@@ -852,6 +852,14 @@
     "proposed_reason": null,
     "sort_order": 6,
     "status": "Approved"
+   },
+   {
+    "is_active": 1,
+    "point": "get_monthly_mis_summary's rows come from admin-configured 'Overview number cards settings' records, each with its own 'Combination of unit settings' child rows (one per unit/area-of-work combination). Any combination whose row has 'Hide number?' checked is deliberately left out of the tool's response entirely - it will NOT appear as a row with a value of 0, it will simply be absent. If the tool's own note says some combinations were hidden, and the user asks about a specific unit/area that isn't in the returned rows, tell them plainly that it's configured to not display a number (same as it would show on the Monthly MIS page itself) rather than saying it is zero, unavailable, or an error.",
+    "proposed_by": null,
+    "proposed_reason": null,
+    "sort_order": 7,
+    "status": "Approved"
    }
   ],
   "sort_order": 15,

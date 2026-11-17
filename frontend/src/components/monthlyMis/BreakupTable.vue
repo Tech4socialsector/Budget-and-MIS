@@ -13,10 +13,17 @@
   Columns: Label | Operating Expense (Budget/Actuals/%) |
   Capital Expense (Budget/Actuals/%) | Total Expense (Budget/Actuals/%).
 
-  Livelihoods/Enablers pass a single-key `keys` array (flat, one section) -
-  the Desk source does not special-case this (still renders one section
-  header + rows + subtotal + grand total), so this component doesn't
-  either, matching it literally.
+  Livelihoods/Enablers pass a single-key `keys` array (flat, one section),
+  and Health's own 5 keys (Urban/Rural/Central/Hospital/Health Programs)
+  only ever have ONE of those 5 with more than one row at a time in
+  practice - so in both cases, the one section whose own subtotal row
+  would otherwise show (sec.rows.length > 1) is also the ONLY section
+  contributing more than a single row to the grand total, making that
+  subtotal numerically identical to the table's own final "Total X" row
+  right below it - a redundant repeat, not a genuinely different number.
+  singleQualifyingSectionLabel (below) tracks whether exactly one section
+  in this table has more than one row; when so, that section's own
+  subtotal is suppressed and only the real grand total row is shown.
 -->
 <template>
   <div v-if="!data" class="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900">
@@ -47,7 +54,7 @@
             :key="r.label"
             class="cursor-pointer"
             :class="r.isSub ? 'fc-row-sub' : ''"
-            @click="$emit('drill', r.label)"
+            @click="$emit('drill', r.label, 'cur', 'total', r.entity)"
           >
             <td class="fc-td fc-sticky-col bg-white text-left dark:bg-gray-900" :class="r.isSub ? 'pl-8' : 'pl-4'">{{ r.label }}</td>
             <td class="fc-td text-right"><MisAmount :value="r.v.ob * 1e7" :context="`${r.label} · Opex Budget`" /></td>
@@ -60,7 +67,7 @@
             <td class="fc-td text-right"><MisAmount :value="r.v.ta * 1e7" :context="`${r.label} · Total Actuals`" /></td>
             <td class="fc-td text-right">{{ fmtPct(r.v.ta, r.v.tb) }}</td>
           </tr>
-          <tr v-if="sec.rows.length > 1" class="fc-subtotal-row font-semibold">
+          <tr v-if="sec.rows.length > 1 && sec.label !== singleQualifyingSectionLabel" class="fc-subtotal-row font-semibold">
             <td class="fc-td fc-sticky-col bg-inherit text-left">Total</td>
             <td class="fc-td text-right"><MisAmount :value="sec.subtotal.ob * 1e7" /></td>
             <td class="fc-td text-right"><MisAmount :value="sec.subtotal.oa * 1e7" /></td>
@@ -104,4 +111,15 @@ defineEmits(['drill'])
 // Matches the Desk JS's grandLabel exactly: 'Total Education' if
 // titleText==='Education' else 'Total ' + titleText.
 const grandLabel = computed(() => (props.titleText === 'Education' ? 'Total Education' : `Total ${props.titleText}`))
+
+// The label of the one section whose own subtotal row would exactly
+// repeat the table's final grand-total row (see the template comment
+// above) - null when two or more sections each have multiple rows, since
+// then every section's own subtotal is a genuinely different, smaller
+// number than the grand total and should still show.
+const singleQualifyingSectionLabel = computed(() => {
+  const sections = props.data?.sections || []
+  const qualifying = sections.filter((sec) => sec.rows.length > 1)
+  return qualifying.length === 1 ? qualifying[0].label : null
+})
 </script>
