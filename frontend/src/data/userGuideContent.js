@@ -58,6 +58,8 @@ import budgetImportInitialImage from '@/assets/user-guide/budget-import-initial.
 import budgetImportPreviewImage from '@/assets/user-guide/budget-import-preview.png'
 import dataImportListImage from '@/assets/user-guide/data-import-list.png'
 import dataImportPreviewImage from '@/assets/user-guide/data-import-preview.png'
+import aiAssistantEmptyImage from '@/assets/user-guide/ai-assistant-empty.png'
+import aiAssistantConversationImage from '@/assets/user-guide/ai-assistant-conversation.png'
 
 // The exact logo+"Budget & MIS" wordmark image (not a separately-rendered
 // icon component + text span) shown wherever a `brand: true` section's
@@ -214,6 +216,45 @@ export const GUIDE_SECTIONS = [
         <li>${icon('circle-user')}Your <strong>profile avatar</strong>, which opens your account settings and the sign-out option.</li>
       </ul>
       <p>These three sit in the exact same spot on every page in the app, not just Home, so you never lose track of them while navigating deeper into a report.</p>
+      <p>If it's enabled for your account, you'll also see an <strong>AI Assistant</strong> button next to these controls - see the next section for what it can do.</p>
+    `,
+  },
+  {
+    id: 'ai-assistant',
+    title: 'AI Assistant',
+    icon: 'message-circle',
+    summary: 'Ask Budi questions about budget, actuals, and Monthly MIS in plain language.',
+    image: aiAssistantEmptyImage,
+    html: `
+      <p><strong>Budi</strong> is this app's AI assistant - a chat panel you can open from almost anywhere in the app and ask a question in plain language instead of hunting through reports and filters yourself. (Your own deployment may have given it a different name - whatever appears next to its icon in the top bar is what to look for.) It only shows up if an admin has turned it on for your account; if you don't see it, that's expected.</p>
+
+      <h3>Opening it</h3>
+      <ul>
+        <li>${icon('message-circle')}Click Budi's button in the top bar (next to search and the theme toggle), or the matching entry in the mobile menu.</li>
+        <li>${icon('search')}It's also reachable from the command palette (the search icon) as <strong>"Ask the AI assistant"</strong>.</li>
+        <li>${icon('panel-right')}It opens as a panel docked to the right edge of the screen, not a popup - the rest of the page stays visible and usable behind it, so you can keep an eye on a report while you ask about it. It only closes when you click its own Close button or toggle the trigger again.</li>
+      </ul>
+      <img src="${aiAssistantEmptyImage}" alt="Budi's chat panel just opened, showing its greeting and six suggested starter questions" class="guide-inline-image" />
+
+      <h3>What you can ask it</h3>
+      <p>A few suggested questions appear the first time you open it, to show the kind of thing Budi is built for:</p>
+      <ul>
+        <li>${icon('wallet')}"What is the total approved budget this year?"</li>
+        <li>${icon('chart-column')}"Show Monthly MIS for Health this month"</li>
+        <li>${icon('trending-up')}"What have we actually spent so far?"</li>
+        <li>${icon('repeat')}"How does Education compare to last year?"</li>
+        <li>${icon('percent')}"Which areas have the highest % of budget utilised?"</li>
+        <li>${icon('shield')}"What can I see with my current access?"</li>
+      </ul>
+      <p>Beyond lookups, Budi can also search for records, and create or update a limited set of master-data records (like Finance Budget entries or Monthly Adjustments) on request - and if a figure is useful as a spreadsheet, it can export its answer straight to Excel with a download link in its reply.</p>
+      <img src="${aiAssistantConversationImage}" alt="Budi answering 'What is the total approved budget this year?' with a total and a Capital/Operating/Covid Support breakdown (figures blanked out here for illustration)" class="guide-inline-image" />
+
+      <h3>Good to know</h3>
+      <ul>
+        <li>${icon('shield')}Budi only ever sees and changes what <strong>your own account</strong> is allowed to - it never gives you a shortcut around your normal access. Ask it "What can I see with my current access?" if you're ever unsure what that covers.</li>
+        <li>${icon('triangle-alert')}Like any AI assistant, Budi can make mistakes - treat it as a fast starting point, and verify any important figure against the actual report before relying on it.</li>
+        <li>${icon('trash-2')}The trash icon in the panel's header clears your current conversation and starts fresh; it only appears once you've sent at least one message.</li>
+      </ul>
     `,
   },
   {
