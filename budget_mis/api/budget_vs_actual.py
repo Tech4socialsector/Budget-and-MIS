@@ -413,7 +413,22 @@ def get_actual_gl_breakup(
 		# actually picked together.
 		units = _to_list(unit)
 		if units:
-			filter_sets = _per_unit_filter_sets(units, None, None, _to_list(erp_cost_center_value), _to_list(erp_loc_value))
+			erp_cc_list = _to_list(erp_cost_center_value)
+			erp_loc_list = _to_list(erp_loc_value)
+			if not erp_cc_list and not erp_loc_list:
+				# No Cost Center/Location Code narrowing was selected - the
+				# caller means "this unit's actuals as a whole", not "this
+				# unit crossed with no cost center/location at all" (which
+				# _per_unit_filter_sets would otherwise resolve to literal
+				# None/None, a triple no real ERP row ever has, silently
+				# zeroing out every GL-code drill-down for the common case
+				# of a unit-only selection). Resolve each unit's OWN full
+				# set of Cost Center/Location Code ERP codes instead, so the
+				# triples below cover every combination that unit can
+				# actually report under.
+				erp_cc_list = frappe.get_all("Cost Center", filters={"set_id": ["in", units]}, pluck="cost_center")
+				erp_loc_list = frappe.get_all("Location Code", filters={"unit": ["in", units]}, pluck="location_code")
+			filter_sets = _per_unit_filter_sets(units, None, None, erp_cc_list, erp_loc_list)
 			valid_triples = set()
 			for fs in filter_sets:
 				ccs = _to_list(fs["erp_cost_center_value"]) or [None]
