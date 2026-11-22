@@ -4,8 +4,7 @@ import frappe
 
 from budget_mis.utils import guest_api, get_allowed_units
 from budget_mis.api.response_crypto import is_direct_http_call
-from budget_mis.api.erp_actuals import get_actuals_from_erp_month_wise
-from budget_mis.api.helper import get_actuals_cache_duration_seconds, cache_with_single_flight
+from budget_mis.api.erp_actuals_data import get_actuals_data
 
 
 # Every function below is cached and shared across EVERY caller regardless
@@ -38,9 +37,19 @@ def _scope_rows_to_allowed_units(rows, fn):
 
 
 # Drops PeopleSoft's opening-balance period "0" and sums duplicate (unit, account, dept, operating_unit, period) rows into one.
+#
+# Reads from the ERP Actuals Data doctype (budget_mis.api.erp_actuals_data.
+# get_actuals_data) - populated by the one-time backfill and kept current
+# by the scheduled erp_actuals_sync.refresh_actuals_data job - instead of
+# the old live PeopleSoft fetch/Redis cache (get_actuals_from_erp_month_wise).
+# There is NO live-ERP fallback here: a period with no stored record yet
+# (not backfilled, or a brand-new period the sync job hasn't reached) comes
+# back as a "failed" status, same shape a live-fetch failure used to return,
+# so every caller's existing status-check/error-display path already
+# handles this correctly with no further change needed on their end.
 @guest_api
 def group_actuals_by_dimension(fiscal_year, accounting_period):
-    month_wise = get_actuals_from_erp_month_wise(fiscal_year, accounting_period)
+    month_wise = get_actuals_data(fiscal_year, accounting_period)
 
     if month_wise.get("status") != "success":
         return month_wise
@@ -87,6 +96,20 @@ def group_actuals_by_dimension(fiscal_year, accounting_period):
 @guest_api
 def group_actuals_by_gl_mapping(fiscal_year, accounting_period):
     erp_response = group_actuals_by_dimension(fiscal_year, accounting_period)
+
+    # A real failure (most commonly now: no ERP Actuals Data record for
+    # this period at all, since that path has no live-ERP fallback to fall
+    # back on) must propagate as a failure here too - checking status
+    # explicitly rather than inferring "failed" from an empty data list,
+    # which previously silently turned every failure into a success-shaped
+    # {"data": []}, indistinguishable from a period that genuinely has zero
+    # actuals. That bug predates this function reading from the doctype,
+    # but was far less likely to be hit while the underlying fetch was a
+    # live ERP call (a real failure there was usually a raised exception,
+    # not a clean status); it is now load-bearing, since every un-
+    # backfilled period hits this exact path deterministically.
+    if erp_response.get("status") != "success":
+        return erp_response
 
     if "message" in erp_response:
         erp_data = erp_response.get("message", {}).get("data", [])
@@ -206,27 +229,16 @@ def group_actuals_by_gl_mapping(fiscal_year, accounting_period):
 
 
 # Collapses month_wise's per-month, per-GL-code rows into one YTD total per
-# (unit, dept, operating_unit, head/sub-head/type) - cached server-side,
-# shared across every caller (Monthly MIS, Budget vs Actuals, etc), since
-# the real join/grouping work here (against GL code Mapping + Expenses)
-# re-runs on every call otherwise even though the underlying ERP data
-# itself is already cached one layer down (get_actuals_from_erp_month_wise)
-# - this result can never be any fresher than that raw fetch anyway, so it
-# shares the exact same TTL (ERP Credentials.actuals_cache_duration_minutes)
-# rather than inventing a second, independent cache lifetime for data that
-# is entirely derived from the first.
+# (unit, dept, operating_unit, head/sub-head/type). No caching layer of its
+# own - the underlying ERP data now comes straight from the ERP Actuals
+# Data doctype (kept current by the scheduled sync job, not by any
+# per-request cache), so this join/grouping work re-runs fresh on every
+# call against whatever that doctype's data currently is, rather than
+# risking serving an already-stale derived result from Redis in between
+# sync-job runs.
 @guest_api
 def group_actuals_ytd(fiscal_year, accounting_period):
-    cache_key = f"budget_mis:group_actuals_ytd:{fiscal_year}:{accounting_period}"
-    result = cache_with_single_flight(
-        cache_key,
-        fetch_fn=lambda: _group_actuals_ytd_raw(fiscal_year, accounting_period),
-        is_cacheable=lambda r: r.get("status") == "success",
-        expires_in_sec=get_actuals_cache_duration_seconds(),
-    )
-    # Scoped on top of the cached (always-unscoped) result, into a new
-    # dict/list - never mutates the cached object itself, which stays the
-    # single shared, unscoped entry every caller (cache hit OR miss) reads.
+    result = _group_actuals_ytd_raw(fiscal_year, accounting_period)
     if is_direct_http_call(group_actuals_ytd):
         return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), group_actuals_ytd)}
     return result
@@ -236,7 +248,12 @@ def _group_actuals_ytd_raw(fiscal_year, accounting_period):
     month_wise = group_actuals_by_gl_mapping(fiscal_year, accounting_period)
 
     if month_wise.get("status") != "success":
-        return {"status": month_wise.get("status", "failed"), "fiscal_year": fiscal_year, "data": []}
+        return {
+            "status": month_wise.get("status", "failed"),
+            "fiscal_year": fiscal_year,
+            "data": [],
+            "error": month_wise.get("error"),
+        }
 
     grouped = defaultdict(float)
     meta_by_key = {}
@@ -296,19 +313,11 @@ def _group_actuals_ytd_raw(fiscal_year, accounting_period):
 # get_actual_gl_breakup), which needs the per-GL-code figures a single
 # item's total_posted_amt is itself just the sum of. Built on the exact
 # same group_actuals_by_gl_mapping output group_actuals_ytd already reuses
-# - no separate ERP/mapping fetch of its own - and cached the same way,
-# under its own key (this is a different aggregation of the same month_wise
-# rows, not a re-derivation of group_actuals_ytd's own cached result, so it
-# needs its own cache entry rather than reusing that one).
+# - no separate ERP/mapping fetch of its own, and no caching layer of its
+# own either (same reasoning as group_actuals_ytd above).
 @guest_api
 def group_actuals_by_gl_code(fiscal_year, accounting_period):
-    cache_key = f"budget_mis:group_actuals_by_gl_code:{fiscal_year}:{accounting_period}"
-    result = cache_with_single_flight(
-        cache_key,
-        fetch_fn=lambda: _group_actuals_by_gl_code_raw(fiscal_year, accounting_period),
-        is_cacheable=lambda r: r.get("status") == "success",
-        expires_in_sec=get_actuals_cache_duration_seconds(),
-    )
+    result = _group_actuals_by_gl_code_raw(fiscal_year, accounting_period)
     if is_direct_http_call(group_actuals_by_gl_code):
         return {**result, "data": _scope_rows_to_allowed_units(result.get("data", []), group_actuals_by_gl_code)}
     return result
@@ -318,7 +327,12 @@ def _group_actuals_by_gl_code_raw(fiscal_year, accounting_period):
     month_wise = group_actuals_by_gl_mapping(fiscal_year, accounting_period)
 
     if month_wise.get("status") != "success":
-        return {"status": month_wise.get("status", "failed"), "fiscal_year": fiscal_year, "data": []}
+        return {
+            "status": month_wise.get("status", "failed"),
+            "fiscal_year": fiscal_year,
+            "data": [],
+            "error": month_wise.get("error"),
+        }
 
     grouped = defaultdict(float)
     meta_by_key = {}

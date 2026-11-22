@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "period_key",
+  "fiscal_year",
+  "accounting_period",
+  "period_label",
+  "column_break_1",
+  "status",
+  "row_count",
+  "last_fetched_at",
+  "section_break_1",
+  "description",
+  "section_break_2",
+  "response_json"
+ ],
+ "fields": [
+  {
+   "description": "Zero-padded \"{fiscal_year}-{accounting_period}\" (e.g. \"2026-06\"), computed in Python (erp_actuals_data.py's before_insert) and used as this doctype's own autoname source - a plain format-autoname on the raw accounting_period field would NOT zero-pad it, which would sort \"2026-10\" before \"2026-2\" in list views/exports; this field exists purely to make that sort correct.",
+   "fieldname": "period_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Period Key",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "description": "The ERP's own fiscal_year value (e.g. 2026) - NOT this app's \"2026-27\" financial-year string used elsewhere. One record exists per (fiscal_year, accounting_period) combination, ever - this doctype holds the Foundation's full actuals history from whenever backfill first ran, not just a handful of fixed periods.",
+   "fieldname": "fiscal_year",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Fiscal Year",
+   "reqd": 1
+  },
+  {
+   "description": "The ERP's own accounting_period value (1-12, April-start: 1=April ... 12=March).",
+   "fieldname": "accounting_period",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Accounting Period",
+   "reqd": 1
+  },
+  {
+   "description": "Human-readable month + financial year, e.g. \"June 2026-27\" - computed at save time purely for readability in list views/reports; fiscal_year/accounting_period above remain the real identifying fields.",
+   "fieldname": "period_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Period",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nSuccess\nFailed"
+  },
+  {
+   "fieldname": "row_count",
+   "fieldtype": "Int",
+   "label": "Row Count"
+  },
+  {
+   "fieldname": "last_fetched_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Fetched At"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Why this period was originally fetched/backfilled (e.g. \"Current year, current month\", \"Previous year, accounting period 12 (March)\", \"Current year backfill - period 3 of current FY\") - purely for human context when reviewing this list; has no effect on refresh behavior, since the scheduled job refreshes every record here regardless of why it was first created.",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "The full raw actuals API response for this period ({status, fiscal_year, accounting_period, count, data}), gzip-compressed and then encrypted with this site's own encryption_key (budget_mis.api.erp_actuals_data._encode_response/_decode_response) - never stored as plain JSON or plain base64. A plain-JSON response for one period is large enough (~6MB observed) to risk MySQL's max_allowed_packet on save, and the real org financial figures in it should not be readable by anyone with only DB/Desk access to this record. Reports call get_actuals_data() to read+decode this - there is no live-ERP fallback and no Redis cache layer for this path; a period with no successful fetch yet simply has no data to serve. Overwritten whole on every refresh; this doctype keeps no row-level history, only each period's single latest response.",
+   "fieldname": "response_json",
+   "fieldtype": "Long Text",
+   "label": "Response JSON"
+  }
+ ],
+ "autoname": "field:period_key",
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "in_create": 0,
+ "links": [],
+ "modified": "2026-11-19 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Master",
+ "name": "ERP Actuals Data",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "quick_entry": 0,
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

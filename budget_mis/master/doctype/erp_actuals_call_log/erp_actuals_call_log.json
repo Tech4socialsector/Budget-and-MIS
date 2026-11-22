@@ -21,13 +21,13 @@
  "fields": [
   {
    "default": "Fetch",
-   "description": "Fetch: a report/page triggered this (cache hit or a real PeopleSoft call). Warm-up: budget_mis.startup.warm_actuals_cache's post-login pre-fetch.",
+   "description": "Warm-up: the scheduled sync job (budget_mis.api.erp_actuals_sync.refresh_actuals_data) or the one-time backfill (erp_actuals_backfill.run_backfill) refreshing an ERP Actuals Data record on its own normal schedule. Manual Sync: an admin's own \"Sync Now\" button click on one ERP Actuals Data record (erp_actuals_data.js / erp_actuals_backfill.sync_now). Fetch: reserved for any future direct report-triggered fetch - reports currently read ERP Actuals Data only, with no live-ERP fallback, so this value is not produced by anything today.",
    "fieldname": "call_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Call Type",
-   "options": "Fetch\nWarm-up"
+   "options": "Fetch\nWarm-up\nManual Sync"
   },
   {
    "fieldname": "fiscal_year",
@@ -48,7 +48,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Hit: served from frappe.cache() with no PeopleSoft call. Miss (fetched): cache was empty/expired, a real PeopleSoft HTTP call ran. Skipped: a Warm-up entry the logging-in user's own module access didn't require.",
+   "description": "Every current caller (erp_actuals_backfill.refresh_period) always logs \"Miss (fetched)\" - a real PeopleSoft HTTP call ran every time, since this doctype's own refresh is never served from a cache. Hit/Skipped remain as options only for compatibility with older log entries written before this doctype-based architecture (when a Redis-cached live fetch and a login warm-up job could produce them) - nothing produces them today.",
    "fieldname": "cache_result",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -77,19 +77,19 @@
    "fieldtype": "Section Break"
   },
   {
-   "description": "The function this call came through, e.g. get_actuals_from_erp_month_wise, group_actuals_ytd.",
+   "description": "The function this call came through, e.g. erp_actuals_backfill.refresh_period.",
    "fieldname": "source",
    "fieldtype": "Data",
    "label": "Source"
   },
   {
-   "description": "Warm-up entries only: which App Module Setting(s) justified fetching (or would have justified fetching, for a Skipped entry) this period.",
+   "description": "Not populated by anything today - kept for compatibility with older log entries written before this doctype-based architecture, when a Warm-up entry's own App Module Setting gating populated this.",
    "fieldname": "modules",
    "fieldtype": "Small Text",
    "label": "Modules"
   },
   {
-   "description": "The user whose action caused this call - the logged-in user for a Fetch, or the user who just logged in for a Warm-up entry.",
+   "description": "The user whose action caused this call (log_call() always sets this to frappe.session.user) - the scheduled sync job's own background-job user for a Warm-up entry, or the admin who clicked \"Sync Now\" for a Manual Sync entry.",
    "fieldname": "triggered_by",
    "fieldtype": "Data",
    "in_standard_filter": 1,

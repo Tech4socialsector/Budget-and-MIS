@@ -23,6 +23,44 @@ from budget_mis.api.helper import to_number, normalize
 _sequence_map_cache = {}
 _expense_gl_lookup_cache = {}
 
+# Request-scoped result cache for get_budget_ytd_by_sequence itself, keyed
+# by its own (financial_year, units, cost_center, location_code, month)
+# call signature - on a Monthly MIS page load, get_combined_actuals calls
+# this once per grouped-unit entry (1,000+ times for a single table
+# section, per profiling), but financial_year/month are constant for the
+# whole page and units/cost_center/location_code repeat across report
+# sections that share the same grouped-unit configuration (e.g. the same
+# unit appears in both a per-table breakdown and a consolidated total).
+# Each call re-ran two DB queries (Finance Budget + Finance Budget Amounts)
+# plus a full re-group/re-sum from scratch - this caches that per-call
+# result for the request.
+#
+# Stored in frappe.local.request_cache (a plain defaultdict(dict), freshly
+# recreated by Frappe itself - frappe/__init__.py's init_request - on every
+# request/job), NOT a module-level dict keyed by id(frappe.local) the way
+# an earlier version of this cache was: frappe.local is ONE Local() object
+# created once at import time and reused for the worker's entire lifetime,
+# so id(frappe.local) never actually changes between requests on the same
+# worker - a cache "reset" gated on that check never fires, and the cache
+# would silently keep serving stale results (e.g. after a Finance Budget
+# edit) for the rest of the worker's life. request_cache IS genuinely
+# request-scoped, and the cache key here is already built from the
+# ALREADY-PERMISSION-SCOPED `units` value (get_budget_ytd_by_sequence
+# resolves units via get_allowed_units()/require_unit_access() before
+# reaching this call), so two different users can never see each other's
+# differently-scoped data under a coincidentally-matching key either.
+_CACHE_BUCKET = "budget_mis_budget_ytd"
+
+
+def _get_cached_budget_ytd(cache_key, builder):
+    entries = frappe.local.request_cache[_CACHE_BUCKET]
+    if cache_key in entries:
+        return entries[cache_key]
+
+    result = builder()
+    entries[cache_key] = result
+    return result
+
 
 def _get_sequence_map():
     site = frappe.local.site
@@ -369,6 +407,14 @@ def get_budget_ytd_by_sequence(
 
     end_index = MONTHS.index(month)
 
+    cache_key = (financial_year, units, cost_center, location_code, month)
+    return _get_cached_budget_ytd(
+        cache_key,
+        lambda: _build_budget_ytd_by_sequence(financial_year, units, cost_center, location_code, end_index, MONTHS)
+    )
+
+
+def _build_budget_ytd_by_sequence(financial_year, units, cost_center, location_code, end_index, MONTHS):
     # ---------------------------------------------------
     # Load Sequence Mapping
     # ---------------------------------------------------
