@@ -212,6 +212,17 @@ scheduler_events = {
 	"hourly": [
 		"budget_mis.tasks.expire_testing_mode"
 	],
+	"cron": {
+		# Checked every 5 minutes so a refresh fires soon after ERP
+		# Credentials.actuals_sync_interval_minutes elapses, however low
+		# it's set to (currently 5). Each tick is a handful of
+		# frappe.db.get_value reads plus a real ERP fetch only for a
+		# period actually past its interval - never concurrent (PeopleSoft
+		# can't handle it), so overlapping ticks can't pile up fetches.
+		"*/5 * * * *": [
+			"budget_mis.api.erp_actuals_sync.refresh_actuals_data"
+		],
+	},
 }
 
 # Testing
@@ -291,40 +302,14 @@ scheduler_events = {
 # 	"budget_mis.auth.validate"
 # ]
 
-# Warms the shared server-side ERP actuals cache (budget_mis.startup) in a
-# background job right after login, for the exact two periods Monthly
-# MIS's own default filters land on - see budget_mis/startup.py's own
-# docstring for the full reasoning.
-#
-# Deliberately on_session_creation, NOT on_login: frappe.auth.LoginManager
-# fires on_login from post_login(), BEFORE make_session() assigns
-# frappe.local.session - so frappe.session.user is still "Guest" at that
-# point, not the user who just authenticated. frappe.enqueue() captures
-# frappe.session.user at enqueue time with no way to override it, so a job
-# enqueued from on_login silently runs as Guest and frappe.publish_progress
-# (which defaults to user=frappe.session.user) publishes to the Guest
-# realtime room instead of the real user's - the toast this job drives
-# would never reach the browser that's actually listening. on_session_creation
-# fires from make_session() itself, right after frappe.local.session is set,
-# so frappe.session.user is already correct by then.
-on_session_creation = [
-	"budget_mis.startup.warm_actuals_cache_on_login"
-]
-
-# Drops every cached ERP actuals entry (any period) when a session ends -
-# see budget_mis/startup.py's clear_actuals_cache_on_logout docstring.
-on_logout = [
-	"budget_mis.startup.clear_actuals_cache_on_logout"
-]
-
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 
-# ERP Actuals Call Log logs every real PeopleSoft fetch (hit/miss, success/
-# failure, duration) plus every warm_actuals_cache warm-up decision - high
-# volume over time (one row per real fetch, not per report call - see that
-# doctype's own log_call()), so it's auto-purged by Frappe's own scheduled
-# cleanup like any other log table rather than growing unbounded.
+# ERP Actuals Call Log logs every real PeopleSoft fetch the backfill/sync
+# jobs make (erp_actuals_backfill.py's refresh_period) - high volume over
+# time (one row per real fetch, not per report call - see that doctype's
+# own log_call()), so it's auto-purged by Frappe's own scheduled cleanup
+# like any other log table rather than growing unbounded.
 default_log_clearing_doctypes = {
 	"ERP Actuals Call Log": 30  # days to retain logs
 }

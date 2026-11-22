@@ -182,9 +182,9 @@ export function downloadImportLog(dataImport) {
 // runs (only for >5 total rows - smaller imports produce zero progress
 // events, just the final 'data_import_refresh'), 'data_import_refresh'
 // fires once, unconditionally, when the background job finishes
-// (success, error, or timeout alike). Mirrors data/actualsCacheProgress.js's
-// own initSocket({port: window.socketio_port}) pattern - window.site_name
-// aliasing is handled there already and shared globally once set.
+// (success, error, or timeout alike). initSocket() builds its connection
+// URL from window.site_name in production, but this app's boot data only
+// ever sets window.sitename, so that's aliased here before connecting.
 let socket = null
 function getSocket() {
   if (!window.site_name && window.sitename) {
