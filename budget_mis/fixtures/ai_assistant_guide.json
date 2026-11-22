@@ -1089,7 +1089,7 @@
   "docstatus": 0,
   "doctype": "AI Assistant Guide",
   "is_active": 1,
-  "modified": "2026-11-01 10:29:16.101681",
+  "modified": "2026-11-19 18:05:27.872157",
   "name": "Backend APIs and Caching (reference)",
   "points": [
    {
@@ -1110,7 +1110,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from one shared, server-side cached PeopleSoft ERP fetch (budget_mis.api.erp_actuals.get_actuals_from_erp_month_wise and budget_mis.api.grouped_actuals.group_actuals_ytd) - the SAME cached data the Monthly MIS and Budget vs Actuals pages in this app also read, not a separate or duplicate pull.",
+    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from the 'ERP Actuals Data' doctype (via budget_mis.api.erp_actuals_data.get_actuals_data), NOT a live PeopleSoft call and NOT a Redis cache - one record per (fiscal_year, accounting_period) ever, holding that period's full actuals history. There is no live-ERP fallback on this read path at all: if a period has never been fetched into this doctype, the tool gets a clear failure, not a slow live fetch.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 2,
@@ -1118,7 +1118,7 @@
    },
    {
     "is_active": 1,
-    "point": "That ERP cache's lifetime is controlled by the 'ERP Credentials' doctype's actuals_cache_duration_minutes setting (an admin-configurable value, read fresh on every request) - if a user asks how fresh actuals data is, say it is cached for up to that many minutes and shared across every user asking about the same financial year/month, not fetched fresh on every single question.",
+    "point": "This doctype is kept up to date by a single scheduled background job (budget_mis.api.erp_actuals_sync.refresh_actuals_data, interval configurable via 'ERP Credentials'.actuals_sync_interval_minutes) that re-fetches a fixed, ordered set of periods from PeopleSoft - the current year's current month and every month so far, plus the full previous financial year (for year-over-year comparisons). If a user asks how fresh actuals data is, say it is refreshed on that schedule in the background, not fetched fresh on every question.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 3,
@@ -1126,7 +1126,7 @@
    },
    {
     "is_active": 1,
-    "point": "A logged-in user's own first page view (or login) pre-warms this same ERP cache for the two periods the app's own Monthly MIS page defaults to (the current financial year's most recently completed month, and the same month one financial year earlier) - so those two specific periods are very likely to already be cached and fast; any other period may trigger a slower first fetch (the underlying PeopleSoft call itself can take up to about 90 seconds) that is then cached for every subsequent asker.",
+    "point": "If the user asks about a financial-year/month combination this scheduled job's own plan does not cover (very old periods, or a future period), get_actuals_summary/get_monthly_mis_summary will report that the period has not been backfilled yet rather than silently returning zero or fetching live - tell the user plainly that this specific period isn't available yet rather than guessing a number or claiming it is still loading.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 4,
@@ -1134,7 +1134,7 @@
    },
    {
     "is_active": 1,
-    "point": "If two different users (or this assistant and a page load) ask for the exact same uncached financial-year/month at the same moment, the backend is built so only ONE real request to PeopleSoft is made - the other caller automatically waits for and reuses that same in-flight result, rather than triggering a second redundant external call. This means a brief delay on an uncached question is normal and does not mean anything is broken.",
+    "point": "An admin can also force an immediate re-fetch of one specific period at any time via the 'ERP Actuals Data' record's own 'Sync Now' button in Desk (System Manager only) - this calls budget_mis.api.erp_actuals_backfill.sync_now for that one record's (fiscal_year, accounting_period) and can take up to about two minutes (the real PeopleSoft call itself). If a user reports that a report shows stale or missing actuals for a specific month, suggest this as the fix rather than assuming you (the assistant) can trigger it - you have no tool that does this.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 5,
@@ -1142,7 +1142,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_monthly_mis_summary additionally keeps its own short-lived cached copy of its already-formatted response (same TTL as the ERP cache above), separate from the raw ERP cache - so a second, similarly-phrased Monthly MIS question can return instantly without re-deriving the section breakdown from scratch.",
+    "point": "get_monthly_mis_summary additionally keeps its own short-lived cached copy of its already-formatted response, separate from the ERP Actuals Data doctype itself - so a second, similarly-phrased Monthly MIS question can return instantly without re-deriving the section breakdown from scratch.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 6,
@@ -1150,7 +1150,7 @@
    },
    {
     "is_active": 1,
-    "point": "None of this assistant's tools make a live network call while you are waiting for a reply if the relevant period is already cached - only a genuinely new/uncached financial-year/month combination can take noticeably longer to answer.",
+    "point": "None of this assistant's tools make a live PeopleSoft network call while you are waiting for a reply - actuals always come from the ERP Actuals Data doctype (a plain, fast DB read). The only thing that can make an actuals answer slow is a genuinely new/complex Monthly MIS breakdown needing to be computed from already-local data, never a wait on an external ERP system.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 7,

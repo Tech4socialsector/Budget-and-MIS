@@ -9,14 +9,14 @@ class ERPActualsCallLog(Document):
 	pass
 
 
-# Single entry point every caller (get_actuals_from_erp_month_wise, the
-# aggregations built on top of it, and startup.py's warm_actuals_cache) goes
-# through to record a call - a plain frappe.get_doc(...).insert() wrapped in
-# its own try/except so a logging failure (e.g. a DB hiccup) can never take
-# down the real actuals call it's describing. ignore_permissions=True since
-# this fires from background jobs and guest-reachable whitelisted endpoints
-# alike, neither of which has Create rights on this System-Manager-only
-# doctype otherwise.
+# Single entry point every caller (erp_actuals_backfill.refresh_period, used
+# by the scheduled sync job, the one-time backfill, and the "Sync Now" button's
+# sync_now) goes through to record a call - a plain frappe.get_doc(...).insert()
+# wrapped in its own try/except so a logging failure (e.g. a DB hiccup) can
+# never take down the real actuals call it's describing. ignore_permissions=True
+# since this fires from background jobs and guest-reachable whitelisted
+# endpoints alike, neither of which has Create rights on this System-Manager-
+# only doctype otherwise.
 def log_call(
 	call_type,
 	fiscal_year=None,
