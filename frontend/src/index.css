@@ -2,6 +2,107 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Every Tailwind rem-based utility (text-sm, p-2, w-60, icon sizes, ...)
+resolves off the HTML element's own font-size, not body's - so scaling
+*this* one value scales the whole app's type/spacing/icon/sidebar-width
+scale together, proportionally, without touching every component that
+uses a rem class. Without this, the app renders at a fixed physical size
+everywhere (the OS browser default's 16px root), so the exact same layout
+takes up a smaller fraction of a high-resolution/low-DPI screen and a
+bigger fraction of a lower-resolution one - reported in practice as "the
+sidebar/text looks bigger on this Windows laptop than on this Linux one"
+even though the CSS itself never differed between them, only the physical
+screen did. clamp() ties the root size to viewport width so the whole UI
+occupies a more similar proportion of the window across very different
+screen sizes, while still never shrinking below 87.5% (14px) or growing
+past 100% (16px - Tailwind's own designed-for default, beyond which
+utilities start looking oversized rather than just "bigger"). 1200-1920px
+is this app's normal desktop range - outside it the clamp just holds at
+its nearest bound rather than continuing to extrapolate. */
+html {
+  /* --os-scale is set by an inline script in index.html, before first
+  paint, from window.devicePixelRatio - see that script's own comment for
+  why viewport width alone (the clamp() below) can't fully account for OS
+  display scaling on its own. Defaulted to 1 here so this still renders
+  sanely if that script ever didn't run. */
+  font-size: calc(clamp(14px, calc(10.667px + 0.2778vw), 16px) * var(--os-scale, 1));
+}
+
+/* frappe-ui's Tailwind plugin compiles .text-xs (and its own separate
+text-p-2xs/p-xs/p-sm/p-base paragraph scale) as FLAT px font-sizes, not
+rem - unlike text-sm/text-base/text-lg, they never respond to the root
+font-size's own OS-scale-aware clamp() above. On an unscaled screen (root
+~16px) that flat 12px happens to look roughly proportionate, which is why
+this goes unnoticed normally - but on a Windows laptop with 125%/150%
+display scaling (root shrinks to ~14px or less), every other size tier
+shrinks to match while these stay pinned at a now-oversized flat px value
+right next to correctly-scaled text. Ratios reproduce each tier's own
+original px-at-16px-root value, just rem-based so they finally scale with
+everything else. */
+.text-xs {
+  font-size: 0.75rem;
+}
+.text-p-2xs {
+  font-size: 0.6875rem;
+}
+.text-p-xs {
+  font-size: 0.75rem;
+}
+.text-p-sm {
+  font-size: 0.8125rem;
+}
+.text-p-base {
+  font-size: 0.875rem;
+}
+
+/* App-wide density tightening - frappe-ui's own components (Select,
+MultiSelect, FormControl, Button, Dialog, ItemList ...) use a MIX of
+text-sm (0.875rem) and text-base (1rem) depending on the component, so
+on a wide screen (root clamp resolving near its 16px upper bound) a
+filter dropdown's trigger field and its own option list both render at a
+noticeably larger, more loosely-spaced size than the rest of this app's
+dense report/table UI calls for - confirmed live: the YTD Month dropdown's
+option list (ItemListRow's sm/md sizes, text-base + min-h-7/8) visibly
+towers over the "October" value shown in the closed trigger field right
+above it, even though both use the same text-base class, because combined
+with the option rows' own min-height/padding it reads as oversized next to
+this app's tighter filter-row/table conventions. One shared, tighter step
+for both tiers keeps every frappe-ui component (and this app's own .fc-*
+report tables, filters, cards) reading as one consistent density instead
+of several slightly-mismatched scales side by side. text-lg/xl (genuine
+page titles) are deliberately left alone. */
+.text-sm,
+.text-base,
+.form-input,
+.form-textarea,
+.form-select {
+  font-size: 0.8125rem;
+}
+
+/* App-wide thin scrollbar - applies to every scrollable element (page body,
+modals/dialogs, dropdowns, any overflow-auto container), not just the few
+spots that previously opted in with their own .fc-scroll-wrapper/:deep()
+rules below. Those more specific rules are left in place since they also
+set a themed thumb color tuned to their own surface, not just a width. */
+* {
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #c1c9d2;
+  border-radius: 4px;
+}
+:root:not([data-theme='light']) *::-webkit-scrollbar-thumb,
+[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background-color: rgb(75 85 99);
+}
+
 /* frappe-ui's Dialog overlay/content ship with no z-index of their own,
 so they sit in the auto/0 stacking bucket of the root stacking context.
 Any in-page element with an explicit positive z-index and nothing
@@ -31,6 +132,25 @@ sidebar's assistant card. */
   transform: translateZ(0);
 }
 
+/* The "N selected" bulk-action bar under a ListView (DoctypeList's own list,
+ChildTable's row grid) - frappe-ui's stock ListSelectBanner floats centered
+over the rows (position: absolute, bottom-6, min-width 596px), which on a
+narrower list/child-table column collides with rows above it rather than
+sitting in the page flow below them. Scoped by .selection-bar (set on
+SelectionBar.vue's own ListSelectBanner) so this doesn't affect any other
+Popover/banner elsewhere in the app that happens to float the same way. */
+.selection-bar,
+.selection-bar:where([class]) {
+  min-width: 0;
+}
+.relative > .absolute.inset-x-0.bottom-6:has(.selection-bar),
+div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
+  position: sticky;
+  bottom: 0.75rem;
+  margin-top: 0.75rem;
+  z-index: 5;
+}
+
 /* =========================================================================
    Foundation Consolidated Budget page (src/pages/FoundationConsolidated.vue
    and src/components/foundationConsolidated/*) - shared table primitives
@@ -43,11 +163,11 @@ sidebar's assistant card. */
 
 .fc-scroll-wrapper {
   border: 1px solid #d5dbe1;
-  border-radius: 6px;
+  border-radius: 0.375rem;
   max-height: 72vh;
   overflow: auto;
   isolation: isolate;
-  margin-bottom: 20px;
+  margin-bottom: 1.25rem;
   /* Thinner scrollbar (both axes - this wrapper scrolls horizontally and
      vertically) than the browser default, which otherwise eats a
      noticeable strip of an already-tight table area. scrollbar-width is
@@ -56,8 +176,8 @@ sidebar's assistant card. */
   scrollbar-width: thin;
 }
 .fc-scroll-wrapper::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 .fc-scroll-wrapper::-webkit-scrollbar-track {
   background: transparent;
@@ -73,6 +193,18 @@ sidebar's assistant card. */
 :root:not([data-theme='light']) .fc-scroll-wrapper,
 [data-theme='dark'] .fc-scroll-wrapper {
   border-color: rgb(55 65 81);
+}
+
+/* Monthly MIS's own tables (ExpenseTable/ConsolidatedTable/BreakupTable/
+   UnitDetailGrid) opt out of .fc-scroll-wrapper's 72vh cap + vertical
+   scroll - their rows should grow with the page (the page itself
+   scrolls) instead of scrolling inside a short fixed-height box.
+   Horizontal scroll is kept (these tables still have a min-width wider
+   than narrow viewports), only overflow-y/max-height are dropped. */
+.fc-scroll-wrapper-tall {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: auto;
 }
 
 .fc-table {
@@ -112,7 +244,11 @@ sidebar's assistant card. */
   background-color: #1e5fa8;
   color: #fff;
   font-weight: 600;
-  padding: 10px 12px;
+  /* rem, not px, so this padding scales with the OS/DPI-aware root
+     font-size clamp() above instead of staying pixel-fixed while the rest
+     of the page scales around it - values reproduce the original
+     10px/12px at the default 16px root exactly. */
+  padding: 0.625rem 0.75rem;
   border-left: 1px solid #1a5493;
   white-space: nowrap;
 }
@@ -120,7 +256,7 @@ sidebar's assistant card. */
   background-color: #e8792a;
   color: #fff;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   border-left: 1px solid #c46620;
   text-align: right;
   white-space: nowrap;
@@ -131,13 +267,22 @@ sidebar's assistant card. */
   background-color: #e8792a;
   color: #fff;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
   border-left: 1px solid #c46620;
   text-align: right;
   white-space: nowrap;
 }
 .fc-td {
-  padding: 8px 12px;
+  /* padding-block + padding-inline-end only (never padding-left/
+     padding-inline-start/the `padding` shorthand) - this rule comes after
+     @tailwind utilities in the cascade (same specificity, 0,1,0), so
+     setting the left side here would silently beat a row's own .pl-4/
+     .pl-8 indent utility. The :where() rule just below supplies a
+     zero-specificity default left padding instead, so pl-4/pl-8 always wins
+     regardless of source order. rem, not px, for the same root-scaling
+     reason as .fc-th above. */
+  padding-block: 0.5rem;
+  padding-inline-end: 0.75rem;
   border-bottom: 1px solid #e2e6ea;
   border-left: 1px solid #e2e6ea;
   white-space: nowrap;
@@ -150,6 +295,9 @@ sidebar's assistant card. */
      its text color was never set either - in a dark host that's
      unstyled-dark-text on an inherited-dark background, unreadable. */
   color: #1f2937;
+}
+:where(.fc-td) {
+  padding-left: 0.75rem;
 }
 :root:not([data-theme='light']) .fc-td,
 [data-theme='dark'] .fc-td {
@@ -179,19 +327,27 @@ sidebar's assistant card. */
   filter: brightness(0.97);
 }
 
-/* Sub-head-level rows: near-white blue tint - matches BudgetSummaryTable's
-   bg-subhead-row (deliberately blue, not orange, in that design). */
+/* Sub-head-level rows: light blue tint, lighter than .fc-row-head's
+   #eaf1fb so sub-items still read as subordinate to their parent, plus the
+   indent (pl-8 on the label cell). */
 .fc-row-sub {
   background-color: #f5f8fd;
-  font-weight: 500;
   cursor: pointer;
 }
 :root:not([data-theme='light']) .fc-row-sub,
 [data-theme='dark'] .fc-row-sub {
-  background-color: rgb(31 41 55 / 0.5);
+  background-color: rgb(37 60 92 / 0.2);
 }
 .fc-row-sub:hover {
   filter: brightness(0.97);
+}
+/* A little breathing room where a parent row's sub-items begin - the FIRST
+   sub-row right after a non-sub row gets extra top padding on its cells
+   (rather than the table's usual tight 8px/0.5rem), so the parent/children
+   boundary reads as a visual gap, not just the existing tint/indent. Later
+   sub-rows (each following ANOTHER sub-row) keep the normal tight padding. */
+tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
+  padding-top: 1rem;
 }
 
 /* Grand-total rows: same blue as the main header, white text, pinned to
@@ -245,6 +401,7 @@ sidebar's assistant card. */
   color: #86b6ef;
 }
 
+
 .fc-sticky-col {
   position: sticky;
   left: 0;
@@ -252,15 +409,103 @@ sidebar's assistant card. */
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.12);
 }
 
-.fc-search-input {
-  width: 240px;
+/* .fc-td is deliberately transparent (see its own comment above) so a
+   tinted ancestor <tr> shows through - that works for a plain in-flow
+   cell, but position:sticky takes this cell out of normal stacking, so
+   once the table scrolls horizontally the cell's own (missing)
+   background is what actually gets painted, not "whatever's behind it" -
+   other rows' cells scrolling past underneath show straight through the
+   label text. Every row context this column appears in needs its own
+   explicit, fully opaque background here instead of relying on
+   inheritance; each one restates the exact color its own row class
+   already uses elsewhere in this file, so the sticky cell always matches
+   its row even though it's compositing independently from it.
+
+   Scoped to tbody/tfoot specifically (not a bare .fc-sticky-col rule) so
+   it can never apply inside thead too - the header's own rowspan'd first
+   cell is also .fc-sticky-col (so its text stays put during horizontal
+   scroll same as every other column), but its background must stay
+   .fc-th's blue, not get overridden by a body-row background here. */
+.fc-table tbody .fc-sticky-col,
+.fc-table tfoot .fc-sticky-col {
+  background-color: #fff;
+}
+:root:not([data-theme='light']) .fc-table tbody .fc-sticky-col,
+[data-theme='dark'] .fc-table tbody .fc-sticky-col,
+:root:not([data-theme='light']) .fc-table tfoot .fc-sticky-col,
+[data-theme='dark'] .fc-table tfoot .fc-sticky-col {
+  background-color: rgb(17 24 39);
+}
+/* Each of these needs to be at least as specific as the generic
+   ".fc-table tbody .fc-sticky-col" default above (3 class selectors) or
+   it silently loses to it regardless of source order - a bare two-class
+   ".fc-row-head .fc-sticky-col" (specificity 0,2,0 vs the default's
+   0,3,0) was losing outright, which is what made every sticky head/sub/
+   total-row label cell render with the plain white/dark default instead
+   of its own row's tint. */
+.fc-table .fc-row-head .fc-sticky-col {
+  background-color: #eaf1fb;
+}
+/* Opaque equivalent of .fc-row-head's own translucent dark background
+   (rgb(37 60 92 / 0.4) over .fc-table's rgb(17 24 39)) - a sticky cell
+   can't use the same alpha-blend trick since it isn't reliably sitting
+   over that exact backdrop once it's compositing independently. */
+:root:not([data-theme='light']) .fc-table .fc-row-head .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-row-head .fc-sticky-col {
+  background-color: #19263c;
+}
+.fc-table .fc-row-sub .fc-sticky-col {
+  background-color: #f5f8fd;
+}
+:root:not([data-theme='light']) .fc-table .fc-row-sub .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-row-sub .fc-sticky-col {
+  background-color: #18212f;
+}
+.fc-table .fc-row-grand .fc-sticky-col {
+  background-color: #1e5fa8;
+}
+.fc-table .ppt-total-row .fc-sticky-col,
+.fc-table .fc-subtotal-row .fc-sticky-col {
+  background-color: #dceafd;
+}
+:root:not([data-theme='light']) .fc-table .ppt-total-row .fc-sticky-col,
+[data-theme='dark'] .fc-table .ppt-total-row .fc-sticky-col,
+:root:not([data-theme='light']) .fc-table .fc-subtotal-row .fc-sticky-col,
+[data-theme='dark'] .fc-table .fc-subtotal-row .fc-sticky-col {
+  background-color: #1e2f49;
 }
 
-.fc-xl-btn {
-  background-color: #1a1a1a !important;
-  border-color: #1a1a1a !important;
-  color: #fff !important;
+.fc-search-input {
+  /* Full width on mobile - a flat 15rem (240px) alongside even one sibling
+     control (a count label, a button) left too little room on a ~375px
+     phone and forced the row into a cramped flex-wrap stack. 15rem is
+     still the cap everywhere at sm and above. */
+  width: 100%;
 }
-.fc-xl-btn:hover {
-  background-color: #333 !important;
+@media (min-width: 640px) {
+  .fc-search-input {
+    width: 15rem;
+  }
+}
+
+/* Below the sm breakpoint, every data table in the app should scroll
+   purely vertically with the page - no sticky header/footer/first-column,
+   which on a narrow phone viewport clips too much of the row label/value
+   to be usable and fights the page's own scroll instead of the table's.
+   This covers both the shared .fc-table family (used by ~10 components -
+   Monthly MIS, Foundation Consolidated, Budget vs Actual, ERP Actuals) and
+   BudgetSummaryTable.vue's own hand-rolled sticky utility classes (it
+   predates .fc-table and never migrated to it) - so one rule here reaches
+   every table in the app instead of needing a per-component change. */
+@media (max-width: 639px) {
+  .fc-table thead,
+  .fc-row-grand,
+  .fc-sticky-col,
+  table thead.sticky,
+  table tfoot tr,
+  table td.sticky,
+  table th.sticky {
+    position: static !important;
+    box-shadow: none !important;
+  }
 }

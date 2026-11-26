@@ -23,7 +23,7 @@
       <ErrorMessage :message="saveError" />
 
       <div class="flex justify-end">
-        <Button variant="solid" :loading="saving" @click="save">Save</Button>
+        <Button variant="solid" theme="gray" :loading="saving" @click="save">Save</Button>
       </div>
     </template>
   </div>

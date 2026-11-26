@@ -2,12 +2,16 @@
   <MobileShell v-if="isMobile">
     <slot />
   </MobileShell>
-  <div v-else class="flex h-screen bg-gray-50 dark:bg-gray-900">
-    <AppSidebar />
+  <div v-else class="fixed inset-0 flex bg-surface-white text-ink-gray-8">
+    <!-- No module open (e.g. Home) - the sidebar doesn't mount at all, not
+    just render empty, so those pages go full width. TopNavbar switches to
+    showing the logo/app name itself once there's no sidebar to carry it -
+    see its own activeModule check. -->
+    <AppSidebar v-if="activeModule" />
     <div class="flex min-w-0 flex-1 flex-col">
       <TopNavbar />
       <main
-        class="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6"
+        class="flex-1 overflow-y-auto bg-surface-white px-5 py-4 sm:px-6"
         :class="fillHeight ? 'flex min-h-0 flex-col' : ''"
       >
         <slot />
@@ -18,11 +22,21 @@
 </template>
 
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import AppSidebar from '@/components/AppSidebar.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import MobileShell from '@/components/MobileShell.vue'
-import AiAssistant from '@/components/AiAssistant.vue'
+import { activeModule } from '@/data/activeModule'
+
+// AiAssistant itself renders nothing until opened (its root is `v-if="show"`
+// - the trigger buttons living in TopNavbar/MobileNav flip that flag), but
+// was still being eagerly imported into AppLayout's own chunk, which loads
+// on every single page. Deferring the import until AppLayout actually mounts
+// it keeps the ~31kB chat panel out of the shell every page pays for, while
+// still always being present in the DOM tree for the trigger buttons to
+// reveal, same as before.
+const AiAssistant = defineAsyncComponent(() => import('@/components/AiAssistant.vue'))
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('sm')

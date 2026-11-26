@@ -7,7 +7,7 @@ export function toggleAssistant() {
 }
 
 export const assistantConfigResource = useCall({
-  url: '/api/v2/method/annual_budget.ai.assistant.get_assistant_config',
+  url: '/api/v2/method/budget_mis.ai.assistant.get_assistant_config',
   method: 'GET',
   cacheKey: 'annual-budget-ai-assistant-config',
 })
@@ -15,14 +15,37 @@ export const assistantConfigResource = useCall({
 export const conversation = ref([])
 
 const sendMessageCall = useCall({
-  url: '/api/v2/method/annual_budget.ai.assistant.send_message',
+  url: '/api/v2/method/budget_mis.ai.assistant.send_message',
   method: 'POST',
   immediate: false,
 })
 
 export async function sendAssistantMessage(message) {
-  const result = await sendMessageCall.submit({ messages: conversation.value, message })
-  conversation.value = result.messages
+  // Shows the user's own message in the chat THE MOMENT they hit send,
+  // rather than waiting for the full round trip (which includes the
+  // model's own think time + any tool calls, often several seconds) to
+  // resolve before anything appears - previously both the user bubble and
+  // the bot's reply only ever appeared together, at the very end, making
+  // it look like nothing happened for seconds after sending. The request
+  // itself still replays the PRE-optimistic history (conversation.value
+  // read before this push), matching exactly what the backend will itself
+  // append the new user message onto - sending the optimistic copy to the
+  // backend would double it up.
+  const priorMessages = conversation.value
+  conversation.value = [...priorMessages, { role: 'user', content: message }]
+
+  const result = await sendMessageCall.submit({ messages: priorMessages, message })
+  const messages = result.messages
+  // Attachments (currently only export_to_excel's download link) belong to
+  // the reply this turn just produced, which is always the last message in
+  // the array send_message returns - attached directly onto that message
+  // object (not kept as a separate parallel array) so AiAssistant.vue's own
+  // v-for over `conversation` can render them inline without needing a
+  // second lookup/index to correlate the two.
+  if (result.attachments?.length && messages.length) {
+    messages[messages.length - 1].attachments = result.attachments
+  }
+  conversation.value = messages
   return result
 }
 

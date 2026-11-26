@@ -1,14 +1,17 @@
 <!--
-  Monthly MIS page - Vue replica of the Desk page at
-  annual_budget/annual_budget_mis/page/monthly_mis/monthly_mis.js (only the
-  live block at lines 6230-7601 - the file's earlier 6 versions are dead
-  code and were not replicated).
+  Monthly MIS page - Vue replica of the legacy Frappe Desk page this was
+  ported from (since removed from the repo - it only ever existed as this
+  page's porting source, never referenced by any live code).
 
   Architecture mirrors src/pages/FoundationConsolidated.vue: reactive
   filters, a request-generation counter to guard against a stale response
   from a superseded Financial-Year/Month change landing after a newer one,
-  and a single Promise.all load (this page has no tabs to lazy-load - all
-  sections come from the same 3 backend calls, so they load together).
+  and a single Promise.all load. The Monthly MIS tab's own sections all
+  come from the same 3 backend calls, so they load together - the Trial
+  Balance Check tab (moved in from its own standalone page/route, see
+  TrialBalanceCheckTab.vue) is a fully separate, self-contained component
+  with its own filters/fetch/drill-down, not something this page's own
+  load/cache logic below needs to know about at all.
 
   "Show full numbers" reruns nothing over the network - raw API responses
   are kept in refs (curData/prevData/breakupData) and every table is a pure
@@ -28,10 +31,23 @@
 <template>
   <AppLayout>
     <div class="flex flex-col gap-4">
-      <!-- Filters -->
-      <div class="flex flex-wrap items-end justify-between gap-4">
-        <div class="flex flex-wrap items-end gap-4">
-          <div class="w-full sm:w-56">
+      <!-- Filters: exactly 5 per row (a plain grid rather than flex-wrap,
+      so field width/height stays consistent and the per-row count never
+      depends on how much space happens to be left over), matching the
+      same fixed-5-column convention every filter row in the app now uses
+      (BudgetSummary.vue, BudgetVsActual.vue, ErpActuals.vue, BudgetDashboard.vue).
+      Financial Year/Month are now SHARED across both tabs (passed down to
+      TrialBalanceCheckTab as props below) - this row sits ABOVE the tab
+      strip rather than being duplicated per tab. Refresh/Show full
+      numbers/Export are Monthly-MIS-specific controls (they act on this
+      tab's own tables/loadAll/export, nothing Trial Balance Check has an
+      equivalent of), so they're hidden on the Trial Balance Check tab via
+      v-if="activeTab === 'monthly-mis'" rather than removed from the grid
+      entirely - the Financial Year/Month fields themselves stay in place
+      either way so the grid doesn't reflow when switching tabs. -->
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect
               v-model="financialYearSelection"
@@ -40,25 +56,85 @@
               class="w-full"
             />
           </div>
-          <div class="w-full sm:w-48">
-            <FormControl
-              type="select"
-              label="Month (YTD up to)"
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Month (YTD up to)</label>
+            <Select
               :options="monthOptions"
               v-model="filters.month"
+              class="w-full"
             />
           </div>
-          <Switch v-model="showFullNumbers" label="Show full numbers" />
+          <!-- Refresh + the Cr/full-number toggle are controls ON the
+          filters (they affect what's shown for the already-chosen FY/
+          month), so they sit alongside Financial Year/Month in the same
+          filter row. Export lives in this row too now, right-aligned via
+          the wrapping flex, even though it's a one-off action rather than
+          a filter - keeping every control in one row saves vertical space. -->
+          <div v-if="activeTab === 'monthly-mis'" class="flex items-end gap-4">
+            <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
+              <template #prefix>
+                <FeatherIcon name="refresh-cw" class="h-4 w-4" />
+              </template>
+              Refresh
+            </Button>
+            <Switch v-model="showFullNumbers" label="Show full numbers" />
+          </div>
+          <!-- justify-end only once this cell actually sits in its own
+          rightmost grid column (lg:col-start-5) - below that, the grid
+          collapses to 1 column and every cell stacks full-width in
+          document order, so justify-end would otherwise right-align this
+          button alone at the end of a long vertical filter stack instead
+          of lining up with every other left-aligned control above it. -->
+          <div v-if="activeTab === 'monthly-mis'" class="flex items-end gap-4 lg:justify-end lg:col-start-5">
+            <Dropdown :options="exportOptions" placement="right">
+              <template #default="{ open }">
+                <Button variant="solid" theme="gray" :icon-right="open ? 'chevron-up' : 'chevron-down'">
+                  <template #prefix>
+                    <FeatherIcon name="download" class="h-4 w-4" />
+                  </template>
+                  Export
+                </Button>
+              </template>
+            </Dropdown>
+          </div>
         </div>
-        <Button variant="solid" class="fc-export-all" @click="exportMis">
-          <template #prefix>
-            <FeatherIcon name="download" class="h-4 w-4" />
-          </template>
-          Export
-        </Button>
       </div>
 
-      <ErrorMessage v-if="error" :message="errorMessage" />
+      <!-- Tabs - horizontal scroll (not flex-wrap) below desktop widths,
+      same convention BudgetDashboard.vue's own tab strip uses. "Trial
+      Balance Check" only shows for a System Manager (showTrialBalanceTab,
+      see script below) - a frontend-only gate, backed up server-side by
+      get_trial_balance_from_erp's own permission check
+      (api/trial_balance.py), since a tab being hidden is never itself a
+      real permission boundary. The tab strip itself is hidden entirely
+      for every other role, rather than showing a single "Monthly MIS" tab
+      with nothing to switch to - this page looks exactly like it did
+      before this tab existed for anyone who can't see it. -->
+      <div v-if="showTrialBalanceTab" class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+        <button
+          v-for="tab in TABS"
+          :key="tab.key"
+          class="flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition"
+          :class="activeTab === tab.key
+            ? 'border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-100'
+            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <TrialBalanceCheckTab
+        v-if="activeTab === 'trial-balance'"
+        :financial-year="filters.financialYear"
+        :month="filters.month"
+      />
+
+      <template v-else>
+      <div v-if="error" class="flex items-center gap-3">
+        <ErrorMessage :message="errorMessage" />
+        <button class="text-sm text-fc-blue-mid underline" @click="loadAll(true)">Retry</button>
+      </div>
       <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <AppLoader label="Loading Monthly MIS..." />
       </div>
@@ -69,15 +145,15 @@
       <template v-else>
         <!-- 1. Operating Expense -->
         <SectionLabel text="Operating Expense" :subtitle="ytdSubtitle" />
-        <ExpenseTable :rows="opexRows" :totals="opexTotals" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
+        <ExpenseTable :rows="opexRows" :totals="opexTotals" kind="opex" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
 
         <!-- 2. Capital Expense -->
         <SectionLabel text="Capital Expense" :subtitle="ytdSubtitle" />
-        <ExpenseTable :rows="capexRows" :totals="capexTotals" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
+        <ExpenseTable :rows="capexRows" :totals="capexTotals" kind="capex" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
 
         <!-- 3. Overall Foundation -->
         <SectionLabel text="Overall Foundation" :subtitle="ytdSubtitle" />
-        <ConsolidatedTable :rows="consolidatedRows" :total="consolidatedTotal" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
+        <ConsolidatedTable :rows="consolidatedRows" :total="consolidatedTotal" :grand="consolidatedGrand" :cur-f-y="filters.financialYear" :prev-f-y="prevFY" @drill="openDrilldown" />
 
         <!-- 4. Education -->
         <SectionLabel text="Education" :subtitle="ytdSubtitle" />
@@ -103,6 +179,7 @@
         <SectionLabel text="Operating Expenses Breakdown" :subtitle="ytdSubtitle" />
         <UnitDetailGrid :cards="unitDetailCards" :fy="filters.financialYear" :prev-fy="prevFY" />
       </template>
+      </template>
     </div>
 
     <BudgetDrilldownModal v-model="drilldownOpen" :node="drilldownNode" total-mode="ytd" show-actuals />
@@ -111,7 +188,7 @@
 
 <script setup>
 import { computed, onMounted, provide, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon, ErrorMessage, Switch } from 'frappe-ui'
+import { MultiSelect, Select, Button, Dropdown, FeatherIcon, ErrorMessage, Switch } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import SectionLabel from '@/components/SectionLabel.vue'
@@ -121,7 +198,9 @@ import ConsolidatedTable from '@/components/monthlyMis/ConsolidatedTable.vue'
 import ExpenseTable from '@/components/monthlyMis/ExpenseTable.vue'
 import BreakupTable from '@/components/monthlyMis/BreakupTable.vue'
 import UnitDetailGrid from '@/components/monthlyMis/UnitDetailGrid.vue'
+import TrialBalanceCheckTab from '@/components/monthlyMis/TrialBalanceCheckTab.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
+import { appConfigResource } from '@/data/appConfig'
 import {
   MONTHS,
   getPrevFY,
@@ -132,9 +211,55 @@ import {
   buildExpTotals,
   buildBreakupSections,
   buildUnitDetailGrid,
+  flattenBreakup,
+  buildDrilldownNode,
 } from '@/data/monthlyMisData'
+import { getCachedMonthlyMisPage, setCachedMonthlyMisPage } from '@/data/monthlyMisCache'
+
+// Single source of table groups for get_monthly_mis_break_up - covers both
+// the Monthly MIS Capex & Opex table (previously its own get_unit_wise_plan
+// call) and every breakup table (Education/University/Health/Livelihoods/
+// Enablers), so one call per financial year now returns everything this
+// page needs.
+const MIS_TABLE_NAME_FILTER = [
+  'Monthly MIS Capex & Opex',
+  'Education - District Institutes',
+  'Education- Azim Premji Schools',
+  'Azim Premji University (Bangalore Campus)',
+  'Azim Premji University (Bhopal Campus)',
+  'Azim Premji University (Ranchi Campus)',
+  'Azim Premji University (Guwahati Campus)',
+  'Enablers',
+  'Livelihoods',
+  'Urban Primary care work',
+  'Rural Primary care work',
+  'Central Initiatives',
+  'Hospital',
+  'Health Programs Team & Enablers',
+].join(',')
 
 const monthOptions = MONTHS.map((m) => ({ label: m, value: m }))
+
+// -------------------------------------------------------------------------
+// Tabs - Trial Balance Check (moved in from its own standalone page/route)
+// only shows for a System Manager, mirroring the restriction its old Home
+// tile/App Module Setting record had. Reuses appConfigResource's own
+// can_manage_settings flag (frappe.has_permission("Master Settings",
+// "write"), api/branding.py's get_app_config - already fetched app-wide
+// for the Settings dialog's own "App Settings" tab, see
+// ProfileSettingsModal.vue) rather than a dedicated check of its own, since
+// that permission is already System-Manager-only in this app and this
+// avoids inventing a second identical role check. The real enforcement is
+// still server-side (get_trial_balance_from_erp's own permission check,
+// api/trial_balance.py) - this is only what decides whether to show the
+// tab at all.
+// -------------------------------------------------------------------------
+const showTrialBalanceTab = computed(() => !!appConfigResource.data?.can_manage_settings)
+const TABS = [
+  { key: 'monthly-mis', label: 'Monthly MIS' },
+  { key: 'trial-balance', label: 'Trial Balance Check' },
+]
+const activeTab = ref('monthly-mis')
 
 // -------------------------------------------------------------------------
 // Filters
@@ -152,6 +277,11 @@ const showFullNumbers = ref(false)
 // so the toggle can live here without prop-drilling through 5+ levels of
 // table components.
 provide('misShowFullNumbers', showFullNumbers)
+// Monthly MIS's own tables are dense with cells (several per row, many
+// rows per section) - a hover tooltip on every single one read as noise
+// rather than help here, unlike pages with fewer, more spread-out amounts
+// (Foundation Consolidated, Budget Summary). See CrCell.vue's own comment.
+provide('misNoTooltip', true)
 
 const prevFY = computed(() => getPrevFY(filters.financialYear))
 const ytdSubtitle = computed(() => `Budget vs. Actuals – YTD ${monthYearLabel(filters.month, filters.financialYear)}`)
@@ -174,34 +304,78 @@ function defaultFyAndMonth(options) {
   return { fy: target, month }
 }
 
+// Remembers the user's last-used Financial Year/Month across visits (a
+// per-viewer convenience, not a data cache - loadAll() still makes its
+// usual single API call either way). Read once on mount; if a saved pair
+// exists and its financial_year is still a real option, it wins over
+// defaultFyAndMonth()'s "previous completed month" guess. Wrapped in
+// try/catch since localStorage can throw (private browsing, blocked site
+// data, etc.) - a lost preference just means falling back to the
+// computed default, same as a first-ever visit.
+const MONTHLY_MIS_FILTERS_STORAGE_KEY = 'budget-mis:monthly-mis:filters'
+
+function loadSavedFilters() {
+  try {
+    const raw = localStorage.getItem(MONTHLY_MIS_FILTERS_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (parsed && typeof parsed.financialYear === 'string' && typeof parsed.month === 'string') {
+      return parsed
+    }
+  } catch {
+    /* unreadable - fall through to the computed default */
+  }
+  return null
+}
+
+function saveFilters(fy, month) {
+  try {
+    if (fy && month) {
+      localStorage.setItem(MONTHLY_MIS_FILTERS_STORAGE_KEY, JSON.stringify({ financialYear: fy, month }))
+    }
+  } catch {
+    /* storage unavailable - the choice just won't persist */
+  }
+}
+
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   const years = (rows || []).map((r) => r.financial_year)
   financialYearOptions.value = years.map((y) => ({ label: y, value: y }))
   if (!filters.financialYear && years.length) {
-    const { fy, month } = defaultFyAndMonth(years)
-    filters.financialYear = fy
-    filters.month = month
+    const saved = loadSavedFilters()
+    if (saved && years.includes(saved.financialYear) && MONTHS.includes(saved.month)) {
+      filters.financialYear = saved.financialYear
+      filters.month = saved.month
+    } else {
+      const { fy, month } = defaultFyAndMonth(years)
+      filters.financialYear = fy
+      filters.month = month
+    }
   }
 }
 
 watch(
   () => [filters.financialYear, filters.month],
-  ([fy, month]) => setPageTitle(fy && month ? `Monthly MIS - ${fy} - ${month}` : 'Monthly MIS'),
+  ([fy, month]) => {
+    setPageTitle(fy && month ? `Monthly MIS - ${fy} - ${month}` : 'Monthly MIS')
+    saveFilters(fy, month)
+  },
   { immediate: true },
 )
 
 // -------------------------------------------------------------------------
-// Load - a single Promise.all of the 3 backend calls the Desk page's
-// loadData() makes. Confirmed against the live source (fetchData(),
-// lines 6802-6816): get_unit_wise_plan is called WITHOUT an is_previous
-// flag on EITHER call - the "previous year" call just passes the already-
-// computed prevFY string directly as financial_year, exactly like the
-// current-year call, both with table_name_filter='Monthly MIS Capex & Opex'.
-// (is_previous is a real, accepted backend param, but the Desk JS never
-// sends it here, so financial_year alone drives which year's data comes
-// back for each call - this is NOT the same calling convention
-// FoundationConsolidated.vue uses for its own get_unit_wise_plan calls.)
+// Load - exactly ONE backend call, to
+// get_monthly_mis_break_up_with_prev_year, which runs get_monthly_mis_break_up
+// for both financial_year and its previous year server-side and returns
+// {current, previous} in one response (replacing the earlier 3-call mix of
+// get_unit_wise_plan x2 + get_monthly_mis_break_up, and then the later
+// 2-call pair of get_monthly_mis_break_up x2). table_name_filter covers
+// every table this page needs (Monthly MIS Capex & Opex + the Education/
+// University/Health/Livelihoods/Enablers breakup tables), so `current`
+// alone supplies both curData (via flattenBreakup) and breakupData (used
+// as-is - its dict-of-table-groups shape is what buildBreakupSections/
+// findEntries expect natively). `previous` only ever needs flattening for
+// prevData; its breakup tables aren't shown anywhere on this page.
 // -------------------------------------------------------------------------
 const loading = ref(false)
 const error = ref(null)
@@ -210,46 +384,126 @@ const prevData = ref([])
 const breakupData = ref({})
 const hasData = computed(() => curData.value.length > 0 || prevData.value.length > 0)
 
+// Drill-down tree: fetched once per load alongside the table data above (a
+// 2nd call, not re-fetched on every click) - get_monthly_mis_drilldown_tree
+// returns, for every card in "Monthly MIS Capex & Opex", its full sub-item
+// hierarchy (card -> sub-items -> ... -> cost-center+location pairs) with
+// every level's own actuals already computed server-side, so drilling from
+// a card's total down to a single cost-center+location's line items is
+// pure client-side navigation through this cached tree - no further API
+// calls. Keyed by label for openDrilldown's existing lookup-by-label flow.
+// prevDrilldownTree is the SAME shape, built from the backend's own
+// previous_drilldown (a second get_monthly_mis_drilldown_tree call
+// against the previous financial year) - without this, clicking a row's
+// Prev Budget/Actuals column had no year-specific tree to read and
+// silently fell back to drilldownTree (the CURRENT year's tree) for every
+// click regardless of which column was clicked - a real, confirmed bug
+// (the modal showed this year's figures even when "Prev Budget" was
+// clicked).
+const drilldownTree = ref({})
+// Lazily populated on first "Prev" column click (see openDrilldown) - NOT
+// fetched eagerly alongside the page's main data. get_monthly_mis_page_data
+// used to build this server-side on every load via a second
+// get_monthly_mis_drilldown_tree call, but that call does a frappe.get_doc
+// + full unit-tree walk per number-card entry and was doubling the page's
+// own compute cost even for users who never open a "Prev" drill-down - a
+// real, confirmed regression. Keyed by financial_year+month so switching
+// filters and back doesn't re-fetch a tree already fetched this session.
+const prevDrilldownTree = ref({})
+const prevDrilldownTreeKey = ref(null)
+let prevDrilldownFetchPromise = null
+
 let requestGen = 0
+
+function applyPageResult(result) {
+  const curDict = result?.current && typeof result.current === 'object' ? result.current : {}
+  const prevDict = result?.previous && typeof result.previous === 'object' ? result.previous : {}
+  curData.value = flattenBreakup(curDict, 'Monthly MIS Capex & Opex')
+  prevData.value = flattenBreakup(prevDict, 'Monthly MIS Capex & Opex')
+  breakupData.value = curDict
+
+  const drillDict = result?.drilldown && typeof result.drilldown === 'object' ? result.drilldown : {}
+  const drillEntries = drillDict['Monthly MIS Capex & Opex'] || []
+  const byLabel = {}
+  for (const node of drillEntries) {
+    if (node?.label) byLabel[node.label] = node
+  }
+  drilldownTree.value = byLabel
+
+  // previous_drilldown is no longer part of this response (see
+  // get_monthly_mis_prev_drilldown below) - reset the lazy cache so a
+  // filter change doesn't accidentally reuse a different period's tree.
+  prevDrilldownTree.value = {}
+  prevDrilldownTreeKey.value = null
+  prevDrilldownFetchPromise = null
+}
 
 async function loadAll(force) {
   const fy = filters.financialYear
   const month = filters.month
   if (!fy || !month) return
+
+  // Navigating away and back to this page (no <KeepAlive> in this app, see
+  // monthlyMisCache.js's own header comment) always re-runs onMounted and
+  // re-triggers this exact same fy/month - skip the network round trip
+  // entirely when that combo was already fetched recently, rather than
+  // re-hitting the backend (which would likely still be a fast Redis cache
+  // hit there too, but still a real HTTP request + JSON payload every
+  // time). `force` (Fetch/Retry buttons) always bypasses this.
+  if (!force) {
+    const cached = getCachedMonthlyMisPage(fy, month)
+    if (cached) {
+      applyPageResult(cached)
+      return
+    }
+  }
+
   const gen = ++requestGen
   loading.value = true
   error.value = null
   try {
-    const [cur, prev, breakup] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month, table_name_filter: 'Monthly MIS Capex & Opex',
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: getPrevFY(fy), month, table_name_filter: 'Monthly MIS Capex & Opex',
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_monthly_mis_break_up', {
-        financial_year: fy,
-        month,
-        table_name_filter: 'Education - District Institutes,Education- Azim Premji Schools,Azim Premji University (Bangalore Campus),Azim Premji University (Bhopal Campus),Azim Premji University (Ranchi Campus),Azim Premji University (Guwahati Campus),Enablers,Livelihoods,Urban Primary care work,Rural Primary care work,Central Initiatives,Hospital,Health Programs Team & Enablers',
-        is_previous: 0,
-      }),
-    ])
+    // ONE call for everything this page needs - get_monthly_mis_page_data
+    // fetches ERP actuals exactly once per period (current + previous)
+    // server-side and reuses each fetch across the break-up, breakup-
+    // section, and drill-down data derived from it, instead of this page
+    // firing 2 separate HTTP requests that could each independently (and,
+    // if concurrent, redundantly) trigger the same PeopleSoft call.
+    const result = await call('budget_mis.api.monthly_mis.get_monthly_mis_page_data', {
+      financial_year: fy,
+      month,
+      table_name_filter: MIS_TABLE_NAME_FILTER,
+      drilldown_table_filter: 'Monthly MIS Capex & Opex',
+    })
     if (gen !== requestGen) return
-    curData.value = Array.isArray(cur) ? cur : []
-    prevData.value = Array.isArray(prev) ? prev : []
-    breakupData.value = breakup && typeof breakup === 'object' ? breakup : {}
+    console.log('[MonthlyMis] get_monthly_mis_page_data structured response:', JSON.parse(JSON.stringify(result)))
+    applyPageResult(result)
+    setCachedMonthlyMisPage(fy, month, result)
   } catch (e) {
     if (gen !== requestGen) return
     error.value = e
     curData.value = []
     prevData.value = []
     breakupData.value = {}
+    drilldownTree.value = {}
+    prevDrilldownTree.value = {}
   } finally {
     if (gen === requestGen) loading.value = false
   }
 }
 
-const errorMessage = computed(() => error.value?.messages?.[0] || error.value?.message || 'Something went wrong loading Monthly MIS.')
+// A raw "Failed to fetch"/"NetworkError..." TypeError (no HTTP response at
+// all - connection dropped or timed out, e.g. a hosted proxy's own request
+// ceiling cutting off this page's slow cold-cache ERP fetch, see
+// api/erp_actuals.py's own timeout) reads as a dead end to a user with no
+// idea what to do about it. Rephrased into something actionable instead of
+// surfacing the browser's own terse wording verbatim.
+const errorMessage = computed(() => {
+  const raw = error.value?.messages?.[0] || error.value?.message || ''
+  if (/failed to fetch|networkerror/i.test(raw)) {
+    return 'Could not reach the server - this can happen when the data is still loading from the ERP for the first time. Please wait a moment and try again.'
+  }
+  return raw || 'Something went wrong loading Monthly MIS.'
+})
 
 watch(() => [filters.financialYear, filters.month], () => loadAll())
 
@@ -264,6 +518,7 @@ const prevMap = computed(() => buildMap(prevData.value))
 const consolidated = computed(() => buildConsolidatedRows(curMap.value, prevMap.value))
 const consolidatedRows = computed(() => consolidated.value.rows)
 const consolidatedTotal = computed(() => consolidated.value.total)
+const consolidatedGrand = computed(() => consolidated.value.grand)
 
 const opexRows = computed(() => buildExpRows(curData.value, prevData.value, 'opex'))
 const opexTotals = computed(() => buildExpTotals(opexRows.value))
@@ -337,33 +592,151 @@ const drilldownNode = ref(null)
 // when the user clicked the previous-year columns. BreakupTable's rows
 // have no such split (single-period Opex/Capex/Total only) and don't pass
 // a year at all, so 'cur' is a safe default there.
-function openDrilldown(label, year = 'cur') {
+//
+// `kind` says which SLICE of the clicked row's own figure the drill-down
+// should total up to - 'opex'/'capex' (ExpenseTable, matching which of
+// the two tables was clicked) or 'total' (ConsolidatedTable/BreakupTable,
+// which already show the combined figure). Without this, every click
+// built a node summing EVERY head together (Opex+Capex+Covid combined)
+// regardless of which table/column was clicked - a real, confirmed bug
+// where e.g. clicking a row in the Capital Expense table opened a
+// drill-down showing that row's Opex+Capex+Covid total instead of just
+// its Capex figure.
+function openDrilldown(label, year = 'cur', kind = 'total', explicitEntity = null) {
+  // BreakupTable passes its row's own entity directly (explicitEntity) -
+  // the same label (e.g. a state name like "Karnataka") can legitimately
+  // appear under several different sections/tables (Education, Health,
+  // etc.), each a genuinely different combination with different actuals,
+  // so falling back to a label-only scan across breakupEntities (as this
+  // used to do unconditionally) could silently resolve to the WRONG
+  // section's entity - a real, confirmed bug where clicking one section's
+  // row opened a drill-down showing a different section's numbers
+  // entirely. ExpenseTable/ConsolidatedTable rows have no such collision
+  // (their own labels - Unit names, "Total", "Grand Total" - are unique
+  // within curData/prevData) and don't pass this, so the label-scan
+  // fallback still covers them.
   const primary = year === 'prev' ? prevData.value : curData.value
   const secondary = year === 'prev' ? curData.value : prevData.value
   const entity =
+    explicitEntity ||
     findByLabel(primary, label) ||
     findByLabel(secondary, label) ||
     findByLabel(breakupEntities.value, label)
   if (!entity) return
-  // BudgetDrilldownModal walks node.sub_heads/node.items directly - an
-  // entity's real tree lives one level down, under `.actuals`.
-  drilldownNode.value = { name: label, sub_heads: [], items: entity.actuals || [] }
+  // A card covered by the drill-down tree (currently just the "Monthly MIS
+  // Capex & Opex" table's cards) gets the full card -> sub-item -> state ->
+  // cost-center+location hierarchy; anything else (Health/Livelihoods/
+  // Enablers breakup rows, which aren't in that tree) falls back to the
+  // single-level line-item view it always had - BudgetDrilldownModal walks
+  // node.sub_heads/node.items directly for that case, an entity's real
+  // tree lives one level down under `.actuals`.
+  //
+  // entity.actuals always includes a synthetic "GRAND TOTAL" entry
+  // (sequence_id 9999) alongside the real CAPITAL EXPENSES/OPERATING
+  // EXPENSES/COVID SUPPORT heads - dumping it into items unfiltered (as an
+  // earlier version of this did) double-counted it into the modal's own
+  // total (which sums every item when the node has no ytd of its own) and
+  // rendered it a second time as if it were a real line item sitting next
+  // to OPERATING EXPENSES - a real, confirmed bug.
+  const fallbackNode = { name: label, sub_heads: [], items: (entity.actuals || []).filter((h) => h.name !== 'GRAND TOTAL') }
+
+  if (year !== 'prev') {
+    // Current-year tree is already in memory from the page load - no
+    // extra fetch needed.
+    const treeNode = drilldownTree.value[label]
+    drilldownNode.value = treeNode ? buildDrilldownNode(treeNode, kind) : fallbackNode
+    drilldownOpen.value = true
+    return
+  }
+
+  // Previous-year tree is fetched lazily, on first "Prev" column click,
+  // instead of get_monthly_mis_page_data building it eagerly on every page
+  // load regardless of whether any drill-down is ever opened (see
+  // prevDrilldownTree's own comment above - that eager build was a real,
+  // confirmed regression that slowed down every Monthly MIS page load).
+  const cacheKey = `${filters.financialYear}::${filters.month}`
+  if (prevDrilldownTreeKey.value === cacheKey && prevDrilldownTree.value[label]) {
+    // Already fetched this label's tree earlier in the session - no need
+    // to show the fallback node or re-fetch.
+    drilldownNode.value = buildDrilldownNode(prevDrilldownTree.value[label], kind)
+    drilldownOpen.value = true
+    return
+  }
+  // Open immediately with the fallback node so the modal isn't left
+  // hanging on a slow fetch, then swap in the real tree node once it
+  // resolves (if the user hasn't since closed the modal).
+  drilldownNode.value = fallbackNode
   drilldownOpen.value = true
+  fetchPrevDrilldownTree().then((tree) => {
+    if (!drilldownOpen.value) return
+    const treeNode = tree[label]
+    if (treeNode) drilldownNode.value = buildDrilldownNode(treeNode, kind)
+  })
+}
+
+// Fetches (and caches, keyed by financial_year+month) the previous-year
+// drilldown tree on demand. Concurrent clicks while a fetch is already in
+// flight share the same promise instead of firing duplicate requests.
+function fetchPrevDrilldownTree() {
+  const fy = filters.financialYear
+  const month = filters.month
+  const key = `${fy}::${month}`
+  if (prevDrilldownTreeKey.value === key && prevDrilldownFetchPromise) {
+    return prevDrilldownFetchPromise
+  }
+  prevDrilldownTreeKey.value = key
+  prevDrilldownFetchPromise = call('budget_mis.api.monthly_mis.get_monthly_mis_prev_drilldown', {
+    financial_year: fy,
+    month,
+    table_name_filter: 'Monthly MIS Capex & Opex',
+  }).then((result) => {
+    const dict = result && typeof result === 'object' ? result : {}
+    const entries = dict['Monthly MIS Capex & Opex'] || []
+    const byLabel = {}
+    for (const node of entries) {
+      if (node?.label) byLabel[node.label] = node
+    }
+    prevDrilldownTree.value = byLabel
+    return byLabel
+  }).catch((e) => {
+    // Leave prevDrilldownTreeKey cleared so a later click can retry
+    // instead of being stuck on a failed fetch's cached rejection.
+    prevDrilldownTreeKey.value = null
+    prevDrilldownFetchPromise = null
+    throw e
+  })
+  return prevDrilldownFetchPromise
 }
 
 // -------------------------------------------------------------------------
 // Export - no base64 JSON endpoint exists for this page (unlike Foundation
 // Consolidated's export_reports.* calls); export_monthly_mis returns a raw
 // binary file via a direct GET, so this just opens that URL exactly like
-// the Desk page's Export button does.
+// the Desk page's Export button did. The Desk page offered Excel/PDF/
+// PowerPoint (export_monthly_mis's own export_format param always supported
+// all three - see monthly_mis_export.py's _build_slide_pdf_html/_build_pptx),
+// so the dropdown mirrors that rather than only exposing Excel.
 // -------------------------------------------------------------------------
-function exportMis() {
+function exportMis(format) {
   const fy = filters.financialYear
   const month = filters.month
   if (!fy || !month) return
-  const url = `/api/method/annual_budget.api.monthly_mis.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=excel`
+  const url = `/api/method/budget_mis.api.monthly_mis_export.export_monthly_mis?financial_year=${encodeURIComponent(fy)}&month=${encodeURIComponent(month)}&export_format=${encodeURIComponent(format)}`
   window.open(url, '_blank')
 }
+
+// Distinct per-format icons (lucide-<name> - the Tailwind mask-utility
+// convention AppSidebar.vue's own menu items already use, NOT the custom
+// LucideIcon.vue component's subset-JSON lookup) rather than one generic
+// icon for all three - Dropdown's own item renderer
+// (DropdownMenuItemContent.vue) checks for this 'lucide-' prefix before
+// falling back to FeatherIcon, which doesn't have a spreadsheet/slides
+// icon in its much smaller feather-icons icon set at all.
+const exportOptions = [
+  { label: 'Excel', icon: 'lucide-file-spreadsheet', onClick: () => exportMis('excel') },
+  { label: 'PDF', icon: 'lucide-file-text', onClick: () => exportMis('pdf') },
+  { label: 'PowerPoint', icon: 'lucide-monitor-play', onClick: () => exportMis('pptx') },
+]
 
 onMounted(async () => {
   // loadFinancialYears() sets filters.financialYear and filters.month
@@ -374,16 +747,10 @@ onMounted(async () => {
   // FoundationConsolidated.vue's onMounted uses for its own single-key
   // watch; a multi-key array watch source batches the same way).
   await loadFinancialYears()
+  // Same guard ProfileSettingsModal.vue's own onMounted uses - only fetch
+  // if nothing has populated this yet this session, so two consumers
+  // mounting in the same session (this page, then later opening Settings)
+  // don't each independently re-fetch.
+  if (!appConfigResource.data) appConfigResource.fetch()
 })
 </script>
-
-<style scoped>
-.fc-export-all {
-  background-color: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-.fc-export-all:hover {
-  background-color: #333;
-}
-</style>

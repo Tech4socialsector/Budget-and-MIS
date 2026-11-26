@@ -1,11 +1,12 @@
 <template>
   <AppLayout fill-height>
     <div class="flex h-full min-h-0 min-w-0 flex-col gap-3">
-      <!-- Filters: exactly 4 per row, any further fields wrap to their own
-      row (a plain 4-col grid rather than flex-wrap, so the count per row
-      never depends on how much width happens to be left over). -->
+      <!-- Filters: exactly 5 per row, any further fields wrap to their own
+      row (a plain 5-col grid rather than flex-wrap, so the count per row
+      never depends on how much width happens to be left over) - same
+      fixed-5-column convention every filter row in the app now uses. -->
       <div class="flex flex-shrink-0 flex-col gap-3">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Financial Year</label>
             <MultiSelect
@@ -14,6 +15,19 @@
               placeholder="Select year"
               class="w-full"
             />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Operating Units</label>
+            <MultiSelect
+              v-model="themeSelection"
+              :options="themeOptions"
+              :loading="themeLoading || themeMappingLoading"
+              placeholder="All operating units"
+              class="w-full"
+            />
+            <p v-if="themeMappingEmpty" class="mt-1 text-[0.6875rem] text-amber-600 dark:text-amber-400">
+              No units/cost centers are set up for this Operating Unit yet - showing all data instead.
+            </p>
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Unit</label>
@@ -45,7 +59,7 @@
             />
           </div>
         </div>
-        <Button variant="outline" class="self-start" @click="clearFilters">
+        <Button variant="outline" theme="gray" class="self-start" @click="clearFilters">
           <template #prefix>
             <FeatherIcon name="x-circle" class="h-4 w-4" />
           </template>
@@ -53,26 +67,24 @@
         </Button>
       </div>
 
-      <div v-if="reportError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/40 dark:text-red-400">
-        {{ reportErrorMessage }}
-      </div>
+      <ErrorMessage v-if="reportError" :message="reportErrorMessage" />
 
       <template v-else>
         <!-- Summary cards + pie -->
         <div v-if="expenseHeads.length" class="flex flex-shrink-0 flex-col gap-2">
           <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Budget Summary</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Summary</div>
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
           <BudgetSummaryCards :heads="expenseHeads" :financial-year="filters.financialYear" :show-full-numbers="showFullNumbers" />
         </div>
 
         <!-- Table controls -->
-        <div class="flex flex-shrink-0 flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex flex-shrink-0 flex-wrap items-center justify-between gap-4">
           <FormControl
             type="text"
             v-model="searchQuery"
-            placeholder="Search Expense / Sub Head / Item / GL Code..."
+            placeholder="Search Expense / Sub Head / Item..."
             class="w-full max-w-sm"
           >
             <template #prefix>
@@ -82,7 +94,7 @@
           <div class="flex flex-wrap items-center gap-5">
             <Switch v-model="expandQuarters" label="Expand Quarters" />
             <Switch v-model="expandItemsAll" label="Expand Items" />
-            <Button variant="solid" :loading="reportLoading" @click="exportExcel">
+            <Button variant="solid" theme="gray" :loading="exporting" @click="exportExcel">
               <template #prefix>
                 <FeatherIcon name="download" class="h-4 w-4" />
               </template>
@@ -98,21 +110,22 @@
         min-h-[12rem] keeps it from collapsing to nothing if the content
         above happens to fill almost the whole page. -->
         <div class="relative min-h-[12rem] min-w-0 flex-1">
-          <div v-if="reportLoading" class="h-full rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div v-if="reportLoading" class="h-full">
             <AppLoader label="Loading budget summary..." />
           </div>
-          <div v-else-if="!expenseHeads.length" class="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          <div v-else-if="!expenseHeads.length" class="flex h-full items-center justify-center text-center text-sm text-gray-500 dark:text-gray-400">
             No budget data found for the selected filters.
           </div>
           <BudgetSummaryTable
             v-else
-            class="h-full"
+            class="max-h-full"
             :heads="filteredHeads"
             :expand-quarters="expandQuarters"
             :expanded-heads="expandedHeads"
             :expanded-sub-heads="expandedSubHeads"
             :expand-items-all="expandItemsAll"
             :expanded-quarter-keys="expandedQuarterKeys"
+            :show-full-numbers="showFullNumbers"
             @toggle-head="toggleHead"
             @toggle-sub-head="toggleSubHead"
             @toggle-quarter="toggleQuarter"
@@ -120,18 +133,31 @@
         </div>
       </template>
     </div>
+
+    <!-- A multi-sheet export (one sheet per cost center/location) can take
+    noticeably longer than a normal click-and-done action - the Export
+    button's own small spinner alone isn't enough feedback for that wait,
+    so this covers the page with the same branded logo loader used
+    everywhere else in the app while the file is being generated. -->
+    <div
+      v-if="exporting"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
+    >
+      <AppLoader variant="export" label="Generating your Excel file..." />
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { MultiSelect, FormControl, Button, FeatherIcon, Switch } from 'frappe-ui'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { MultiSelect, FormControl, Button, FeatherIcon, Switch, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetSummaryCards from '@/components/BudgetSummaryCards.vue'
 import BudgetSummaryTable from '@/components/BudgetSummaryTable.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
+import { downloadXlsx } from '@/data/foundationConsolidatedData'
 
 onMounted(() => setPageTitle('Budget Summary'))
 
@@ -201,7 +227,7 @@ function toOptions(list) {
 }
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({
     label: r.financial_year,
     value: r.financial_year,
@@ -222,8 +248,97 @@ function defaultFinancialYear(options) {
 }
 
 async function loadUnits() {
-  const r = await call('annual_budget.api.filter_options.get_units')
+  const r = await call('budget_mis.api.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
+}
+
+// --- Operating Units (theme) filter -----------------------------------
+// Same cascade as BudgetActualsBreakdown.vue's own Operating Units filter:
+// picking a theme resolves to a set of Unit/Cost Center/Location Code
+// values via get_theme_mappings and overwrites those selections - the
+// backend never sees "theme" itself. Budget Summary is budget-only (no
+// actuals call), so unlike BudgetActualsBreakdown this only needs each
+// mapping's budget-side (value), never its erp_cost_center_value/erp_loc_value.
+const themeOptions = ref([])
+const themeLoading = ref(false)
+const themeMappingLoading = ref(false)
+const themeMappingEmpty = ref(false)
+const themeLabelToName = reactive({})
+const themeSelectionNames = ref([])
+const themeSelection = computed({
+  get: () => themeSelectionNames.value.map((name) => Object.entries(themeLabelToName).find(([, v]) => v === name)?.[0]).filter(Boolean),
+  set: (labels) => {
+    themeSelectionNames.value = labels.map((label) => themeLabelToName[label]).filter(Boolean)
+    applyThemeSelection()
+  },
+})
+
+async function loadThemes() {
+  themeLoading.value = true
+  try {
+    const rows = await call('budget_mis.api.filter_options.get_theme')
+    for (const key of Object.keys(themeLabelToName)) delete themeLabelToName[key]
+    themeOptions.value = (rows || []).map((d) => {
+      themeLabelToName[d.number_card_title] = d.name
+      return { label: d.number_card_title, value: d.number_card_title }
+    })
+  } finally {
+    themeLoading.value = false
+  }
+}
+
+let suppressUnitWatch = false
+let themeMappingToken = 0
+async function applyThemeSelection() {
+  const token = ++themeMappingToken
+
+  if (!themeSelectionNames.value.length) {
+    themeMappingEmpty.value = false
+    suppressUnitWatch = true
+    filters.units = []
+    await nextTick()
+    suppressUnitWatch = false
+    costCenterOptions.value = []
+    locationCodeOptions.value = []
+    filters.costCenters = []
+    filters.locationCodes = []
+    return
+  }
+
+  themeMappingLoading.value = true
+  let results
+  try {
+    results = await Promise.all(
+      themeSelectionNames.value.map((name) => call('budget_mis.api.filter_options.get_theme_mappings', { theme_name: name })),
+    )
+  } catch (e) {
+    if (token === themeMappingToken) themeMappingLoading.value = false
+    window.alert(e?.messages?.[0] || e?.message || 'Could not load the selected Operating Unit(s) - filters were not changed.')
+    return
+  }
+  if (token !== themeMappingToken) return
+
+  const unitVals = new Map()
+  const ccVals = new Map()
+  const locVals = new Map()
+  for (const r of results) {
+    for (const u of r?.units || []) unitVals.set(u.value, u)
+    for (const c of r?.cost_centers || []) { if (c.value) ccVals.set(c.value, c) }
+    for (const l of r?.location_codes || []) { if (l.value) locVals.set(l.value, l) }
+  }
+
+  suppressUnitWatch = true
+  filters.units = [...unitVals.keys()]
+  await nextTick()
+  suppressUnitWatch = false
+
+  costCenterOptions.value = [...ccVals.values()].map((c) => ({ label: c.label, value: c.value }))
+  locationCodeOptions.value = [...locVals.values()].map((l) => ({ label: l.label, value: l.value }))
+  filters.costCenters = [...ccVals.keys()]
+  filters.locationCodes = [...locVals.keys()]
+  themeMappingEmpty.value = !unitVals.size && !ccVals.size && !locVals.size
+  themeMappingLoading.value = false
+  loadReport()
 }
 
 async function loadCostCenters() {
@@ -231,7 +346,7 @@ async function loadCostCenters() {
     costCenterOptions.value = []
     return
   }
-  const r = await call('annual_budget.api.filter_options.get_cost_centers_by_set_id', {
+  const r = await call('budget_mis.api.filter_options.get_cost_centers_by_set_id', {
     units: filters.units.join(','),
   })
   costCenterOptions.value = toOptions(r?.data)
@@ -242,7 +357,7 @@ async function loadLocationCodes() {
     locationCodeOptions.value = []
     return
   }
-  const r = await call('annual_budget.api.filter_options.get_location_codes_by_unit', {
+  const r = await call('budget_mis.api.filter_options.get_location_codes_by_unit', {
     unit: filters.units.join(','),
   })
   locationCodeOptions.value = toOptions(r?.data)
@@ -253,7 +368,7 @@ async function loadReport() {
   reportLoading.value = true
   reportError.value = null
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_consolidated_report', {
+    const result = await call('budget_mis.api.budget_summary.get_budget_summary', {
       financial_year: filters.financialYear,
       units: filters.units.join(',') || undefined,
       cost_center: filters.costCenters.join(',') || undefined,
@@ -269,6 +384,7 @@ async function loadReport() {
 }
 
 function clearFilters() {
+  themeSelectionNames.value = []
   filters.units = []
   filters.costCenters = []
   filters.locationCodes = []
@@ -301,6 +417,7 @@ watch(() => filters.financialYear, () => {
 })
 
 watch(() => filters.units.slice(), async (newUnits, oldUnits) => {
+  if (suppressUnitWatch) return
   const changed = JSON.stringify(newUnits) !== JSON.stringify(oldUnits || [])
   if (!changed) return
   filters.costCenters = []
@@ -342,19 +459,29 @@ const filteredHeads = computed(() => {
     .filter(Boolean)
 })
 
-function exportExcel() {
-  const params = new URLSearchParams({
-    financial_year: filters.financialYear || '',
-    units: filters.units.join(','),
-    cost_center: filters.costCenters.join(','),
-    location_code: filters.locationCodes.join(','),
-  })
-  window.open(`/api/method/annual_budget.api.export_reports.export_phase_sheet_excel?${params.toString()}`, '_blank')
+const exporting = ref(false)
+
+async function exportExcel() {
+  exporting.value = true
+  try {
+    const result = await call('budget_mis.api.budget_summary.export_phase_sheet_excel', {
+      financial_year: filters.financialYear || '',
+      units: filters.units.join(','),
+      cost_center: filters.costCenters.join(','),
+      location_code: filters.locationCodes.join(','),
+    })
+    if (!downloadXlsx(result)) window.alert('Export failed — no data returned.')
+  } catch (e) {
+    window.alert(e?.messages?.[0] || e?.message || 'Export failed.')
+  } finally {
+    exporting.value = false
+  }
 }
 
 onMounted(async () => {
   await loadFinancialYears()
   await loadUnits()
+  loadThemes()
   loadReport()
 })
 </script>

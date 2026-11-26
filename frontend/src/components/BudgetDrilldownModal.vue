@@ -1,16 +1,29 @@
 <template>
-  <Dialog v-model="show" :options="{ size: '3xl', title: 'budget-drilldown' }">
+  <Dialog v-model="show" :options="{ size: '6xl', title: 'budget-drilldown' }">
     <template #body>
-      <div class="flex max-h-[85vh] min-h-[32rem] flex-col">
+      <!-- min-h only from sm up - a flat 40rem (640px) minimum on a short
+      mobile viewport (portrait phones under ~700px tall, or any phone in
+      landscape) can push the header/close button below the fold on first
+      open, relying entirely on the page scrolling to reach it. Mobile gets
+      no minimum, so the dialog sizes to its actual content instead. -->
+      <div class="flex max-h-[90vh] flex-col sm:min-h-[40rem]">
         <!-- Header: icon + breadcrumb trail + close -->
         <div class="border-b px-5 py-4 dark:border-gray-800">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-start gap-3">
-              <span class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-fc-blue-light text-fc-blue-mid dark:bg-fc-blue-mid/20 dark:text-fc-blue-light">
+              <button
+                v-if="history.length > 1"
+                class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="Back"
+                @click="drillBack"
+              >
+                <FeatherIcon name="arrow-left" class="h-4.5 w-4.5" />
+              </button>
+              <span v-else class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-fc-blue-light text-fc-blue-mid dark:bg-fc-blue-mid/20 dark:text-fc-blue-light">
                 <FeatherIcon :name="levelIcon" class="h-4.5 w-4.5" />
               </span>
               <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Drill Down</div>
+                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Drill Down</div>
                 <h2 class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ current?.name }}</h2>
               </div>
             </div>
@@ -50,32 +63,32 @@
             <div class="flex flex-wrap items-center justify-between gap-4">
               <div v-if="!showActuals" class="flex items-center gap-6">
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Total</div>
                   <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(total(current)) }}</div>
                 </div>
                 <div v-if="children.length">
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ childLabel }}</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">{{ childLabel }}</div>
                   <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ children.length }}</div>
                 </div>
               </div>
               <div v-else class="flex flex-wrap items-center gap-6">
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Budget</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget</div>
                   <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(total(current)) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Actual</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Actual</div>
                   <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(actualTotal(current)) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Variance</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Variance</div>
                   <div class="mt-1 text-xl font-semibold" :style="{ color: varianceColor(current) }">
                     {{ formatAmount(Math.abs(total(current) - actualTotal(current))) }}
                     <span class="text-xs font-normal">{{ total(current) - actualTotal(current) >= 0 ? 'under' : 'over' }}</span>
                   </div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Utilization</div>
+                  <div class="text-xs uppercase tracking-wide text-gray-900 dark:text-gray-300">Utilization</div>
                   <div class="mt-1 flex items-center gap-2">
                     <span class="text-xl font-semibold" :style="{ color: utilizationColor(utilizationPct(current)) }">
                       {{ utilizationPct(current) }}%
@@ -109,20 +122,33 @@
 
           <template v-if="children.length">
             <div class="mb-2 flex items-center justify-between">
-              <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                 <FeatherIcon :name="childIcon" class="h-3.5 w-3.5" />
                 {{ childLabel }}
               </div>
-              <!-- Sort toggle: default is the tree's own order, but ranking
-              by amount is usually more useful once there are more than a
-              handful of rows (which one dominates, at a glance). -->
-              <button
-                class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                @click="sortByAmount = !sortByAmount"
-              >
-                <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
-                {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
-              </button>
+              <div class="flex items-center gap-2">
+                <!-- Available on every hierarchy level (card/sub-item/state/
+                cost-center+location) - shows THIS node's own consolidated
+                head/sub-head/item breakdown without navigating to a child. -->
+                <button
+                  v-if="canViewLineItems"
+                  class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-fc-blue-mid hover:bg-fc-blue-light dark:text-fc-blue-light dark:hover:bg-gray-800"
+                  @click="viewLineItems"
+                >
+                  <FeatherIcon name="list" class="h-3.5 w-3.5" />
+                  View line items
+                </button>
+                <!-- Sort toggle: default is the tree's own order, but ranking
+                by amount is usually more useful once there are more than a
+                handful of rows (which one dominates, at a glance). -->
+                <button
+                  class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  @click="sortByAmount = !sortByAmount"
+                >
+                  <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
+                  {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
+                </button>
+              </div>
             </div>
             <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
               <table class="w-full min-w-[560px] border-collapse text-sm">
@@ -130,6 +156,9 @@
                   <tr class="bg-gray-50 dark:bg-gray-800">
                     <th class="border-b border-gray-200 px-4 py-2.5 text-left font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
                       {{ childLabel }}
+                    </th>
+                    <th v-if="isGlLevel" class="border-b border-l border-gray-200 px-4 py-2.5 text-left font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                      Type of Expense
                     </th>
                     <th class="border-b border-l border-gray-200 px-4 py-2.5 text-right font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
                       Share
@@ -150,15 +179,19 @@
                     v-for="(child, i) in displayedChildren"
                     :key="child.name + i"
                     class="cursor-pointer border-t border-gray-100 transition odd:bg-white even:bg-gray-50/60 hover:bg-fc-blue-light/40 dark:border-gray-800 dark:odd:bg-transparent dark:even:bg-gray-800/30 dark:hover:bg-gray-800/70"
-                    :class="{ 'cursor-default': !hasChildren(child) }"
-                    @click="hasChildren(child) && drillInto(child)"
+                    :class="{ 'cursor-default': !isDrillable(child) }"
+                    @click="isDrillable(child) && drillInto(child)"
                   >
                     <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300">
                       <span class="flex items-center gap-2">
                         <span class="h-2 w-2 flex-shrink-0 rounded-full" :style="{ backgroundColor: accentColor(childColorIndex(child)) }" />
                         {{ child.name }}
-                        <FeatherIcon v-if="hasChildren(child)" name="chevron-right" class="h-3.5 w-3.5 text-gray-400" />
+                        <FeatherIcon v-if="glLoadingName === child.name" name="loader" class="h-3.5 w-3.5 animate-spin text-gray-400" />
+                        <FeatherIcon v-else-if="isDrillable(child)" name="chevron-right" class="h-3.5 w-3.5 text-gray-400" />
                       </span>
+                    </td>
+                    <td v-if="isGlLevel" class="border-l border-gray-100 px-4 py-2.5 text-gray-700 dark:border-gray-800 dark:text-gray-300">
+                      {{ child.typeOfExpense || '—' }}
                     </td>
                     <td class="border-l border-gray-100 px-4 py-2.5 dark:border-gray-800">
                       <div class="flex items-center justify-end gap-2">
@@ -188,6 +221,20 @@
               </table>
             </div>
           </template>
+          <!-- A hierarchy leaf (a single cost-center+location pair) has no
+          further children to drill into, but its own line items are still
+          worth surfacing - same "View line items" action as every higher
+          level, just not gated behind a child row click here. -->
+          <div v-else-if="current?.__lineItems?.length" class="flex flex-col items-center gap-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            <FeatherIcon name="list" class="h-6 w-6 text-gray-300 dark:text-gray-600" />
+            This is the finest level of detail for this slice.
+            <Button variant="outline" theme="gray" @click="viewLineItems">
+              <template #prefix>
+                <FeatherIcon name="list" class="h-3.5 w-3.5" />
+              </template>
+              View line items
+            </Button>
+          </div>
           <div v-else class="flex flex-col items-center gap-2 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
             <FeatherIcon name="inbox" class="h-6 w-6 text-gray-300 dark:text-gray-600" />
             No further breakdown available.
@@ -202,6 +249,7 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, FeatherIcon, Switch } from 'frappe-ui'
 import AppTooltip from '@/components/AppTooltip.vue'
+import { call } from '@/data/decrypt'
 import { accentColor, formatCr, formatINR, rowTotal } from '@/data/budgetTotals'
 import { nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct as utilPct } from '@/data/dashboardData'
 
@@ -218,6 +266,28 @@ const props = defineProps({
   // When true (only meaningful with totalMode: 'ytd'), also shows the
   // actual/utilization/variance columns alongside budget.
   showActuals: { type: Boolean, default: false },
+  // GL-code drill-down (optional, one level beyond Line Items): a leaf
+  // item carrying its own `sequence_id` (the Expenses master's row id) can
+  // be drilled into for its underlying GL-code-level actuals breakdown,
+  // fetched on demand via budget_mis.api.budget_vs_actual.get_actual_gl_breakup
+  // - the same data/endpoint BudgetVsActual.vue's own item rows already
+  // use, just reachable generically from any caller of this modal instead
+  // of duplicated per-page. Only activates when financialYear is supplied;
+  // callers with nothing further to show below Line Items simply omit it.
+  financialYear: { type: String, default: '' },
+  month: { type: String, default: 'March' },
+  unit: { type: String, default: '' },
+  costCenter: { type: String, default: '' },
+  locationCode: { type: String, default: '' },
+  erpCostCenterValue: { type: String, default: '' },
+  erpLocValue: { type: String, default: '' },
+  // Comma-separated Operating Unit card name(s) the caller's own filters
+  // were resolved from, if any - re-resolved server-side into its exact
+  // per-row (unit, cost-center, location) triples instead of the flattened
+  // unit/costCenter/locationCode/erp* props above, which can cross-match
+  // combinations a "Define by Card Mapping" theme never actually defined
+  // (see get_actual_gl_breakup's own theme_names handling).
+  themeNames: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -262,15 +332,65 @@ watch(
 
 const current = computed(() => history.value[history.value.length - 1] || props.node)
 
-function hasChildren(node) {
+// A node can offer children two ways: the classic head/sub-head/item tree
+// (sub_heads/items, built in-page from a flat `.actuals` array), or a
+// hierarchy tree (`children`, from get_monthly_mis_drilldown_tree's
+// card -> sub-item -> state -> cost-center+location levels) - a hierarchy
+// node also carries its own `__lineItems`, so "View line items" can switch
+// to the classic line-item view for THAT node without leaving the tree.
+function hasHierarchyChildren(node) {
+  return !!node?.children?.length
+}
+function hasLineItems(node) {
   return !!(node?.sub_heads?.length || node?.items?.length)
+}
+function hasChildren(node) {
+  return hasHierarchyChildren(node) || hasLineItems(node)
+}
+
+// A leaf Line Item (no sub_heads/items of its own) can still be drilled
+// into ONE further level, for its GL-code breakdown - but only when the
+// caller supplied enough context to fetch it (financialYear) and the item
+// actually carries a sequence_id (the Expenses master row id the backend
+// keys the breakdown lookup on). A GL-code row itself has no sequence_id
+// (it's not an Expenses row), so this naturally stops recursing past one
+// extra level without needing to track "are we at a GL level" separately.
+function canGlDrill(node) {
+  return !hasChildren(node) && !!props.financialYear && !!node?.sequence_id
+}
+// A hierarchy leaf (a single cost-center+location row, e.g. from the
+// Monthly MIS drill-down tree) has no further children but still carries
+// its own __lineItems - clicking it should go straight to that line-item
+// view, the same destination its "View line items" button would reach,
+// rather than requiring a second click once there's nothing left to
+// navigate into.
+function canViewLineItemsDirectly(node) {
+  return !hasChildren(node) && !!node?.__lineItems?.length
+}
+function isDrillable(node) {
+  return hasChildren(node) || canGlDrill(node) || canViewLineItemsDirectly(node)
 }
 
 const children = computed(() => {
   const node = current.value
   if (!node) return []
+  if (hasHierarchyChildren(node)) return node.children
   return node.sub_heads?.length ? node.sub_heads : node.items || []
 })
+
+// True for any node from the hierarchy tree that carries its own
+// __lineItems (set on every level by buildDrilldownNode, including a leaf
+// cost-center+location node with no further children) - NOT true once the
+// user has already pushed a __lineItems view onto history (that pushed
+// node is a classic sub_heads/items node with no __lineItems of its own,
+// so this naturally stops offering the button a second time).
+const canViewLineItems = computed(() => !!current.value?.__lineItems?.length)
+function viewLineItems() {
+  const node = current.value
+  if (!node) return
+  history.value.push({ name: node.name, sub_heads: [], items: node.__lineItems || [] })
+  sortByAmount.value = false
+}
 
 // A child's own list index still drives its color even when the table's
 // display order is re-sorted by amount, so a given row keeps the same
@@ -292,17 +412,89 @@ function sharePct(child) {
 }
 
 const isSubHeadLevel = computed(() => !!current.value?.sub_heads?.length)
-const childLabel = computed(() => (isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'))
-const childIcon = computed(() => (isSubHeadLevel.value ? 'folder' : 'list'))
-const levelIcon = computed(() => (history.value.length <= 1 ? 'layers' : isSubHeadLevel.value ? 'folder' : 'file-text'))
+const isGlLevel = computed(() => !!current.value?.__isGlLevel)
+const isHierarchyLevel = computed(() => hasHierarchyChildren(current.value))
+// A hierarchy level's own children are either further hierarchy nodes (so
+// this level is still a few steps above the finest grain) or leaf
+// cost-center+location nodes (no children of their own) - that single
+// check is enough to tell "Sub Items/States" rows apart from the final
+// "Cost Center · Location" rows without the tree needing to tag its own
+// depth explicitly.
+const isLeafHierarchyLevel = computed(() => isHierarchyLevel.value && !current.value.children.some(hasHierarchyChildren))
+const childLabel = computed(() => {
+  if (isGlLevel.value) return 'GL Codes'
+  if (isLeafHierarchyLevel.value) return 'Cost Center · Location'
+  if (isHierarchyLevel.value) return 'Breakdown'
+  return isSubHeadLevel.value ? 'Sub Heads' : 'Line Items'
+})
+const childIcon = computed(() => {
+  if (isGlLevel.value) return 'hash'
+  if (isHierarchyLevel.value) return 'layers'
+  return isSubHeadLevel.value ? 'folder' : 'list'
+})
+const levelIcon = computed(() => (history.value.length <= 1 ? 'layers' : isGlLevel.value ? 'hash' : isSubHeadLevel.value ? 'folder' : 'file-text'))
 
-function drillInto(child) {
-  if (!hasChildren(child)) return
-  history.value.push(child)
-  sortByAmount.value = false
+const glLoadingName = ref(null)
+async function drillInto(child) {
+  if (hasChildren(child)) {
+    history.value.push(child)
+    sortByAmount.value = false
+    return
+  }
+  if (canViewLineItemsDirectly(child)) {
+    history.value.push({ name: child.name, sub_heads: [], items: child.__lineItems || [] })
+    sortByAmount.value = false
+    return
+  }
+  if (!canGlDrill(child)) return
+  glLoadingName.value = child.name
+  try {
+    const rows = await call('budget_mis.api.budget_vs_actual.get_actual_gl_breakup', {
+      financial_year: props.financialYear,
+      month: props.month,
+      sequence_id: child.sequence_id,
+      unit: props.unit || undefined,
+      cost_center: props.costCenter || undefined,
+      location_code: props.locationCode || undefined,
+      erp_cost_center_value: props.erpCostCenterValue || undefined,
+      erp_loc_value: props.erpLocValue || undefined,
+      theme_names: props.themeNames || undefined,
+    })
+    history.value.push({
+      name: child.name,
+      __isGlLevel: true,
+      ytd: total(child),
+      total_posted_amt_ytd: actualTotal(child),
+      // GL rows have no budget of their own - the modal's Total/Budget
+      // column always reads .ytd via total() regardless of showActuals, so
+      // a plain total_posted_amt-only row would render as 0 whenever this
+      // instance has showActuals off (this tree's "Total" column is really
+      // showing actuals throughout, per its own totalMode:'ytd' usage -
+      // see ExpenseTreeTab.vue's kind==='actuals' case). Put the real GL
+      // amount in whichever field this instance's own total() actually
+      // reads, so a GL row displays correctly either way.
+      items: (rows || []).map((r) => ({
+        name: r.gl_code || 'Unspecified',
+        typeOfExpense: r.type_of_expense || '',
+        ytd: props.showActuals ? 0 : r.total_posted_amt,
+        total_posted_amt: r.total_posted_amt,
+      })),
+    })
+    sortByAmount.value = false
+  } catch (e) {
+    // Non-fatal - the item itself still shows its own totals in the table
+    // row; a failed GL lookup just means this one click doesn't drill any
+    // further, not a broken modal.
+  } finally {
+    glLoadingName.value = null
+  }
 }
 
 function jumpTo(index) {
   history.value = history.value.slice(0, index + 1)
+}
+
+function drillBack() {
+  if (history.value.length > 1) history.value = history.value.slice(0, -1)
 }
 </script>

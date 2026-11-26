@@ -38,7 +38,19 @@ export const userResource = createResource({
 // router's navigation guard runs synchronously before that - without
 // awaiting this promise it would treat "not yet known" the same as
 // "logged out" and bounce a genuinely logged-in user to /login.
-export const initialUserCheck = userResource.fetch()
+//
+// This fetch runs on EVERY page load, including before login (when there's
+// legitimately no session yet), which makes the server reply with a
+// PermissionError - that's expected and already handled above via
+// onError(). But createResource's fetch() always rejects its returned
+// promise on failure regardless of onError, and this module-level
+// assignment runs long before router.js gets a chance to await/catch it
+// (only its own later .catch(() => {}) on this same promise does) - so an
+// unawaited rejection here surfaces as an "Uncaught (in promise)" console
+// error on every not-yet-authenticated load. Catching it here keeps the
+// export usable as a promise for router.js to await while ensuring it can
+// never reject unhandled.
+export const initialUserCheck = userResource.fetch().catch(() => {})
 
 export const userLanguageResource = createResource({
   url: 'frappe.client.get_value',
@@ -58,6 +70,31 @@ function fetchUserLanguage() {
   if (session.user) userLanguageResource.reload()
 }
 
+// Two-factor state: a 2FA-enabled account's login response is
+// {tmp_id, verification: {method, prompt, setup, token_delivery}} instead
+// of the normal {message: 'Logged In', ...} - frappeRequest.js's own
+// transformResponse special-cases the 'login' URL to return this full raw
+// payload rather than unwrapping to just `.message` (every other endpoint
+// only ever gets `.message`), so onSuccess below sees tmp_id/verification
+// intact. Login.vue watches this ref to show/hide the OTP step; it's
+// cleared on a successful full login (confirmOtp's own onSuccess) or a
+// fresh usr/pwd submit (loginResource.submit resets it implicitly via a
+// new tmp_id, or explicitly via resetTwoFactor on a startover).
+export const twoFactor = reactive({ tmpId: null, verification: null })
+
+function resetTwoFactor() {
+  twoFactor.tmpId = null
+  twoFactor.verification = null
+}
+
+function completeLogin() {
+  resetTwoFactor()
+  loginResource.error = null
+  userResource.reload().then(() => {
+    router.replace({ name: 'Home' })
+  })
+}
+
 export const loginResource = createResource({
   url: 'login',
   makeParams({ email, password }) {
@@ -66,13 +103,60 @@ export const loginResource = createResource({
       pwd: password,
     }
   },
-  onSuccess() {
-    loginResource.error = null
-    userResource.reload().then(() => {
-      router.replace({ name: 'Home' })
-    })
+  onSuccess(data) {
+    if (data?.tmp_id && data?.verification) {
+      twoFactor.tmpId = data.tmp_id
+      twoFactor.verification = data.verification
+      return
+    }
+    completeLogin()
   },
 })
+
+// Step 2 of a 2FA login: re-submits to the SAME login endpoint with
+// {cmd: 'login', otp, tmp_id} instead of {usr, pwd} - Frappe's
+// LoginManager re-fetches the original usr/pwd from its own cache via
+// tmp_id (see frappe/twofactor.py's get_cached_user_pass()), so neither
+// needs to be sent again here. A correct otp completes the session in
+// this same request (same {message: 'Logged In', ...} shape as a non-2FA
+// login) - there is no separate "verified" response to handle.
+export const confirmOtpResource = createResource({
+  url: 'login',
+  makeParams({ otp }) {
+    return {
+      cmd: 'login',
+      otp,
+      tmp_id: twoFactor.tmpId,
+    }
+  },
+  onSuccess(data) {
+    if (data?.tmp_id && data?.verification) {
+      // Still not done - a provider-specific flow could in principle ask
+      // for a second factor again, though Email/SMS/OTP App all complete
+      // in one round trip in practice. Handled the same way as the first
+      // response just in case.
+      twoFactor.tmpId = data.tmp_id
+      twoFactor.verification = data.verification
+      return
+    }
+    completeLogin()
+  },
+})
+
+// Resend: re-submits the ORIGINAL usr/pwd (not otp/tmp_id) - re-entering
+// authenticate_for_2factor server-side generates a fresh token/tmp_id and
+// re-sends it, exactly like the stock Frappe login page's own "resend"
+// does (there is no dedicated resend endpoint in core Frappe). Login.vue
+// keeps the email/password around in its own refs for this.
+export function resendOtp(email, password) {
+  resetTwoFactor()
+  return loginResource.submit({ email, password })
+}
+
+export function cancelTwoFactor() {
+  resetTwoFactor()
+  loginResource.error = null
+}
 
 export const logoutResource = createResource({
   url: 'logout',
@@ -81,7 +165,7 @@ export const logoutResource = createResource({
     userResource.reset()
     // The service worker's app-shell cache (vite.config.js's
     // 'annual-budget-app-shell', NetworkFirst) can hold the last
-    // successfully-fetched /annual_budget navigation document - including
+    // successfully-fetched /budget-mis navigation document - including
     // its inlined per-session CSRF token/boot data - from before this
     // logout. If a later Back/reload's network request is slow or offline,
     // NetworkFirst falls back to that stale authenticated-looking shell

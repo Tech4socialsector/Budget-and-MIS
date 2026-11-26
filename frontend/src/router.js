@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import { session, initialUserCheck, userResource } from '@/data/session'
-import { modulesResource, findModuleByRoute, findModuleByPageRoute } from '@/data/modules'
+import { modulesResource, findModuleByRoute, findModuleByPageRoute, isSidebarModule } from '@/data/modules'
 import { setActiveModule, clearActiveModule } from '@/data/activeModule'
-import { findStaticModuleByRouteName } from '@/data/nav'
 
 const routes = [
   {
@@ -45,6 +44,47 @@ const routes = [
     component: () => import('@/pages/ErpActuals.vue'),
   },
   {
+    path: '/budget-vs-actual',
+    name: 'BudgetVsActual',
+    component: () => import('@/pages/BudgetVsActual.vue'),
+  },
+  {
+    path: '/budget-import-template',
+    name: 'BudgetImportTemplate',
+    component: () => import('@/pages/BudgetImportTemplate.vue'),
+  },
+  {
+    path: '/budget-import-upload',
+    name: 'BudgetImportUpload',
+    component: () => import('@/pages/BudgetImportUpload.vue'),
+  },
+  {
+    path: '/data-import',
+    name: 'DataImport',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
+    path: '/combination-reconciliation',
+    name: 'CombinationReconciliation',
+    component: () => import('@/pages/CombinationReconciliation.vue'),
+  },
+  {
+    path: '/ai-guide-review',
+    name: 'AiGuideReview',
+    component: () => import('@/pages/AiGuideReview.vue'),
+  },
+  {
+    // :topicId is optional (the leading / in '/:topicId?' - note no extra
+    // slash needed, Vue Router's own '?' modifier handles it) - /user-guide
+    // alone shows the topic grid, /user-guide/login (etc.) opens that one
+    // topic's article directly, so a topic can be linked/bookmarked/shared
+    // as its own real URL instead of only reachable by clicking a card.
+    path: '/user-guide/:topicId?',
+    name: 'UserGuide',
+    component: () => import('@/pages/UserGuide.vue'),
+    props: true,
+  },
+  {
     path: '/:doctypeRoute',
     name: 'DoctypeList',
     component: () => import('@/pages/DoctypeList.vue'),
@@ -68,7 +108,7 @@ const routes = [
 ]
 
 let router = createRouter({
-  history: createWebHistory('/annual_budget'),
+  history: createWebHistory('/budget-mis'),
   routes,
 })
 
@@ -86,11 +126,22 @@ let router = createRouter({
 const REVALIDATE_INTERVAL_MS = 60_000
 let lastCheckedAt = 0
 
-async function recheckAuthIfStale() {
+function recheckAuthIfStale() {
   const now = Date.now()
   if (now - lastCheckedAt < REVALIDATE_INTERVAL_MS) return
   lastCheckedAt = now
-  await userResource.fetch().catch(() => {})
+  // Deliberately NOT awaited by its caller (the beforeEach guard) - this
+  // check exists purely to catch a session that died server-side while
+  // session.user is still stale-truthy in memory (see the comment above),
+  // not to gate the navigation the user is already trying to make. Router
+  // guards fully await an async function before proceeding, so an earlier
+  // version of this that awaited userResource.fetch() here silently froze
+  // every navigation past the 60s mark on a live network round-trip - with
+  // no loading indicator, since nothing renders until the guard resolves.
+  // If the session really is dead, userResource's own onError sets
+  // session.user = null, and the NEXT navigation's synchronous
+  // `!session.user` check below sends it to /login as normal.
+  userResource.fetch().catch(() => {})
 }
 
 if (typeof document !== 'undefined') {
@@ -98,6 +149,15 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState === 'visible') {
       lastCheckedAt = 0
       userResource.fetch().catch(() => {})
+      // Module records (App Module Setting - Home tiles, sidebar items,
+      // icons) are routinely edited directly in Desk while this tab sits
+      // open elsewhere in the app - without this, an edit there would
+      // only ever show up here after a hard reload, since nothing else
+      // re-fetches modulesResource once it's already loaded (see
+      // ensureModulesLoaded's own `if (modulesResource.data) return`
+      // below, which is deliberately a one-time-per-session guard, not a
+      // "never refetch" one).
+      if (session.user) modulesResource.fetch().catch(() => {})
     }
   })
 }
@@ -124,7 +184,7 @@ router.beforeEach(async (to, from, next) => {
     // session to /login.
     await initialUserCheck.catch(() => {})
   } else {
-    await recheckAuthIfStale()
+    recheckAuthIfStale()
   }
 
   if (to.name !== 'Login' && !session.user) {
@@ -147,37 +207,34 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     to.meta.resolvedDoctype = item.doctype_name
-    // Keep the sidebar's module section in sync while browsing that
-    // module's list/form pages, so it persists across navigation there.
-    setActiveModule(item.module)
+    // Only a sidebar module (is_sidebar_module) shows a sidebar at all -
+    // a direct module's own DocType item (its direct_doctype_name) is a
+    // single Home tile and never opens one, so landing on its route
+    // directly must not resurrect a sidebar either, same as the Page
+    // branch below.
+    if (isSidebarModule(item.module)) {
+      setActiveModule(item.module)
+    } else {
+      clearActiveModule()
+    }
   } else {
-    // A dynamic App Module Setting module can list a "SPA Page" item
-    // (page_route = a named Vue route like 'BudgetSummary') alongside or
-    // instead of DocType items - landing directly on that route must show
-    // its owning module in the sidebar the same way a DocType item does
-    // above, checked first since it's backend-driven and can override a
-    // page that's ALSO listed as a hardcoded staticModule fallback below.
+    // A sidebar module can list a "SPA Page" item (page_route = a named Vue
+    // route like 'BudgetSummary') alongside or instead of DocType items, and
+    // a direct module can itself resolve straight to one (direct.page_route)
+    // - landing directly on one of these routes only shows a sidebar when it
+    // belongs to a sidebar module; a direct module's own Page route is a Home
+    // tile with no sidebar of its own (see Home.vue), so a direct/bookmarked
+    // visit must behave the same way a Home-tile click already does.
     const dynamicItem = findModuleByPageRoute(to.name)
-    if (dynamicItem) {
+    if (dynamicItem && isSidebarModule(dynamicItem.module)) {
       setActiveModule(dynamicItem.module)
       return next()
     }
-    // Budget Reports / MIS Reports are staticModules (data/nav.js) - a
-    // hardcoded fallback for routes no App Module Setting record claims
-    // yet. Landing directly on one of their routes (a bookmark, a refresh,
-    // an in-page link) must still show that module's section, exactly like
-    // a dynamic module does above, so isStatic marks it for AppSidebar's
-    // separate static-module render branch (its items are named routes,
-    // not doctypeRoute params).
-    const staticMod = findStaticModuleByRouteName(to.name)
-    if (staticMod) {
-      setActiveModule({ ...staticMod, isStatic: true })
-    } else {
-      // Any other route (Home, Budget Dashboard) isn't part of a module at
-      // all - without this, a module set while browsing it earlier would
-      // stay pinned in the sidebar forever, showing on every page.
-      clearActiveModule()
-    }
+    // Any other route (Home, a flattened report route, or any route not
+    // claimed by an App Module Setting record) isn't part of a sidebar
+    // module - without this, a module set while browsing it earlier would
+    // stay pinned in the sidebar forever, showing on every page.
+    clearActiveModule()
   }
 
   next()

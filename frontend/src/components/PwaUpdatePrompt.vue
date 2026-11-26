@@ -10,11 +10,11 @@ import { ref, onMounted } from 'vue'
 import { toast } from 'frappe-ui'
 
 // vite-plugin-pwa's build output physically lives under the app's built
-// assets directory (/assets/annual_budget/frontend/sw.js). A service
+// assets directory (/assets/budget_mis/frontend/sw.js). A service
 // worker can only control paths at-or-below wherever it's served from, so
 // registering it there would cap its scope to that assets path - useless
-// for an app that lives at /annual_budget/. sw_renderer.py serves the same
-// built file at /annual_budget/sw.js instead, so Workbox is driven
+// for an app that lives at /budget-mis/. sw_renderer.py serves the same
+// built file at /budget-mis/sw.js instead, so Workbox is driven
 // directly here with that URL hardcoded.
 const needRefresh = ref(false)
 const updateServiceWorker = ref(() => {})
@@ -23,7 +23,18 @@ onMounted(async () => {
   if (!('serviceWorker' in navigator)) return
 
   const { Workbox } = await import('workbox-window')
-  const wb = new Workbox('/annual_budget/sw.js', { scope: '/annual_budget/' })
+  const wb = new Workbox('/budget-mis/sw.js', { scope: '/budget-mis/' })
+
+  // A page already on its way out (any window.location.reload()/navigation
+  // elsewhere in the app - the Reload/Clear Cache menu entries, the bfcache-
+  // restore guard in main.js, etc) must not ALSO get this handler's own
+  // reload once the new service worker takes control a moment later - the
+  // page is reloading either way, so a second one just double-reloads for
+  // no reason. beforeunload fires for every kind of unload (a plain
+  // reload() included), so this one listener covers every call site without
+  // each of them needing its own awareness of the service worker.
+  let unloading = false
+  window.addEventListener('beforeunload', () => { unloading = true })
 
   // Auto-update: a new build takes over and reloads the page on its own,
   // rather than waiting on a "Refresh" toast the user has to notice and
@@ -39,7 +50,10 @@ onMounted(async () => {
     autoUpdated = true
     if (!controllingListenerAdded) {
       controllingListenerAdded = true
-      wb.addEventListener('controlling', () => window.location.reload())
+      wb.addEventListener('controlling', () => {
+        if (unloading) return
+        window.location.reload()
+      })
     }
     updateServiceWorker.value()
   }

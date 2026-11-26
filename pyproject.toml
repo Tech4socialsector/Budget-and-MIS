@@ -1,5 +1,5 @@
 [project]
-name = "annual_budget"
+name = "budget_mis"
 authors = [
     { name = "Augustin Moses", email = "tech4socialsector@azimpremjifoundation.org" }
 ]
@@ -11,7 +11,8 @@ dynamic = ["version"]
 dependencies = [
     "xmltodict==0.13.0",
     "XlsxWriter==3.2.0",
-    "cryptography>=42.0.0"
+    "cryptography>=42.0.0",
+    "python-pptx>=1.0.0"
 ]
 
 [build-system]

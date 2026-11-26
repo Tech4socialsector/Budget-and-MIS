@@ -14,12 +14,14 @@
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800">
+      <!-- Tabs - horizontal scroll (not flex-wrap) below desktop widths, so
+      a long tab label list never wraps into several cramped, hard-to-tap
+      lines on a narrow phone; a swipe/scroll reveals the rest instead. -->
+      <div class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           v-for="tab in TABS"
           :key="tab.key"
-          class="border-b-2 px-4 py-2.5 text-sm font-medium transition"
+          class="flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition"
           :class="activeTab === tab.key
             ? 'border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-100'
             : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
@@ -42,38 +44,39 @@
 
           <!-- Banner: Overall / Capex / Opex -->
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <AppTooltip text="Click to drill down" placement="top">
-              <button
-                class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-3 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
-                @click="openDrilldown(consolidatedHeadsNode, 'ytd')"
-              >
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Overall Grand Total</div>
-                <div class="mt-0.5 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(overallTotal) }}</div>
-                <div class="mt-1 text-xs text-gray-400">{{ mainUnits.length }} Units</div>
-              </button>
-            </AppTooltip>
-            <AppTooltip text="Click to drill down" placement="top">
-              <button
-                class="w-full rounded-lg border-l-4 bg-white p-3 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                style="border-color: #1e5fa8"
-                @click="openDrilldown(capexNode, 'ytd')"
-              >
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Capex Total</div>
-                <div class="mt-0.5 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(capexTotal) }}</div>
-                <div class="mt-1 text-xs text-gray-400">{{ pctOf(capexTotal, overallTotal) }}% of total</div>
-              </button>
-            </AppTooltip>
-            <AppTooltip text="Click to drill down" placement="top">
-              <button
-                class="w-full rounded-lg border-l-4 bg-white p-3 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                style="border-color: #e8792a"
-                @click="openDrilldown(opexNode, 'ytd')"
-              >
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Opex Total</div>
-                <div class="mt-0.5 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(opexTotal) }}</div>
-                <div class="mt-1 text-xs text-gray-400">{{ pctOf(opexTotal, overallTotal) }}% of total</div>
-              </button>
-            </AppTooltip>
+            <NumberCard
+              size="md"
+              icon="pie-chart"
+              accent-color="neutral"
+              clickable
+              label="Overall Grand Total"
+              :value="formatAmount(overallTotal)"
+              @click="openDrilldown(consolidatedHeadsNode, 'ytd')"
+            >
+              <div class="text-xs text-gray-400">{{ mainUnits.length }} Units</div>
+            </NumberCard>
+            <NumberCard
+              size="md"
+              icon="briefcase"
+              accent-color="#1e5fa8"
+              clickable
+              label="Capex Total"
+              :value="formatAmount(capexTotal)"
+              @click="openDrilldown(capexNode, 'ytd')"
+            >
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(capexTotal, overallTotal) }}% of total</div>
+            </NumberCard>
+            <NumberCard
+              size="md"
+              icon="activity"
+              accent-color="#e8792a"
+              clickable
+              label="Opex Total"
+              :value="formatAmount(opexTotal)"
+              @click="openDrilldown(opexNode, 'ytd')"
+            >
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(opexTotal, overallTotal) }}% of total</div>
+            </NumberCard>
           </div>
 
           <InsightStrip :insights="dashboardInsights" />
@@ -82,17 +85,18 @@
           <div v-if="mainUnits.length">
             <div class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Units</div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              <AppTooltip v-for="(unit, i) in mainUnits" :key="unit.label" text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border-l-4 bg-white p-2.5 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                  :style="{ borderColor: accentColor(i) }"
-                  @click="openDrilldown(unitNode(unit), 'ytd')"
-                >
-                  <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="unit.label">{{ unit.label }}</div>
-                  <div class="mt-0.5 text-base font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(unitTotal(unit)) }}</div>
-                  <div class="mt-0.5 text-xs text-gray-400">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
-                </button>
-              </AppTooltip>
+              <NumberCard
+                v-for="(unit, i) in mainUnits"
+                :key="unit.label"
+                size="sm"
+                :accent-color="accentColor(i)"
+                clickable
+                :label="unit.label"
+                :value="formatAmount(unitTotal(unit))"
+                @click="openDrilldown(unitNode(unit), 'ytd')"
+              >
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
+              </NumberCard>
             </div>
           </div>
 
@@ -100,17 +104,39 @@
           <div v-if="subUnits.length">
             <div class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Sub Units</div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              <AppTooltip v-for="(unit, i) in subUnits" :key="unit.label" text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border-l-4 bg-white p-2.5 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                  :style="{ borderColor: accentColor(mainUnits.length + i) }"
-                  @click="openDrilldown(unitNode(unit), 'ytd')"
-                >
-                  <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="unit.label">{{ unit.label }}</div>
-                  <div class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(unitTotal(unit)) }}</div>
-                  <div class="mt-0.5 text-xs text-gray-400">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
-                </button>
-              </AppTooltip>
+              <NumberCard
+                v-for="(unit, i) in subUnits"
+                :key="unit.label"
+                size="sm"
+                :accent-color="accentColor(mainUnits.length + i)"
+                clickable
+                :label="unit.label"
+                :value="formatAmount(unitTotal(unit))"
+                @click="openDrilldown(unitNode(unit), 'ytd')"
+              >
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(unitTotal(unit), overallTotal) }}% of total</div>
+              </NumberCard>
+            </div>
+          </div>
+
+          <!-- Budget Share + Quarterly Allocation Trend: same row -->
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <!-- Doughnut: Budget Share -->
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Share</div>
+              <div class="mt-3 h-64">
+                <canvas ref="shareCanvasRef" />
+              </div>
+            </div>
+
+            <!-- Bar: Quarterly Allocation Trend -->
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Quarterly Allocation Trend</div>
+              <div v-if="quarterlyTrendLoading" class="flex h-64 items-center justify-center text-xs text-gray-400">Loading trend...</div>
+              <div v-else-if="!quarterlyTrendHeads.length" class="flex h-64 items-center justify-center text-xs text-gray-400">No quarterly data available.</div>
+              <div v-else class="h-64">
+                <canvas ref="quarterlyTrendRef" />
+              </div>
             </div>
           </div>
 
@@ -118,7 +144,7 @@
           by Unit" bar list - same drill-down-per-unit intent, but broken
           out across the year so a unit's own seasonality is visible too,
           not just its YTD total). -->
-          <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div class="mb-1 flex items-center justify-between">
               <div class="text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Month-wise Budget by Unit</div>
               <div v-if="monthlyByUnitLoading" class="text-xs text-gray-400">Loading...</div>
@@ -129,31 +155,10 @@
           </div>
 
           <!-- Bar: Month-wise Budget Allocation (all units combined) -->
-          <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Month-wise Budget Allocation</div>
             <div class="h-64">
               <canvas ref="monthlyBudgetRef" />
-            </div>
-          </div>
-
-          <!-- Budget Share + Quarterly Allocation Trend: same row -->
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <!-- Doughnut: Budget Share -->
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Share</div>
-              <div class="mt-3 h-64">
-                <canvas ref="shareCanvasRef" />
-              </div>
-            </div>
-
-            <!-- Bar: Quarterly Allocation Trend -->
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Quarterly Allocation Trend</div>
-              <div v-if="quarterlyTrendLoading" class="flex h-64 items-center justify-center text-xs text-gray-400">Loading trend...</div>
-              <div v-else-if="!quarterlyTrendHeads.length" class="flex h-64 items-center justify-center text-xs text-gray-400">No quarterly data available.</div>
-              <div v-else class="h-64">
-                <canvas ref="quarterlyTrendRef" />
-              </div>
             </div>
           </div>
         </template>
@@ -170,58 +175,64 @@
             <Switch v-model="showFullNumbers" label="Show full numbers" />
           </div>
 
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2 lg:grid-rows-3">
-              <AppTooltip text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
-                  @click="openDrilldown({ name: 'Grand Total', items: workPlanHeads, sub_heads: [] }, 'ytd')"
-                >
-                  <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grand Total</div>
-                  <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(workPlanTotal) }}</div>
-                </button>
-              </AppTooltip>
-              <AppTooltip text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border-l-4 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                  style="border-color: #1e5fa8"
-                  @click="openDrilldown({ name: 'Direct Work', items: directWorkItems, sub_heads: [] }, 'ytd')"
-                >
-                  <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Direct Work</div>
-                  <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(directWorkTotal) }}</div>
-                  <div class="mt-1 text-xs text-gray-400">{{ pctOf(directWorkTotal, workPlanTotal) }}% of total</div>
-                </button>
-              </AppTooltip>
-              <AppTooltip text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border-l-4 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                  style="border-color: #e8792a"
-                  @click="openDrilldown({ name: 'Grants & Donations', items: grantsItems, sub_heads: [] }, 'ytd')"
-                >
-                  <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grants &amp; Donations</div>
-                  <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(grantsTotal) }}</div>
-                  <div class="mt-1 text-xs text-gray-400">{{ pctOf(grantsTotal, workPlanTotal) }}% of total</div>
-                </button>
-              </AppTooltip>
+          <!-- Left column: Grand Total, Direct Work, Grants & Donations, and
+          the two Work Plan insight cards, all the same uniform size (matching
+          the Grand Total card) arranged 3-per-row (wrapping to 2 rows for
+          these 5 cards) via their own grid. Right column: the Direct Work &
+          Grants chart, in the same row as that whole block - items-stretch
+          makes it match the block's total height rather than just its first
+          row's height. -->
+          <div class="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:col-span-2">
+              <NumberCard
+                size="compact"
+                icon="pie-chart"
+                accent-color="neutral"
+                clickable
+                label="Grand Total"
+                :value="formatAmount(workPlanTotal)"
+                @click="openDrilldown({ name: 'Grand Total', items: workPlanHeads, sub_heads: [] }, 'ytd')"
+              />
+              <NumberCard
+                size="compact"
+                icon="briefcase"
+                accent-color="#1e5fa8"
+                clickable
+                label="Direct Work"
+                :value="formatAmount(directWorkTotal)"
+                @click="openDrilldown({ name: 'Direct Work', items: directWorkItems, sub_heads: [] }, 'ytd')"
+              >
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(directWorkTotal, workPlanTotal) }}% of total</div>
+              </NumberCard>
+              <NumberCard
+                size="compact"
+                icon="gift"
+                accent-color="#e8792a"
+                clickable
+                label="Grants & Donations"
+                :value="formatAmount(grantsTotal)"
+                @click="openDrilldown({ name: 'Grants & Donations', items: grantsItems, sub_heads: [] }, 'ytd')"
+              >
+                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ pctOf(grantsTotal, workPlanTotal) }}% of total</div>
+              </NumberCard>
+              <InsightStrip bare compact :insights="workPlanInsights" />
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <div class="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Direct Work &amp; Grants</div>
-              <div class="mt-3 h-56">
+              <div class="mt-3 flex-1">
                 <canvas ref="workplanPieRef" />
               </div>
             </div>
           </div>
 
-          <InsightStrip :insights="workPlanInsights" />
-
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Direct Work — Unit-wise</div>
               <div class="mt-3 h-64">
                 <canvas ref="directWorkUnitRef" />
               </div>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Grants — Unit-wise</div>
               <div class="mt-3 h-64">
                 <canvas ref="grantsUnitRef" />
@@ -231,116 +242,12 @@
         </template>
       </template>
 
-      <!-- Tab 3: Budget vs Actuals Breakdown -->
+      <!-- Tab 3: Budget vs Actuals Breakdown - same component as the
+      standalone Budget vs Actual page, so both share one implementation
+      and design (filters, donut cards, detailed table, export) instead of
+      two separately-maintained versions. -->
       <template v-else>
-        <div class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">YTD Month</label>
-              <MultiSelect v-model="baMonthSelection" :options="MONTH_OPTIONS" placeholder="Select month" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Unit</label>
-              <MultiSelect v-model="baFilters.units" :options="unitOptions" placeholder="All units" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Cost Center</label>
-              <MultiSelect v-model="baFilters.costCenters" :options="baCostCenterOptions" :disabled="!baFilters.units.length" placeholder="All cost centers" class="w-full" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Location Code</label>
-              <MultiSelect v-model="baFilters.locationCodes" :options="baLocationCodeOptions" :disabled="!baFilters.units.length" placeholder="All location codes" class="w-full" />
-            </div>
-          </div>
-          <Button variant="solid" class="self-start" :loading="actualsLoading" @click="loadActuals">
-            <template #prefix>
-              <FeatherIcon name="search" class="h-4 w-4" />
-            </template>
-            Get Report
-          </Button>
-        </div>
-
-        <ErrorMessage v-if="actualsError" :message="actualsErrorMessage" />
-        <div v-else-if="actualsLoading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <AppLoader label="Loading budget vs actuals..." />
-        </div>
-        <div v-else-if="!actualsHeads.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-          Choose filters and click "Get Report" to see the budget vs actuals breakdown.
-        </div>
-        <template v-else>
-          <div class="flex items-center justify-end">
-            <Switch v-model="showFullNumbers" label="Show full numbers" />
-          </div>
-
-          <!-- Grand total + head cards -->
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <AppTooltip text="Click to drill down">
-              <button
-                class="w-full rounded-lg border-l-4 border-gray-900 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-gray-100 dark:bg-gray-900"
-                @click="openDrilldown({ name: 'Grand Total', items: actualsHeads, sub_heads: [] }, 'actuals')"
-              >
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300">Grand Total</div>
-                <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(actualsGrandBudget) }}</div>
-                <div class="mt-1 text-xs text-gray-400">Actual: {{ formatAmount(actualsGrandActual) }}</div>
-                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div class="h-full rounded-full" :style="{ width: Math.min(actualsGrandUtil, 100) + '%', backgroundColor: utilizationColor(actualsGrandUtil) }" />
-                </div>
-                <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(actualsGrandUtil) }">{{ actualsGrandUtil }}% utilized</div>
-              </button>
-            </AppTooltip>
-            <AppTooltip v-for="(head, i) in actualsHeads" :key="head.name" text="Click to drill down">
-              <button
-                class="w-full rounded-lg border-l-4 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:bg-gray-900"
-                :style="{ borderColor: accentColor(i) }"
-                @click="openDrilldown(head, 'actuals')"
-              >
-                <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="head.name">{{ head.name }}</div>
-                <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(treeTotal(head, nodeBudget)) }}</div>
-                <div class="mt-1 text-xs text-gray-400">Actual: {{ formatAmount(treeTotal(head, nodeActual)) }}</div>
-                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div class="h-full rounded-full" :style="{ width: Math.min(utilizationPct(head), 100) + '%', backgroundColor: utilizationColor(utilizationPct(head)) }" />
-                </div>
-                <div class="mt-1 text-xs font-medium" :style="{ color: utilizationColor(utilizationPct(head)) }">{{ utilizationPct(head) }}% utilized</div>
-              </button>
-            </AppTooltip>
-          </div>
-
-          <!-- Sub-head cards -->
-          <div v-for="head in actualsHeadsWithSubs" :key="'group-' + head.name">
-            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">{{ head.name }}</div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <AppTooltip v-for="sub in head.sub_heads" :key="sub.name" text="Click to drill down">
-                <button
-                  class="w-full rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-                  @click="openDrilldown(sub, 'actuals')"
-                >
-                  <div class="truncate text-xs font-medium uppercase tracking-wide text-gray-900 dark:text-gray-300" :title="sub.name">{{ sub.name }}</div>
-                  <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ formatAmount(treeTotal(sub, nodeBudget)) }}</div>
-                  <div class="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                    <div class="h-full rounded-full" :style="{ width: Math.min(utilizationPct(sub), 100) + '%', backgroundColor: utilizationColor(utilizationPct(sub)) }" />
-                  </div>
-                </button>
-              </AppTooltip>
-            </div>
-          </div>
-
-          <InsightStrip :insights="actualsInsights" />
-
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Budget Breakdown</div>
-              <div class="mt-3 h-64">
-                <canvas ref="baBudgetPieRef" />
-              </div>
-            </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <div class="text-center text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">Actuals Breakdown</div>
-              <div class="mt-3 h-64">
-                <canvas ref="baActualPieRef" />
-              </div>
-            </div>
-          </div>
-        </template>
+        <BudgetActualsBreakdown :financial-year="filters.financialYear" />
       </template>
     </div>
 
@@ -355,26 +262,69 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Chart } from 'chart.js/auto'
-import { MultiSelect, FeatherIcon, ErrorMessage, Switch, Button } from 'frappe-ui'
+// Named, tree-shaken imports instead of chart.js/auto - this page only
+// ever renders bar/line/pie/doughnut charts (grep the `type:` passed to
+// `new Chart(...)` below), so auto-registering every controller/element/
+// scale/plugin Chart.js ships pulled in a much larger chunk than needed,
+// unlike BudgetActualBarChart.vue/BudgetActualDonutCard.vue, which already
+// did this. Chart.register() is idempotent, so registering the same set
+// here doesn't conflict with those components registering their own
+// (smaller) subset elsewhere.
+import {
+  Chart,
+  BarController,
+  LineController,
+  PieController,
+  DoughnutController,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+Chart.register(
+  BarController,
+  LineController,
+  PieController,
+  DoughnutController,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+)
+import { MultiSelect, ErrorMessage, Switch } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
-import AppTooltip from '@/components/AppTooltip.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
+import BudgetActualsBreakdown from '@/components/BudgetActualsBreakdown.vue'
 import InsightStrip from '@/components/InsightStrip.vue'
+import NumberCard from '@/components/NumberCard.vue'
 import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import { accentColor, formatCr, formatINR, isDarkMode } from '@/data/budgetTotals'
-import { findItemsByName, findItemsExcluding, nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct } from '@/data/dashboardData'
+import { findItemsByName, findItemsExcluding, nodeBudget, treeTotal } from '@/data/dashboardData'
 
 onMounted(() => setPageTitle('Dashboard'))
 
+// Order/labels per the business's own request: Budget vs Actuals first
+// (also the default landing tab, see activeTab below), then Work Plan,
+// then Budget Overview (this page's original/default dashboard view) last -
+// internal `key` values are left unchanged so the rest of this file's
+// activeTab-keyed logic (loaders, watchers) doesn't need to change.
 const TABS = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'workplan', label: 'Work Plan Views' },
-  { key: 'babreakdown', label: 'Budget vs Actuals Breakdown' },
+  { key: 'babreakdown', label: 'Budget vs Actuals' },
+  { key: 'workplan', label: 'Work Plan' },
+  { key: 'dashboard', label: 'Budget Overview' },
 ]
-const activeTab = ref('dashboard')
+const activeTab = ref('babreakdown')
 
 const showFullNumbers = ref(false)
 function formatAmount(n) {
@@ -400,7 +350,7 @@ const financialYearSelection = computed({
 })
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     const now = new Date()
@@ -417,7 +367,7 @@ function toOptions(list) {
 
 const unitOptions = ref([])
 async function loadUnits() {
-  const r = await call('annual_budget.api.filter_options.get_units')
+  const r = await call('budget_mis.api.filter_options.get_units')
   unitOptions.value = toOptions(r?.data)
 }
 
@@ -445,7 +395,7 @@ async function loadUnitWise() {
   unitWiseLoading.value = true
   unitWiseError.value = null
   try {
-    const result = await call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan_budget', {
+    const result = await call('budget_mis.api.foundation_consolidated.get_unit_wise_plan_budget', {
       financial_year: filters.financialYear,
       month: 'March',
       table_name_filter: 'Number Card',
@@ -534,8 +484,6 @@ const dashboardInsights = computed(() => {
 
   const top = units[0]
   const bottom = units[units.length - 1]
-  const top3Total = units.slice(0, 3).reduce((sum, u) => sum + unitTotal(u), 0)
-  const concentrationPct = pctOf(top3Total, overallTotal.value)
 
   const insights = [
     {
@@ -555,33 +503,6 @@ const dashboardInsights = computed(() => {
       icon: 'trending-down',
       color: '#e34948',
       onClick: () => openDrilldown(unitNode(bottom), 'ytd'),
-    })
-  }
-  if (units.length >= 3) {
-    insights.push({
-      label: 'Budget Concentration',
-      value: `${concentrationPct}%`,
-      detail: 'held by the top 3 units',
-      icon: 'target',
-      color: '#2a78d6',
-      onClick: () => openDrilldown(
-        { name: 'Top 3 Units', items: units.slice(0, 3).map((u) => unitNode(u)), sub_heads: [] },
-        'ytd',
-      ),
-    })
-  }
-  // Opex : Capex ratio - a different lens than the raw totals already shown
-  // in the banner cards above (a ratio reads faster than eyeballing two
-  // separate Cr figures for "which spending style dominates").
-  if (capexTotal.value > 0 || opexTotal.value > 0) {
-    const capexShare = pctOf(capexTotal.value, overallTotal.value)
-    insights.push({
-      label: 'Opex : Capex Split',
-      value: `${100 - capexShare}% : ${capexShare}%`,
-      detail: `${formatAmount(opexTotal.value)} operating vs ${formatAmount(capexTotal.value)} capital`,
-      icon: 'pie-chart',
-      color: '#e8792a',
-      onClick: () => openDrilldown(consolidatedHeadsNode.value, 'ytd'),
     })
   }
   // Peak allocation month - depends on the separately-loaded quarterly
@@ -612,7 +533,7 @@ const dashboardInsights = computed(() => {
 const shareCanvasRef = ref(null)
 let shareChart = null
 function tickColor() {
-  return isDarkMode() ? '#9ca3af' : '#6b7280'
+  return isDarkMode() ? '#f9fafb' : '#6b7280'
 }
 
 // --- Quarterly Allocation Trend (Tab 1) ----------------------------------
@@ -633,7 +554,7 @@ async function loadQuarterlyTrend() {
   if (!filters.financialYear) return
   quarterlyTrendLoading.value = true
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_consolidated_report', {
+    const result = await call('budget_mis.api.budget_summary.get_budget_summary', {
       financial_year: filters.financialYear,
     })
     quarterlyTrendHeads.value = result || []
@@ -667,7 +588,7 @@ async function loadMonthlyByUnit() {
   if (!filters.financialYear || !unitWiseRaw.value.length) return
   monthlyByUnitLoading.value = true
   try {
-    const cardSettings = await call('annual_budget.api.phase_sheet.get_number_card_settings')
+    const cardSettings = await call('budget_mis.api.number_card_settings.get_number_card_settings')
     const unitsBySettingsDoc = {}
     for (const card of cardSettings || []) {
       if (card.settings_doc) unitsBySettingsDoc[card.settings_doc] = (card.units || []).filter(Boolean)
@@ -690,7 +611,7 @@ async function loadMonthlyByUnit() {
         const unitsStr = (unitsBySettingsDoc[entry.settings_doc] || []).join(',')
         if (!unitsStr) return { label: entry.label, totals: new Array(12).fill(0) }
         try {
-          const heads = await call('annual_budget.api.phase_sheet.get_consolidated_report', {
+          const heads = await call('budget_mis.api.budget_summary.get_budget_summary', {
             financial_year: filters.financialYear,
             units: unitsStr,
           })
@@ -985,7 +906,19 @@ function renderShareChart() {
     type: 'doughnut',
     data: {
       labels: units.map((u) => u.label),
-      datasets: [{ data: units.map((u) => unitTotal(u)), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }],
+      datasets: [{
+        data: units.map((u) => unitTotal(u)),
+        backgroundColor: units.map((_, i) => accentColor(i)),
+        // A visible gap between adjacent slices (rather than borderWidth:0,
+        // which lets them touch directly) - without it, a very small slice
+        // (e.g. a 2% share) reads as a stray seam/rendering glitch between
+        // its two neighbors instead of an intentional thin segment, since
+        // there's nothing marking where one color's boundary actually is.
+        // The border color matches the card's own surface (not the slice
+        // colors) so it reads as a gap, not a colored ring.
+        borderWidth: 2,
+        borderColor: isDarkMode() ? '#111827' : '#ffffff',
+      }],
     },
     plugins: [percentLabelsPlugin],
     options: {
@@ -1041,7 +974,7 @@ async function loadPieChart() {
   pieChartLoading.value = true
   pieChartError.value = null
   try {
-    const result = await call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan_budget', {
+    const result = await call('budget_mis.api.foundation_consolidated.get_unit_wise_plan_budget', {
       financial_year: filters.financialYear,
       month: 'March',
       table_name_filter: 'Pie Chart',
@@ -1128,7 +1061,7 @@ function renderWorkPlanCharts() {
     ].filter((s) => s.value > 0)
     workplanPieChart = new Chart(workplanPieRef.value, {
       type: 'pie',
-      data: { labels: segments.map((s) => s.label), datasets: [{ data: segments.map((s) => s.value), backgroundColor: segments.map((s) => s.color), borderWidth: 0 }] },
+      data: { labels: segments.map((s) => s.label), datasets: [{ data: segments.map((s) => s.value), backgroundColor: segments.map((s) => s.color), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1154,7 +1087,7 @@ function renderWorkPlanCharts() {
       .filter((u) => u.value > 0)
     directWorkUnitChart = new Chart(directWorkUnitRef.value, {
       type: 'doughnut',
-      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1179,7 +1112,7 @@ function renderWorkPlanCharts() {
       .filter((u) => u.value > 0)
     grantsUnitChart = new Chart(grantsUnitRef.value, {
       type: 'doughnut',
-      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 0 }] },
+      data: { labels: units.map((u) => u.label), datasets: [{ data: units.map((u) => u.value), backgroundColor: units.map((_, i) => accentColor(i)), borderWidth: 2, borderColor: isDarkMode() ? '#111827' : '#ffffff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1198,167 +1131,39 @@ function renderWorkPlanCharts() {
   }
 }
 
-// =========================================================================
-// TAB 3: Budget vs Actuals Breakdown
-// =========================================================================
-const baFilters = reactive({ units: [], costCenters: [], locationCodes: [] })
-const baMonth = ref('March')
-const baMonthSelection = computed({
-  get: () => (baMonth.value ? [baMonth.value] : []),
-  set: (values) => { baMonth.value = values.length ? values[values.length - 1] : 'March' },
-})
-const baCostCenterOptions = ref([])
-const baLocationCodeOptions = ref([])
-
-watch(() => baFilters.units.slice(), async (newUnits, oldUnits) => {
-  if (JSON.stringify(newUnits) === JSON.stringify(oldUnits || [])) return
-  baFilters.costCenters = []
-  baFilters.locationCodes = []
-  if (!baFilters.units.length) {
-    baCostCenterOptions.value = []
-    baLocationCodeOptions.value = []
-    return
-  }
-  const [cc, loc] = await Promise.all([
-    call('annual_budget.api.filter_options.get_cost_centers_by_set_id', { units: baFilters.units.join(',') }),
-    call('annual_budget.api.filter_options.get_location_codes_by_unit', { unit: baFilters.units.join(',') }),
-  ])
-  baCostCenterOptions.value = toOptions(cc?.data)
-  baLocationCodeOptions.value = toOptions(loc?.data)
-})
-
-const actualsLoading = ref(false)
-const actualsError = ref(null)
-const actualsErrorMessage = computed(() => actualsError.value?.messages?.[0] || actualsError.value?.message || 'Something went wrong loading budget vs actuals.')
-const actualsHeads = ref([])
-
-async function loadActuals() {
-  if (!filters.financialYear) return
-  actualsLoading.value = true
-  actualsError.value = null
-  try {
-    const result = await call('annual_budget.api.phase_sheet.get_combined_actuals', {
-      financial_year: filters.financialYear,
-      month: baMonth.value,
-      unit: baFilters.units.join(',') || undefined,
-      cost_center: baFilters.costCenters.join(',') || undefined,
-      location_code: baFilters.locationCodes.join(',') || undefined,
-    })
-    actualsHeads.value = result || []
-  } catch (e) {
-    actualsError.value = e
-    actualsHeads.value = []
-  } finally {
-    actualsLoading.value = false
-    await nextTick()
-    renderActualsCharts()
-  }
-}
-
-const actualsHeadsWithSubs = computed(() => actualsHeads.value.filter((h) => h.sub_heads?.length))
-const actualsGrandBudget = computed(() => actualsHeads.value.reduce((sum, h) => sum + treeTotal(h, nodeBudget), 0))
-const actualsGrandActual = computed(() => actualsHeads.value.reduce((sum, h) => sum + treeTotal(h, nodeActual), 0))
-const actualsGrandUtil = computed(() => (actualsGrandBudget.value > 0 ? Math.round((actualsGrandActual.value / actualsGrandBudget.value) * 100) : 0))
-
-// Heads plus their sub-heads, each carrying its own utilization % - the
-// same rows already shown as cards, just flattened into one list to rank
-// by utilization instead of by document order.
-const actualsRankableRows = computed(() => {
-  const rows = []
-  for (const head of actualsHeads.value) {
-    if (treeTotal(head, nodeBudget) > 0) rows.push(head)
-    for (const sub of head.sub_heads || []) {
-      if (treeTotal(sub, nodeBudget) > 0) rows.push(sub)
+// --- Tab switching / reactivity -----------------------------------------
+// v-if/v-else-if on activeTab (template above) fully unmounts a tab's
+// <canvas> elements when it's hidden and mounts fresh, empty ones when
+// it's shown again - Chart.js instances from before the switch are torn
+// down correctly (each render*Chart function destroys its own previous
+// instance), but nothing previously re-invoked those render functions on
+// return to an already-loaded tab, since loadUnitWise/loadPieChart both
+// guard against re-fetching data that's already there
+// (!unitWiseRaw.value.length / pieChartLoaded) - leaving the newly
+// recreated canvases blank. The `else` branches here cover exactly that
+// case: data already loaded, just re-render against the new canvas refs
+// once Vue has actually mounted them (nextTick), same unconditional
+// multi-render approach the showFullNumbers watcher below already uses.
+watch(activeTab, async (tab) => {
+  if (tab === 'dashboard') {
+    if (!unitWiseRaw.value.length) {
+      loadUnitWise()
+    } else {
+      await nextTick()
+      renderShareChart()
+      renderQuarterlyTrendChart()
+      renderMonthlyBudgetChart()
+      renderMonthlyByUnitChart()
     }
   }
-  return rows
-})
-
-const actualsInsights = computed(() => {
-  const rows = actualsRankableRows.value
-  if (!rows.length) return []
-
-  const ranked = [...rows].sort((a, b) => utilizationPct(b) - utilizationPct(a))
-  const highest = ranked[0]
-  const lowest = ranked[ranked.length - 1]
-  const overCount = rows.filter((r) => utilizationPct(r) > 100).length
-
-  const insights = [
-    {
-      label: 'Highest Utilization',
-      value: highest.name,
-      detail: `${utilizationPct(highest)}% of ${formatAmount(treeTotal(highest, nodeBudget))} budget spent`,
-      icon: 'alert-triangle',
-      color: utilizationColor(utilizationPct(highest)),
-    },
-  ]
-  if (lowest !== highest) {
-    insights.push({
-      label: 'Lowest Utilization',
-      value: lowest.name,
-      detail: `${utilizationPct(lowest)}% of ${formatAmount(treeTotal(lowest, nodeBudget))} budget spent`,
-      icon: 'battery',
-      color: utilizationColor(utilizationPct(lowest)),
-    })
+  if (tab === 'workplan') {
+    if (!pieChartLoaded) {
+      loadPieChart()
+    } else {
+      await nextTick()
+      renderWorkPlanCharts()
+    }
   }
-  insights.push({
-    label: 'Over Budget',
-    value: `${overCount} of ${rows.length}`,
-    detail: overCount ? 'heads/sub-heads exceeding 100% utilization' : 'nothing over budget yet',
-    icon: 'alert-circle',
-    color: overCount ? '#e34948' : '#1baf7a',
-  })
-  return insights
-})
-
-const baBudgetPieRef = ref(null)
-const baActualPieRef = ref(null)
-let baBudgetPieChart = null
-let baActualPieChart = null
-
-function renderActualsCharts() {
-  if (baBudgetPieRef.value) {
-    baBudgetPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeBudget) > 0)
-    baBudgetPieChart = new Chart(baBudgetPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeBudget)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index], 'actuals') },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
-  }
-  if (baActualPieRef.value) {
-    baActualPieChart?.destroy()
-    const heads = actualsHeads.value.filter((h) => treeTotal(h, nodeActual) > 0)
-    baActualPieChart = new Chart(baActualPieRef.value, {
-      type: 'doughnut',
-      data: { labels: heads.map((h) => h.name), datasets: [{ data: heads.map((h) => treeTotal(h, nodeActual)), backgroundColor: heads.map((_, i) => accentColor(i)), borderWidth: 0 }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (evt, elements) => { if (elements.length) openDrilldown(heads[elements[0].index], 'actuals') },
-        onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default' },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: tickColor(), boxWidth: 10, padding: 10 } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatAmount(ctx.parsed)}` } },
-        },
-      },
-    })
-  }
-}
-
-// --- Tab switching / reactivity -----------------------------------------
-watch(activeTab, (tab) => {
-  if (tab === 'dashboard' && !unitWiseRaw.value.length) loadUnitWise()
-  if (tab === 'workplan') loadPieChart()
 })
 watch(() => filters.financialYear, () => {
   if (activeTab.value === 'dashboard') { loadUnitWise(); loadQuarterlyTrend() }
@@ -1367,7 +1172,6 @@ watch(() => filters.financialYear, () => {
 watch(showFullNumbers, () => {
   renderShareChart()
   renderWorkPlanCharts()
-  renderActualsCharts()
   renderQuarterlyTrendChart()
   renderMonthlyBudgetChart()
   renderMonthlyByUnitChart()

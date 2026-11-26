@@ -1,16 +1,16 @@
 // Shared helpers for the Foundation Consolidated Budget page
 // (src/pages/FoundationConsolidated.vue), replicating the Desk page at
-// annual_budget/annual_budget_mis/page/consolidated_budget/consolidated_budget.js.
+// budget_mis/main/page/consolidated_budget/consolidated_budget.js.
 //
 // Two different "expense tree" shapes are in play across this page's 6 tabs:
 //
-// 1. Annual Budget Consolidated tab (annual_budget.api.phase_sheet.get_consolidated_report):
+// 1. Annual Budget Consolidated tab (budget_mis.api.budget_summary.get_budget_summary):
 //    head -> sub_heads[] -> items[], each carrying q1..q4 (lowercase), each a
 //    3-element array of monthly amounts. Same shape BudgetDashboard.vue/
 //    BudgetSummaryTable.vue already use via dashboardData.js/budgetTotals.js.
 //
 // 2. Actuals Consolidated tab, and SummaryINR's previous-FY Quarter Phasing half
-//    (annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total):
+//    (budget_mis.api.foundation_consolidated.get_actuals_quarter_and_month_breakup):
 //    head -> sub_heads[] -> items[], each carrying Q1..Q4 (uppercase, a single
 //    already-summed number per quarter - NOT an array) plus a separate `months`
 //    object keyed by fiscal month-number STRING ("4".."12","1".."3", April..March
@@ -126,7 +126,7 @@ export function pctChange(from, to, dp = 1) {
 // Downloads a server-generated XLSX file the same way the Desk page's
 // serverExport() does: base64 -> byte array -> Blob -> object URL ->
 // programmatic anchor click -> cleanup. `payload` is the {data, filename}
-// object returned by annual_budget.api.export_reports.export_* endpoints.
+// object returned by budget_mis.api.export_reports.export_* endpoints.
 export function downloadXlsx(payload) {
   if (!payload?.data) return false
   const bin = atob(payload.data)
@@ -161,4 +161,21 @@ export function isGrandTotalSection(sec) {
 
 export function isConsolidatedEntry(entry) {
   return entry?.sequence_id === 9999 || normName(entry?.table_name) === 'CONSOLIDATED'
+}
+
+// A raw "Failed to fetch"/"NetworkError..." TypeError (no HTTP response at
+// all - connection dropped or timed out, e.g. a hosting proxy's own request
+// ceiling cutting off this page's slow cold-cache combined tab call; see
+// MonthlyMis.vue's own identical fix) reads as a dead end to a user with no
+// idea what to do about it. Shared here since every one of this page's 6
+// tab components (PptTab/SummaryInrTab/HeadcountTab/ExpenseTreeTab/
+// BudgetActualsTab) independently builds its own errorMessage computed from
+// the same raw error object - rather than duplicating this rewrite 5 times,
+// each one calls this instead.
+export function tabErrorMessage(error, fallback) {
+  const raw = error?.messages?.[0] || error?.message || ''
+  if (/failed to fetch|networkerror/i.test(raw)) {
+    return 'Could not reach the server - this can happen when the data is still loading for the first time. Please wait a moment and try again.'
+  }
+  return raw || fallback || 'Something went wrong loading this data.'
 }

@@ -15,7 +15,7 @@
           </div>
           <Switch v-model="showFullNumbers" label="Show full numbers" />
         </div>
-        <Button variant="solid" class="fc-export-all" :loading="exportingKey === 'all'" @click="exportTab('all')">
+        <Button variant="solid" theme="gray" :loading="exportingKey === 'all'" @click="exportTab('all')">
           <template #prefix>
             <FeatherIcon name="download" class="h-4 w-4" />
           </template>
@@ -23,12 +23,14 @@
         </Button>
       </div>
 
-      <!-- Tabs -->
-      <div class="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800">
+      <!-- Tabs - horizontal scroll (not flex-wrap) so this page's 6 tabs
+      never wrap into several cramped lines on a narrow phone - a swipe/
+      scroll reveals the rest instead. -->
+      <div class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
         <button
           v-for="tab in TABS"
           :key="tab.key"
-          class="border-b-2 px-4 py-2.5 text-sm font-medium transition"
+          class="flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition"
           :class="activeTab === tab.key
             ? 'border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-100'
             : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
@@ -54,6 +56,7 @@
         :education-groups="pptEducationGroups"
         :opex-table="pptOpexTable"
         :capex-table="pptCapexTable"
+        :financial-year="filters.financialYear"
         :exporting="exportingKey === 'ppt'"
         @retry="() => loadPpt(true)"
         @export="() => exportTab('ppt')"
@@ -136,10 +139,9 @@ import { setPageTitle } from '@/data/pageTitle'
 import { call } from '@/data/decrypt'
 import {
   downloadXlsx,
-  fyToPrevBareYear,
-  getFYLabels,
   normName,
   isGrandTotalSection,
+  isConsolidatedEntry,
 } from '@/data/foundationConsolidatedData'
 import PptTab from '@/components/foundationConsolidated/PptTab.vue'
 import SummaryInrTab from '@/components/foundationConsolidated/SummaryInrTab.vue'
@@ -176,6 +178,11 @@ const financialYearSelection = computed({
 const showFullNumbers = ref(false)
 provide('misShowFullNumbers', showFullNumbers)
 
+// Disables CrCell's hover tooltip across every tab on this page (same
+// opt-out Monthly MIS already uses) - too dense a page for a tooltip on
+// every single amount cell.
+provide('misNoTooltip', true)
+
 function defaultFinancialYear(options) {
   const now = new Date()
   const y = now.getFullYear()
@@ -186,7 +193,7 @@ function defaultFinancialYear(options) {
 }
 
 async function loadFinancialYears() {
-  const rows = await call('annual_budget.api.filter_options.get_financial_year_list')
+  const rows = await call('budget_mis.api.filter_options.get_financial_year_list')
   financialYearOptions.value = (rows || []).map((r) => ({ label: r.financial_year, value: r.financial_year }))
   if (!filters.financialYear && financialYearOptions.value.length) {
     filters.financialYear = defaultFinancialYear(financialYearOptions.value)
@@ -296,6 +303,17 @@ function buildPptRows(data, cfg) {
         eOpex: v.opex, eCapex: v.capex,
         eCovid: extractCovid(sections, cfg.actualField),
         eTotal: extractTotal(sections, cfg.actualField),
+        // Carried through (not rendered directly) so PptTab.vue can drill
+        // into this row's real head/sub-head/item tree on click - sections
+        // already has ytd/total_posted_amt_ytd on every node, exactly what
+        // BudgetDrilldownModal's totalMode:'ytd' reads. isGrandTotalSection
+        // entries (an "OVERALL GRAND TOTAL" pseudo-section already summing
+        // the others, per extractVals/extractCovid/extractTotal's own
+        // filtering above) are dropped here too - otherwise
+        // BudgetDrilldownModal's treeTotal() sums it as a sibling alongside
+        // the real sections it's a total OF, doubling the drill-down's own
+        // displayed total against what this row's own display columns show.
+        sections: sections.filter((s) => !isGrandTotalSection(s)),
       }
     })
   const tot = { bOpex: 0, bCapex: 0, bCovid: 0, bTotal: 0, eOpex: 0, eCapex: 0, eCovid: 0, eTotal: 0 }
@@ -328,7 +346,7 @@ function buildEducationGroups(data, cfg, bLbl, eLbl) {
       const eTot = extractTotal(sections, cfg.actualField)
       tot.bOpex += b.opex; tot.bCapex += b.capex; tot.bTotal += bTot
       tot.eOpex += v.opex; tot.eCapex += v.capex; tot.eTotal += eTot
-      return { label: e.label || '', bOpex: b.opex, bCapex: b.capex, bTotal: bTot, eOpex: v.opex, eCapex: v.capex, eTotal: eTot }
+      return { label: e.label || '', bOpex: b.opex, bCapex: b.capex, bTotal: bTot, eOpex: v.opex, eCapex: v.capex, eTotal: eTot, sections: sections.filter((s) => !isGrandTotalSection(s)) }
     })
     return { name: grp, title: 'EDUCATION', bLbl, eLbl, rows, total: tot }
   })
@@ -364,6 +382,25 @@ function buildBreakdownTable(entries, kind, fyLabel) {
     }
     return v
   }
+  // Every unit's own matching sub_head node (opex rows only - a sub_head
+  // still has its own items to drill into; capex rows come from items,
+  // already leaves with nothing further to show) for this row name,
+  // combined across units into one synthetic node so a single click drills
+  // into the row's full item breakdown regardless of which unit(s)
+  // contributed to it.
+  function rowNode(name) {
+    if (kind !== 'opex') return null
+    const items = []
+    for (const e of entries) {
+      for (const s of e.actuals || []) {
+        if (!isMatch(s.name)) continue
+        for (const sub of s.sub_heads || []) {
+          if ((sub.name || '').trim() === name) items.push(...(sub.items || []))
+        }
+      }
+    }
+    return items.length ? { name, items } : null
+  }
   function catTotal(e) {
     let v = 0
     for (const s of e.actuals || []) {
@@ -375,7 +412,7 @@ function buildBreakdownTable(entries, kind, fyLabel) {
   if (!rowNames.length) return null
   const rows = rowNames.map((name) => {
     const cells = entries.map((e) => rowVal(e, name))
-    return { name, cells, rowTotal: cells.reduce((a, b) => a + b, 0) }
+    return { name, cells, rowTotal: cells.reduce((a, b) => a + b, 0), node: rowNode(name) }
   })
   const totalsRow = entries.map((e) => catTotal(e))
   const fyPart = fyLabel.replace(/\s*budget\s*/i, '').trim()
@@ -397,19 +434,13 @@ async function loadPpt(force) {
   pptLoading.value = true
   pptError.value = null
   try {
-    const [d, raw] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_foundation_overall', {
-        financial_year: fy, month: 'March', table_name_filter: 'Foundation Overall',
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month: 'March', table_name_filter: 'Opex Capex', is_previous: 1,
-      }),
-    ])
+    const page = await call('budget_mis.api.foundation_consolidated.get_ppt_page_data', { financial_year: fy })
     // A newer request for this tab (e.g. the user changed FY again while
     // this one was still in flight) has already started - discard this
     // now-stale response instead of overwriting the newer one.
     if (gen !== requestGen.ppt) return
-    const data = d || []
+    const data = page?.foundation_overall || []
+    const raw = page?.opex_capex_previous || []
     if (!data.length) {
       pptRows.value = []
       pptPrevRows.value = []
@@ -429,7 +460,7 @@ async function loadPpt(force) {
 
     const cCfg = { key: 'current_year', budgetField: 'ytd', actualField: 'total_posted_amt_ytd' }
     const pCfg = { key: 'previous_year', budgetField: 'ytd', actualField: 'total_posted_amt_ytd' }
-    const mainData = data.filter((e) => e.is_this_sub_item !== 1)
+    const mainData = data.filter((e) => e.is_this_sub_item !== 1 && !isConsolidatedEntry(e))
     pptRows.value = buildPptRows(mainData, cCfg)
     pptPrevRows.value = buildPptRows(mainData, pCfg)
     pptBudgetLabel.value = `${curFY} Budget`
@@ -440,7 +471,7 @@ async function loadPpt(force) {
     pptEducationGroups.value = buildEducationGroups(data, cCfg, pptBudgetLabel.value, pptActualLabel.value)
 
     const uwp = (raw || [])
-      .filter((e) => e.is_this_sub_item === 0 && e.sequence_id !== 9999 && normName(e.table_name) !== 'CONSOLIDATED')
+      .filter((e) => e.is_this_sub_item === 0 && !isConsolidatedEntry(e))
       .sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
     pptOpexTable.value = buildBreakdownTable(uwp, 'opex', curFY)
     pptCapexTable.value = buildBreakdownTable(uwp, 'capex', curFY)
@@ -472,23 +503,13 @@ async function loadSummaryInr(force) {
   summaryInrLoading.value = true
   summaryInrError.value = null
   try {
-    const prevYear = fyToPrevBareYear(fy)
-    const [summary, hc, cr, ga] = await Promise.all([
-      call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-        financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan', is_previous: 1,
-      }),
-      call('annual_budget.api.foundation_consolidated_report.get_headcount', {
-        financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
-      }),
-      call('annual_budget.api.phase_sheet.get_consolidated_report', { financial_year: fy }),
-      call('annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
-        fiscal_year: prevYear, accounting_period: '12',
-      }),
-    ])
+    const page = await call('budget_mis.api.foundation_consolidated.get_summary_inr_page_data', { financial_year: fy })
     if (gen !== requestGen.summary_inr) return
-    summaryInrRaw.value = summary || []
+    const hc = page?.headcount
+    const ga = page?.actuals_quarter_month_total
+    summaryInrRaw.value = page?.unit_wise_plan_previous || []
     headcountRaw.value = hc?.status === 'success' ? hc : { headcount_data: hc?.headcount_data || [], plan_data: hc?.plan_data || [] }
-    consolidatedReportTree.value = cr || []
+    consolidatedReportTree.value = page?.consolidated_report || []
     const gaData = ga?.status === 'success' ? ga.data : (Array.isArray(ga) ? ga : ga?.data || [])
     groupedActualsTree.value = gaData || []
   } catch (e) {
@@ -517,9 +538,7 @@ async function loadHeadcount(force) {
   headcountLoading.value = true
   headcountError.value = null
   try {
-    const hc = await call('annual_budget.api.foundation_consolidated_report.get_headcount', {
-      financial_year: fy, month: 'March', table_name_filter: 'Unit Wise Plan',
-    })
+    const hc = await call('budget_mis.api.foundation_consolidated.get_headcount_page_data', { financial_year: fy })
     if (gen !== requestGen.headcount) return
     headcountRecords.value = hc?.headcount_data || []
     headcountPlanData.value = hc?.plan_data || []
@@ -549,7 +568,7 @@ async function loadAnnual(force) {
   annualLoading.value = true
   annualError.value = null
   try {
-    const result = await call('annual_budget.api.phase_sheet.get_consolidated_report', { financial_year: fy })
+    const result = await call('budget_mis.api.foundation_consolidated.get_annual_budget_page_data', { financial_year: fy })
     if (gen !== requestGen.annual_budget) return
     annualData.value = result || []
     if (!annualData.value.length) delete loadedFor.annual_budget
@@ -579,10 +598,7 @@ async function loadActuals(force) {
   actualsLoading.value = true
   actualsError.value = null
   try {
-    const prevYear = fyToPrevBareYear(fy)
-    const result = await call('annual_budget.api.foundation_consolidated_report.get_grouped_actuals_quarter_and_month_wise_total', {
-      fiscal_year: prevYear, accounting_period: '12',
-    })
+    const result = await call('budget_mis.api.foundation_consolidated.get_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.actuals) return
     const data = result?.status === 'success' ? result.data : (Array.isArray(result) ? result : result?.data || [])
     actualsData.value = data || []
@@ -614,21 +630,19 @@ async function loadBudgetActuals(force) {
   budgetActualsLoading.value = true
   budgetActualsError.value = null
   try {
-    const d = await call('annual_budget.api.foundation_consolidated_report.get_unit_wise_plan', {
-      financial_year: fy, month: 'March', table_name_filter: 'Budget & Estimate', is_previous: 1,
-    })
+    const d = await call('budget_mis.api.foundation_consolidated.get_budget_actuals_page_data', { financial_year: fy })
     if (gen !== requestGen.budget_actuals) return
     const all = d || []
     const consolidatedBlock = all.find((e) => normName(e.table_name) === 'CONSOLIDATED')
     // Confirmed against the live Desk JS: get_unit_wise_plan's CONSOLIDATED
     // entry never actually sets a main_item_breakdown key in the current
-    // backend (grep across annual_budget/ found zero definitions of it
+    // backend (grep across budget_mis/ found zero definitions of it
     // outside this same JS file) - so this reads [] today, and the Grand
     // Total Plan/Est columns render as 0/blank, exactly matching the live
     // Desk page's current (buggy) behavior rather than guessing a fix.
     budgetActualsMainItemBreakdown.value = consolidatedBlock?.main_item_breakdown || []
     budgetActualsRawData.value = all
-      .filter((e) => e.is_this_sub_item === 0 && e.sequence_id !== 9999 && normName(e.table_name) !== 'CONSOLIDATED')
+      .filter((e) => e.is_this_sub_item === 0 && !isConsolidatedEntry(e))
       .sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
     if (!budgetActualsRawData.value.length) delete loadedFor.budget_actuals
   } catch (e) {
@@ -668,13 +682,13 @@ watch(() => filters.financialYear, () => {
 const exportingKey = ref(null)
 
 const EXPORT_METHODS = {
-  ppt: 'annual_budget.api.export_reports.export_ppt',
-  summary_inr: 'annual_budget.api.export_reports.export_summary_inr',
-  headcount: 'annual_budget.api.export_reports.export_headcount',
-  annual: 'annual_budget.api.export_reports.export_annual',
-  actuals: 'annual_budget.api.export_reports.export_estimate',
-  budget_actuals: 'annual_budget.api.export_reports.export_budget_estimate',
-  all: 'annual_budget.api.export_reports.export_all',
+  ppt: 'budget_mis.api.export_reports.export_ppt',
+  summary_inr: 'budget_mis.api.export_reports.export_summary_inr',
+  headcount: 'budget_mis.api.export_reports.export_headcount',
+  annual: 'budget_mis.api.export_reports.export_annual',
+  actuals: 'budget_mis.api.export_reports.export_estimate',
+  budget_actuals: 'budget_mis.api.export_reports.export_budget_estimate',
+  all: 'budget_mis.api.export_reports.export_all',
 }
 
 function buildExportArgs(key, fy) {
@@ -765,14 +779,3 @@ onMounted(async () => {
   await loadFinancialYears()
 })
 </script>
-
-<style scoped>
-.fc-export-all {
-  background-color: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-.fc-export-all:hover {
-  background-color: #333;
-}
-</style>

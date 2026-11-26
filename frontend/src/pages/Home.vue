@@ -1,58 +1,47 @@
 <template>
   <AppLayout>
     <div class="flex flex-col gap-6">
-      <div class="rounded-lg border border-dashed border-gray-300 p-6 dark:border-gray-700">
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Welcome, {{ session.full_name || session.user }}</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Jump into a module below to get started.</p>
+      <!-- A soft tinted panel (not a dashed placeholder-style border) and a
+      time-of-day greeting - small touches that make this read as a real
+      landing page rather than an empty-state box waiting for content. -->
+      <div class="rounded-xl bg-gradient-to-br from-blue-50 to-white p-6 dark:from-gray-800/60 dark:to-gray-900">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {{ greeting }}, {{ firstName }}
+        </h2>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Jump into a module below to get started.</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <component
-          :is="tile.onClick ? 'button' : 'div'"
-          v-for="tile in staticTiles"
-          :key="'static-' + tile.label"
-          class="group flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-          :class="tile.onClick ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-          @click="tile.onClick?.()"
-        >
-          <span
-            class="flex h-12 w-12 items-center justify-center rounded-xl text-white transition group-hover:scale-105"
-            :style="{ backgroundColor: tile.color }"
+      <div>
+        <div class="grid grid-cols-3 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8.5rem,max-content))] sm:gap-4">
+          <!-- Loading skeleton for backend-driven modules (App Module Setting) -->
+          <template v-if="modulesResource.loading && !modulesResource.data">
+            <div v-for="i in 3" :key="'skel-' + i" class="flex flex-col items-center gap-2 p-2">
+              <Skeleton width="4.5rem" height="4.5rem" class="!rounded-2xl" />
+              <Skeleton width="4.5rem" height="0.75rem" />
+            </div>
+          </template>
+
+          <!-- Borderless tile: the whole button fills with a plain gray
+          background on hover (no outer border/shadow at all), while the icon
+          card underneath it lifts and gains its own shadow independently -
+          two separate, deliberately understated hover cues rather than one
+          heavy bordered-card treatment. The label wraps in full (no
+          line-clamp) so a long module/doctype name is always fully readable
+          rather than being cut off with an ellipsis. -->
+          <button
+            v-for="tile in homeTiles"
+            :key="tile.key"
+            class="group flex w-28 flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 sm:w-[8.5rem]"
+            @click="tile.onClick"
           >
-            <FeatherIcon :name="tile.icon" class="h-6 w-6" />
-          </span>
-          <div>
-            <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ tile.label }}</div>
-            <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {{ tile.count ? `${tile.count} item${tile.count !== 1 ? 's' : ''}` : 'Coming soon' }}
-            </div>
-          </div>
-        </component>
-
-        <!-- Loading skeleton for backend-driven modules (App Module Setting) -->
-        <template v-if="modulesResource.loading && !modulesResource.data">
-          <div v-for="i in 3" :key="'skel-' + i" class="flex flex-col items-center gap-3 rounded-lg border border-gray-200 p-5 dark:border-gray-800">
-            <Skeleton width="3rem" height="3rem" class="rounded-xl" />
-            <Skeleton width="4.5rem" height="0.75rem" />
-          </div>
-        </template>
-
-        <button
-          v-for="mod in dynamicModules"
-          :key="'mod-' + mod.label"
-          class="group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-          @click="openModule(mod)"
-        >
-          <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-900 text-white transition group-hover:scale-105 dark:bg-gray-100 dark:text-gray-900">
-            <FeatherIcon :name="mod.icon || 'grid'" class="h-6 w-6" />
-          </span>
-          <div>
-            <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ mod.label }}</div>
-            <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {{ (mod.doctypes || []).length }} item{{ (mod.doctypes || []).length !== 1 ? 's' : '' }}
-            </div>
-          </div>
-        </button>
+            <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-150 ease-out group-hover:-translate-y-0.5 group-hover:shadow-md group-hover:ring-gray-300 group-active:translate-y-0 group-active:scale-95 group-active:shadow-sm dark:bg-gray-800 dark:ring-gray-700 dark:group-hover:ring-gray-600 sm:h-[4.5rem] sm:w-[4.5rem]">
+              <LucideIcon :name="tile.icon || 'layout-grid'" class="h-7 w-7 text-gray-600 transition-colors duration-150 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100 sm:h-8 sm:w-8" />
+            </span>
+            <span class="break-words text-xs font-medium leading-tight text-gray-900 dark:text-gray-100 sm:text-sm">
+              {{ tile.label }}
+            </span>
+          </button>
+        </div>
       </div>
 
       <ErrorMessage v-if="modulesResource.error" :message="modulesResource.error" />
@@ -63,51 +52,115 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FeatherIcon, ErrorMessage } from 'frappe-ui'
+import { ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
+import LucideIcon from '@/components/LucideIcon.vue'
 import Skeleton from '@/components/Skeleton.vue'
 import { session } from '@/data/session'
 import { setPageTitle } from '@/data/pageTitle'
-import { modulesResource } from '@/data/modules'
-import { setActiveModule } from '@/data/activeModule'
+import { modulesResource, isSidebarModule } from '@/data/modules'
 
 onMounted(() => {
   setPageTitle('Home')
-  modulesResource.fetch()
+  // The router guard's own ensureModulesLoaded() already fetches this on
+  // first navigation into the app (including straight to /home) - calling
+  // fetch() again here unconditionally could abort that still-in-flight
+  // request (frappe-ui cancels a superseded call via AbortController), and
+  // the resulting "signal is aborted without reason" rejection had no
+  // .catch() to swallow it, so it landed in modulesResource.error and
+  // rendered as a raw, user-visible error below the tiles. Skip the
+  // redundant fetch whenever one is already loading or has already
+  // resolved, and always catch (matching every other modulesResource.fetch()
+  // call site in the app) so even a genuine abort never surfaces here.
+  if (!modulesResource.data && !modulesResource.loading) {
+    modulesResource.fetch().catch(() => {})
+  }
 })
 
 const router = useRouter()
 
-// Same fixed-order categorical palette used across the app's charts/cards
-// (BudgetSummaryCards.vue, BudgetSummaryTable.vue), so a module tile's
-// accent color reads as part of the same visual language.
-const TILE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4']
+// First name only, not the full "Full Name" string - a greeting reads
+// warmer addressing "Jerald" than "Jerald Smith", and session.user (an
+// email/username) is the fallback only when full_name isn't set at all.
+const firstName = computed(() => (session.full_name || session.user || '').split(' ')[0])
 
-// "Settings & Master Data" isn't a real module yet (no App Module Setting
-// record targets it) - kept as its own non-clickable "Coming soon" tile.
-// Budget Reports / MIS Reports are now real App Module Setting records
-// (backend-driven, same as Budget Master) - see dynamicModules below.
-const staticTiles = computed(() => [
-  { label: 'Settings & Master Data', icon: 'user-check', color: TILE_COLORS[0], count: 0, onClick: null },
-])
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+})
 
-// Backend-driven modules (App Module Setting), same pattern as the chw
-// reference app: a tile per module, click sets it as the active sidebar
-// section and jumps straight to its first item.
-const dynamicModules = computed(() => modulesResource.data || [])
+// Only a sidebar module (18-item Settings & Master Data: doctypes you
+// manage, not reports you read) keeps the "one tile opens a sidebar full
+// of items" shape - a sidebar makes sense for a settings area you move
+// between record types within. Every other module is direct mode: its own
+// single tile (Budget Summary, Budget vs Actual, Help & Support, ...)
+// navigates straight to its Page/DocType or opens its URL, matching how a
+// single report or external link is used: open it, read it, leave - not a
+// list you browse within.
+const homeTiles = computed(() => {
+  const modules = modulesResource.data || []
+  const tiles = []
 
-function openModule(mod) {
-  setActiveModule(mod)
-  const first = mod.doctypes?.[0]
-  if (!first) return
-  // A "SPA Page" item opens one of this app's built-in pages by its named
-  // route directly; a "DocType" item opens the generic DoctypeList route
-  // instead, keyed by its route slug param - mirrors AppSidebar.vue's own
-  // page_route/doctype_name branch for the same item shape.
-  if (first.page_route) {
-    router.push({ name: first.page_route })
+  for (const mod of modules) {
+    if (isSidebarModule(mod)) {
+      tiles.push({
+        key: 'mod-' + mod.label,
+        label: mod.label,
+        icon: mod.icon,
+        onClick: () => openItem(mod.doctypes?.[0]),
+      })
+      continue
+    }
+
+    if (!mod.direct) continue
+    tiles.push({
+      key: 'direct-' + mod.name,
+      label: mod.label,
+      icon: mod.icon,
+      onClick: () => openDirect(mod.direct, mod.label),
+    })
+  }
+
+  return tiles
+})
+
+// A "SPA Page" item opens one of this app's built-in pages by its named
+// route directly; a "DocType" item opens the generic DoctypeList route
+// instead, keyed by its route slug param - mirrors AppSidebar.vue's own
+// page_route/doctype_name branch for the same item shape. Deliberately does
+// NOT call setActiveModule/clearActiveModule itself - router.js's own
+// beforeEach already resolves the right module (or none, via
+// isSidebarModule) for whichever route this lands on, the same way a
+// direct URL visit or page refresh does, so this stays a single source of
+// truth instead of two call sites that could disagree.
+function openItem(item) {
+  if (!item) return
+  if (item.page_route) {
+    router.push({ name: item.page_route })
   } else {
-    router.push({ name: 'DoctypeList', params: { doctypeRoute: first.route } })
+    router.push({ name: 'DoctypeList', params: { doctypeRoute: item.route } })
   }
 }
+
+// A direct-mode module's own destination (mod.direct) - one tile, one of
+// three shapes depending on direct_item_type set in App Module Setting.
+// tileLabel is the clicked tile's own label ("Dashboard") - passed through
+// as a query param so the destination page can show that instead of its
+// own default title when a role's tile has been redirected to a different
+// page under the hood (DASHBOARD_REDIRECT_BY_ROLE in api/modules.py - e.g.
+// Finance Unit Coordinator's "Dashboard" tile actually opens Budget vs
+// Actual). A direct visit to that page's own URL/tile never carries this
+// param, so it still shows its own real title in every other case.
+function openDirect(direct, tileLabel) {
+  if (direct.type === 'Page') {
+    router.push({ name: direct.page_route, query: tileLabel ? { tileLabel } : undefined })
+  } else if (direct.type === 'DocType') {
+    router.push({ name: 'DoctypeList', params: { doctypeRoute: direct.route } })
+  } else if (direct.type === 'URL') {
+    window.open(direct.url, '_blank', 'noopener')
+  }
+}
+
 </script>

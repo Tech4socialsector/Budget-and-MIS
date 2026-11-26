@@ -1,0 +1,8 @@
+{
+  "name": "budget_mis",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build"
+  }
+}

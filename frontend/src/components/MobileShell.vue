@@ -3,7 +3,8 @@
     <div class="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
       <img
         :src="brandingResource.data?.app_logo || defaultAppIcon"
-        class="h-7 w-7 flex-shrink-0 rounded-lg object-contain"
+        class="h-7 max-w-[4rem] flex-shrink-0 object-contain object-left"
+        alt="Logo"
       />
       <h1 class="min-w-0 flex-1 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
         {{ pageTitle }}
@@ -40,10 +41,15 @@
 </template>
 
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import { FeatherIcon } from 'frappe-ui'
 import MobileNav from '@/components/MobileNav.vue'
-import AiAssistant from '@/components/AiAssistant.vue'
 import { brandingResource, defaultAppIcon } from '@/data/branding'
 import { pageTitle } from '@/data/pageTitle'
 import { currentTheme, toggleTheme } from '@/data/theme'
+
+// See AppLayout.vue's own identical comment - keeps the ~31kB chat panel
+// out of the shared shell chunk until a user actually opens it, on mobile
+// too (this was the other static importer blocking the split there).
+const AiAssistant = defineAsyncComponent(() => import('@/components/AiAssistant.vue'))
 </script>

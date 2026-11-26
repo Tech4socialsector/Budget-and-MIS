@@ -26,7 +26,7 @@
       @click="toggleAssistant"
     >
       <span class="assistant-nav-badge relative flex h-5 w-5 items-center justify-center">
-        <AssistantIcon class="h-5 w-5" />
+        <AuditorIcon class="h-5 w-5" />
       </span>
       Assistant
     </button>
@@ -63,7 +63,7 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { FeatherIcon } from 'frappe-ui'
 import AppSidebar from '@/components/AppSidebar.vue'
-import AssistantIcon from '@/components/AssistantIcon.vue'
+import AuditorIcon from '@/components/AuditorIcon.vue'
 import { assistantState, assistantConfigResource, toggleAssistant } from '@/data/aiAssistant'
 
 const route = useRoute()

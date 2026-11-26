@@ -19,9 +19,12 @@
   numbers than the page it's meant to match.
 -->
 <template>
-  <ErrorMessage v-if="error" :message="errorMessage" />
+  <div v-if="error" class="flex items-center gap-3">
+    <ErrorMessage :message="errorMessage" />
+    <button class="text-sm text-fc-blue-mid underline" @click="$emit('retry')">Retry</button>
+  </div>
   <div v-else-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-    <AppLoader label="Building Budget & Actuals..." />
+    <AppLoader variant="build" label="Building Budget & Actuals..." />
   </div>
   <div v-else-if="!rawData.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
     No data available.
@@ -34,7 +37,7 @@
       </FormControl>
       <div class="flex flex-wrap items-center gap-5">
         <Switch v-model="expandItems" label="Expand Line Items" />
-        <Button variant="solid" class="fc-xl-btn" :loading="exporting" @click="$emit('export')">
+        <Button variant="solid" theme="gray" :loading="exporting" @click="$emit('export')">
           <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
           Export XLS
         </Button>
@@ -135,7 +138,7 @@ import { computed, reactive, ref } from 'vue'
 import { FormControl, Switch, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import CrCell from './CrCell.vue'
-import { getFYLabels, isGrandTotalSection } from '@/data/foundationConsolidatedData'
+import { getFYLabels, isGrandTotalSection, tabErrorMessage } from '@/data/foundationConsolidatedData'
 
 const props = defineProps({
   loading: Boolean,
@@ -147,7 +150,7 @@ const props = defineProps({
 })
 defineEmits(['retry', 'export'])
 
-const errorMessage = computed(() => props.error?.messages?.[0] || props.error?.message || 'Something went wrong loading Budget & Actuals.')
+const errorMessage = computed(() => tabErrorMessage(props.error, 'Something went wrong loading Budget & Actuals.'))
 
 const labels = computed(() => getFYLabels(props.financialYear))
 const planLabel = computed(() => labels.value.plan)

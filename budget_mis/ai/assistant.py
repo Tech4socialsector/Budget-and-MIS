@@ -1,0 +1,453 @@
+"""AI assistant orchestration: calls an admin-configured OpenAI-compatible
+chat completions endpoint, executes any tool calls it makes against Frappe
+(always as the logged-in user - see tools.py), and returns a single final
+reply per request. No streaming: the whole tool-call loop runs inside one
+whitelisted call so the frontend only ever needs "send a message, get a
+reply" - no server-side conversation state, no websocket/session plumbing.
+"""
+
+import json
+
+import frappe
+from frappe import _
+
+from budget_mis.ai.tools import TOOL_FUNCTIONS, TOOL_SCHEMAS
+
+MAX_TOOL_ITERATIONS = 6
+MAX_HISTORY_MESSAGES = 20
+REQUEST_TIMEOUT_SECONDS = 60
+
+GUIDE_CACHE_SECONDS = 60
+
+FALLBACK_GUIDE = """## Always do this
+- Keep replies short and plain.
+- Confirm before saving with create_record or update_record.
+- Ask for missing required fields instead of guessing.
+- If a tool call is denied for permission reasons, say so plainly and don't retry.
+
+## Never do this
+- Never invent data.
+- Never bypass permissions.
+- Never expose API keys or settings.
+"""
+
+# Unconditional data-handling rules, always appended to the system prompt
+# regardless of whether an admin has configured custom "AI Assistant Guide"
+# sections in the database. Deliberately NOT part of FALLBACK_GUIDE: that
+# constant only applies when the DB guide is completely empty (see
+# _load_guide below), so a hard privacy/security requirement can never live
+# there - it must hold even once an admin has written their own custom
+# guide sections. The chat/completions request itself (_call_chat_completions)
+# only ever sends this prompt plus the user's own conversation and tool
+# results to the single provider endpoint an admin configured in Master
+# Settings (ai_api_base_url/ai_model/ai_api_key) - never to any other
+# endpoint, model, or third party.
+DATA_HANDLING_RULES = """## Data handling - always follow these, no exceptions
+- Only ever disclose data the current tool-calling user themselves has permission to see (tools already enforce this - never work around it by phrasing a question differently or guessing at an answer instead of calling the tool).
+- Never share data with anyone who is not the person you are currently replying to in this conversation - never suggest emailing, posting, or forwarding figures to another person or channel on the user's behalf unless they explicitly ask you to and you have a tool that does it.
+- Never send or repeat sensitive data (API keys, passwords, tokens, personal contact details) back to the user even if a tool result happens to include one - omit it and say it was withheld.
+- You are only ever connected to the single AI provider an admin configured in Settings for this app - never claim to use, switch to, or forward data to any other AI provider, model, or external service."""
+
+
+def _load_guide():
+	"""Concatenate every Active AI Assistant Guide section (ascending
+	sort_order), each rendered as its title followed by its Active points as
+	a bullet list, so an admin can manage the assistant's instructions as
+	individual point rows instead of one giant text field - editing or
+	reordering one point never risks the rest. Short cache to avoid a
+	database read on every message. Falls back to a minimal built-in guide
+	if no active sections/points exist, so an empty guide can't take the
+	assistant's guardrails down with it."""
+	cached = frappe.cache().get_value("budget_mis_ai_assistant_guide")
+	if cached is not None:
+		return cached
+
+	sections = frappe.get_all(
+		"AI Assistant Guide",
+		filters={"is_active": 1},
+		fields=["name", "title"],
+		order_by="sort_order asc, title asc",
+	)
+	points_by_section = {}
+	if sections:
+		# status=Approved excludes any point the assistant itself proposed via
+		# propose_guide_point (see tools.py) that an admin hasn't reviewed yet
+		# - is_active alone isn't enough, since a freshly-proposed point
+		# defaults to is_active=1/status=Pending so it's visible to an admin
+		# browsing the doctype, but must never reach the live system prompt
+		# before being approved.
+		rows = frappe.get_all(
+			"AI Assistant Guide Point",
+			filters={"parent": ["in", [s.name for s in sections]], "is_active": 1, "status": "Approved"},
+			fields=["parent", "point"],
+			order_by="parent asc, sort_order asc, idx asc",
+		)
+		for row in rows:
+			points_by_section.setdefault(row.parent, []).append(row.point)
+
+	blocks = []
+	for section in sections:
+		points = points_by_section.get(section.name) or []
+		if not points:
+			continue
+		bullets = "\n".join(f"- {p.strip()}" for p in points if (p or "").strip())
+		if bullets:
+			blocks.append(f"## {section.title}\n{bullets}")
+
+	content = "\n\n".join(blocks).strip()
+	if not content:
+		content = FALLBACK_GUIDE
+
+	frappe.cache().set_value("budget_mis_ai_assistant_guide", content, expires_in_sec=GUIDE_CACHE_SECONDS)
+	return content
+
+
+def _build_system_prompt(bot_name):
+	identity = (
+		f"You are {bot_name}, an assistant built into an annual budget management app. "
+		"Follow the guidance below exactly."
+	)
+	# Without this, the model has no ground truth for "today"/"this month"/
+	# "up to now" and has to guess the current date from conversation
+	# context alone - confirmed to drift (e.g. correctly saying "November"
+	# one turn, then silently reverting to "October" the next) once nothing
+	# in a long conversation re-states it. get_actuals_summary/
+	# get_monthly_mis_summary's own `month` argument has no server-side
+	# default the way `financial_year` does, so this is the only place that
+	# grounds it.
+	today = frappe.utils.getdate()
+	current_date_fact = (
+		f"## Current date\nToday's real date is {today.strftime('%B %-d, %Y')} "
+		f"({today.strftime('%A')}). When asked for \"today\", \"this month\", "
+		f"\"up to now\", or similar, use {today.strftime('%B')} as the month - "
+		"never infer or guess the current month from earlier turns in the conversation."
+	)
+	return identity + "\n\n" + DATA_HANDLING_RULES + "\n\n" + current_date_fact + "\n\n" + _load_guide()
+
+
+def is_ai_assistant_enabled():
+	return bool(frappe.get_single("Master Settings").ai_assistant_enabled)
+
+
+def _daily_message_cache_key(user):
+	return f"ai_msg_count:{user}:{frappe.utils.today()}"
+
+
+def _check_and_increment_rate_limit(settings):
+	limit = frappe.utils.cint(settings.ai_daily_message_limit) or 50
+	key = _daily_message_cache_key(frappe.session.user)
+	count = frappe.cache().get_value(key) or 0
+	if count >= limit:
+		frappe.throw(
+			_("You've reached today's assistant usage limit. Please try again tomorrow."),
+			frappe.ValidationError,
+		)
+	frappe.cache().set_value(key, count + 1, expires_in_sec=60 * 60 * 30)
+
+
+@frappe.whitelist()
+def get_assistant_config():
+	"""Cheap, safe-for-every-user check: is the assistant on, and what's it
+	called. Never includes the base URL, model, or key."""
+	settings = frappe.get_single("Master Settings")
+	return {
+		"enabled": bool(settings.ai_assistant_enabled),
+		"bot_name": settings.ai_bot_name or "Assistant",
+	}
+
+
+def _get_ai_credentials(settings):
+	"""The only place ai_api_key is ever decrypted. Never returned to a
+	whitelisted caller, never logged."""
+	api_key = settings.get_password("ai_api_key", raise_exception=False)
+	return settings.ai_api_base_url, api_key, settings.ai_model
+
+
+class AssistantConfigError(Exception):
+	"""Raised when the provider itself rejects the request for a reason an
+	admin can fix in Settings (bad/missing key, unknown model, wrong base
+	URL) - kept distinct from a transient network/provider outage so
+	send_message can tell the user which kind of problem this is."""
+
+
+class AssistantRateLimitedError(Exception):
+	"""Raised when the *provider* (not this app's own daily cap) throttles
+	the request - most free tiers allow only a handful of requests per
+	minute. Distinct from AssistantConfigError since this isn't something
+	an admin needs to fix in Settings, just a "wait a bit" situation."""
+
+
+def _error_message(response):
+	"""Best-effort extraction of the provider's error message text, for
+	sniffing what actually went wrong beyond the bare status code. Most
+	OpenAI-compatible providers return {"error": {"message": ...}}, but
+	Gemini wraps that same shape in a JSON array: [{"error": {...}}].
+	Returns "" (never raises) if the body isn't JSON or doesn't match
+	either shape."""
+	try:
+		body = response.json()
+	except ValueError:
+		return ""
+	if isinstance(body, list):
+		body = body[0] if body else {}
+	if not isinstance(body, dict):
+		return ""
+	return str((body.get("error") or {}).get("message") or "")
+
+
+def _is_auth_error_body(response):
+	"""Some OpenAI-compatible providers (e.g. Gemini) return a bad/missing
+	API key as a 400 instead of the conventional 401/403, so a bare status
+	code check misses it."""
+	message = _error_message(response).lower()
+	return "api key" in message or "authentication" in message
+
+
+def _retry_after_seconds(response):
+	"""How long the provider says to wait before retrying a 429, in whole
+	seconds. Prefers the standard Retry-After header; falls back to
+	scraping "retry in N.Ns" out of Gemini-style error bodies, which put
+	the suggestion in the message text instead of a header. None if
+	neither is present."""
+	import re
+
+	header = response.headers.get("Retry-After")
+	if header:
+		try:
+			return max(1, int(float(header)))
+		except ValueError:
+			pass
+
+	match = re.search(r"retry in (\d+(?:\.\d+)?)s", _error_message(response), re.IGNORECASE)
+	if match:
+		return max(1, int(float(match.group(1))))
+	return None
+
+
+def _call_chat_completions(base_url, api_key, model, messages, tools=TOOL_SCHEMAS, retries_left=2):
+	import time
+
+	import requests
+
+	url = base_url.rstrip("/") + "/chat/completions"
+	headers = {"Content-Type": "application/json"}
+	if api_key:
+		headers["Authorization"] = f"Bearer {api_key}"
+
+	payload = {"model": model, "messages": messages}
+	if tools:
+		payload["tools"] = tools
+
+	try:
+		response = requests.post(
+			url,
+			headers=headers,
+			json=payload,
+			timeout=REQUEST_TIMEOUT_SECONDS,
+		)
+	except requests.exceptions.RequestException as e:
+		raise AssistantConfigError(
+			_("Could not reach the AI provider at the configured Base URL.")
+		) from e
+
+	if response.status_code in (401, 403):
+		raise AssistantConfigError(
+			_("The AI provider rejected the request - the API Key is missing or incorrect.")
+		)
+	if response.status_code == 404:
+		raise AssistantConfigError(
+			_("The AI provider could not find that Model or Base URL - double-check both in Settings.")
+		)
+	if response.status_code == 429:
+		# Free tiers commonly cap requests-per-minute - some providers (e.g.
+		# Groq) clear within a couple seconds, others (e.g. Gemini's free
+		# tier, capped at 20 req/min) tell us to wait a full 30-60s. Only
+		# retry inline when the provider says the wait is short enough to
+		# still land within the request timeout - otherwise fail fast with
+		# the real wait time instead of hanging and still failing.
+		wait = _retry_after_seconds(response)
+		if retries_left > 0 and (wait or 3) <= 10:
+			time.sleep(wait or 3)
+			return _call_chat_completions(base_url, api_key, model, messages, tools=tools, retries_left=retries_left - 1)
+		if wait:
+			raise AssistantRateLimitedError(
+				_("The AI provider is temporarily rate-limiting requests. Please wait about {0} seconds and try again.").format(wait)
+			)
+		raise AssistantRateLimitedError(
+			_("The AI provider is temporarily rate-limiting requests. Please wait a minute and try again.")
+		)
+	if response.status_code in (500, 502, 503, 504):
+		# Transient provider-side outage/overload, not something an admin
+		# can fix in Settings - a short wait and retry clears most of these.
+		if retries_left > 0:
+			time.sleep(3)
+			return _call_chat_completions(base_url, api_key, model, messages, tools=tools, retries_left=retries_left - 1)
+		raise AssistantConfigError(
+			_("The AI provider is temporarily unavailable. Please try again in a moment.")
+		)
+	if response.status_code == 400 and _is_auth_error_body(response):
+		raise AssistantConfigError(
+			_("The AI provider rejected the request - the API Key is missing or incorrect.")
+		)
+	response.raise_for_status()
+	return response.json()
+
+
+def _execute_tool_call(tool_call):
+	"""Run one tool call. Returns the tool_result (a plain dict, {"error": ...}
+	on failure instead of a fatal exception) to send back to the model."""
+	name = tool_call["function"]["name"]
+	try:
+		args = json.loads(tool_call["function"].get("arguments") or "{}")
+	except (TypeError, ValueError):
+		return {"error": "Could not parse arguments for {0}".format(name)}
+
+	func = TOOL_FUNCTIONS.get(name)
+	if not func:
+		return {"error": "Unknown tool: {0}".format(name)}
+
+	try:
+		return func(**args)
+	except (frappe.ValidationError, frappe.PermissionError, frappe.MandatoryError) as e:
+		return {"error": str(e)}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "AI Assistant tool execution error")
+		return {"error": "Something went wrong completing that action."}
+
+
+@frappe.whitelist()
+def test_connection(base_url=None, model=None, api_key=None):
+	"""Admin-only "Test Connection" button on Master Settings. Tests the
+	values currently in the form (not yet saved) so an admin can check
+	Base URL/Model/API Key before committing them. If the API Key field
+	comes through masked (Frappe sends back asterisks for an unchanged
+	Password field instead of the real value), falls back to the already
+	-saved key so re-testing an unedited key still works. Sends no tool
+	schemas - this only proves the endpoint/model/key are reachable and
+	valid, not that tool-calling itself works."""
+	if not {"Administrator", "System Manager"} & set(frappe.get_roles()):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	settings = frappe.get_single("Master Settings")
+	base_url = (base_url or settings.ai_api_base_url or "").strip()
+	model = (model or settings.ai_model or "").strip()
+	if not api_key or set(api_key) == {"*"}:
+		api_key = settings.get_password("ai_api_key", raise_exception=False)
+
+	if not base_url or not model:
+		return {"ok": False, "message": _("Base URL and Model are both required.")}
+
+	try:
+		data = _call_chat_completions(
+			base_url,
+			api_key,
+			model,
+			[{"role": "user", "content": "Reply with the single word: OK"}],
+			tools=None,
+		)
+		reply = ((data.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+		return {
+			"ok": True,
+			"message": _("Connected successfully. Sample reply: {0}").format((reply or "").strip()[:200]),
+		}
+	except (AssistantConfigError, AssistantRateLimitedError) as e:
+		return {"ok": False, "message": str(e)}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "AI Assistant connection test failed")
+		return {"ok": False, "message": _("Unexpected error: {0}").format(str(e))}
+
+
+@frappe.whitelist()
+def send_message(messages, message):
+	"""messages: prior conversation as a JSON list of {role, content} dicts
+	(frontend-owned, no server-side session). message: the new user text.
+	Returns {reply, messages}."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	settings = frappe.get_single("Master Settings")
+	if not settings.ai_assistant_enabled:
+		frappe.throw(_("The AI assistant is currently turned off."), frappe.ValidationError)
+
+	_check_and_increment_rate_limit(settings)
+
+	base_url, api_key, model = _get_ai_credentials(settings)
+	if not base_url or not model:
+		frappe.throw(_("The AI assistant is not fully configured yet. Please contact an admin."))
+
+	if isinstance(messages, str):
+		messages = json.loads(messages) if messages else []
+	messages = list(messages or [])
+	# Cap replayed history so cost/latency stay bounded regardless of how
+	# long the conversation has run - keep only the most recent turns.
+	if len(messages) > MAX_HISTORY_MESSAGES:
+		messages = messages[-MAX_HISTORY_MESSAGES:]
+
+	messages.append({"role": "user", "content": message})
+
+	bot_name = settings.ai_bot_name or "Assistant"
+	system_prompt = _build_system_prompt(bot_name)
+	api_messages = [{"role": "system", "content": system_prompt}] + messages
+
+	# Collects every file_url a tool call produces this turn (currently only
+	# export_to_excel returns one) so the frontend can render a real download
+	# link alongside the model's own prose reply - relying on the model to
+	# faithfully reproduce a raw URL inside its own generated text would be
+	# fragile (it could paraphrase, truncate, or omit it entirely), so this
+	# is collected directly from the tool result instead.
+	attachments = []
+
+	try:
+		for _iteration in range(MAX_TOOL_ITERATIONS):
+			data = _call_chat_completions(base_url, api_key, model, api_messages)
+			choice = data["choices"][0]["message"]
+			tool_calls = choice.get("tool_calls")
+
+			if not tool_calls:
+				reply = choice.get("content") or ""
+				messages.append({"role": "assistant", "content": reply})
+				return {"reply": reply, "messages": messages, "attachments": attachments}
+
+			api_messages.append(choice)
+			for tool_call in tool_calls:
+				result = _execute_tool_call(tool_call)
+				if isinstance(result, dict) and result.get("file_url"):
+					attachments.append({
+						"file_url": result["file_url"],
+						"file_name": result.get("file_name") or "export.xlsx",
+					})
+				api_messages.append({
+					"role": "tool",
+					"tool_call_id": tool_call.get("id"),
+					"content": json.dumps(result, default=str),
+				})
+
+		reply = _("I wasn't able to finish that - could you try rephrasing or breaking it into smaller steps?")
+		messages.append({"role": "assistant", "content": reply})
+		return {"reply": reply, "messages": messages, "attachments": attachments}
+
+	except frappe.ValidationError:
+		raise
+	except AssistantConfigError as e:
+		# Not a code bug - the provider itself rejected the request for a
+		# reason an admin can fix (bad key, wrong model/URL). Surface the
+		# specific reason so whoever's testing it in Settings isn't left
+		# guessing from a generic "something went wrong".
+		is_admin = bool({"Administrator", "System Manager"} & set(frappe.get_roles()))
+		reply = str(e) if is_admin else _(
+			"The assistant isn't set up correctly yet. Please contact an admin."
+		)
+		messages.append({"role": "assistant", "content": reply})
+		return {"reply": reply, "messages": messages}
+	except AssistantRateLimitedError as e:
+		# Also not a code bug - the provider's own (usually free-tier)
+		# rate limit, not this app's daily cap. Same message for everyone,
+		# since "wait a minute" applies regardless of role.
+		reply = str(e)
+		messages.append({"role": "assistant", "content": reply})
+		return {"reply": reply, "messages": messages}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "AI Assistant request failed")
+		reply = _("Something went wrong reaching the assistant. Please try again in a moment.")
+		messages.append({"role": "assistant", "content": reply})
+		return {"reply": reply, "messages": messages}

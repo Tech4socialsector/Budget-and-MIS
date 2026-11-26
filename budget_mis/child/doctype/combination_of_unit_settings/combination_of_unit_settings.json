@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-04-09 10:09:24.533826",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "table_name",
+  "sequence_id",
+  "is_this_sub_item",
+  "hide_number"
+ ],
+ "fields": [
+  {
+   "fieldname": "table_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Table name",
+   "options": "Table Name"
+  },
+  {
+   "fieldname": "sequence_id",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sequence id"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_this_sub_item",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is this sub item?"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_number",
+   "fieldtype": "Check",
+   "label": "Hide number?"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-16 10:58:40.721814",
+ "modified_by": "Administrator",
+ "module": "Child",
+ "name": "Combination of unit settings",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

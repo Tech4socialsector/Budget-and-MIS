@@ -1,0 +1,232 @@
+<!--
+  Vue port of the legacy "Budget Import Template" Desk Page
+  (budget_mis/main/page/import_template/import_template.js, its one live
+  on_page_load implementation at the end of that 11k-line file - everything
+  above it is commented-out history, not behavior to replicate).
+
+  Same data flow as the legacy page: get_user_mappings returns a flat list
+  of {full_name, user, unit, cost_center, location_code, ...} rows; this
+  groups them by `user` (one card per user, admin/Finance MIS Admin sees
+  everyone's, anyone else sees only their own - mirrors
+  is_import_template_admin), and each card's Download button either
+  generates the full template (entity_data: null) or, once rows are ticked,
+  routes through a mandatory review-and-confirm step before generating a
+  filtered one (entity_data: JSON.stringify(selectedRows)).
+
+  Deliberately fixed two legacy bugs while porting (see
+  data/budgetImportTemplate.js's own header comment): the download-polling
+  loop now times out instead of polling forever, and a JSON response is
+  only treated as "still generating" when it actually says so, rather than
+  swallowing any JSON body (including a real error) as "processing."
+-->
+<template>
+  <AppLayout>
+    <div class="flex flex-col gap-4">
+      <div>
+        <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Budget Import Template</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Download a Finance Budget import template for your allocated units, cost centers and location codes.</p>
+      </div>
+
+      <!-- Global admin search -->
+      <div v-if="isAdmin && userGroups.length" class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/60">
+        <FeatherIcon name="users" class="h-4 w-4 flex-shrink-0 text-gray-400" />
+        <FormControl
+          type="text"
+          v-model="adminSearch"
+          placeholder="Search by name or email..."
+          class="fc-search-input"
+        />
+        <span class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+          {{ visibleGroups.length }} user{{ visibleGroups.length === 1 ? '' : 's' }} found
+        </span>
+      </div>
+
+      <div v-if="loading" class="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <AppLoader label="Loading Data..." />
+      </div>
+      <!-- A download-flow error (startDownload's catch block) must show up
+      even once userGroups has already loaded and the cards below are
+      rendering - it used to be gated behind this same v-if/v-else-if chain
+      as the "Loading Data" and "No Data Found" states, so once cards were
+      showing, this branch could never be reached and a download failure
+      (e.g. the polling timeout, a download-failed HTTP error) was silently
+      swallowed with no visible feedback at all. Now always shown above the
+      cards, independent of loading/userGroups state, and dismissible so it
+      doesn't linger after the user retries successfully. -->
+      <div v-if="error" class="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
+        <ErrorMessage :message="error" />
+        <button
+          class="flex-shrink-0 text-xs font-medium text-red-700 underline hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+          @click="error = null"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div v-if="!loading && !userGroups.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+        No Data Found
+      </div>
+
+      <div v-if="!loading && userGroups.length" class="flex flex-col gap-4">
+        <UserTemplateCard
+          v-for="group in visibleGroups"
+          :key="group.email"
+          :ref="(el) => setCardRef(group.email, el)"
+          :user="group"
+          :collapsible="isAdmin"
+          :start-expanded="!isAdmin"
+          :downloading="downloadingEmail === group.email"
+          @download="onDownloadRequest"
+        />
+      </div>
+    </div>
+
+    <ReviewSelectionModal
+      v-model="reviewOpen"
+      :rows="(pendingSelection?.isFullDownload ? pendingSelection?.user?.rows : pendingSelection?.selectedRows) || []"
+      @confirm="onReviewConfirmed"
+    />
+    <NoTemplateModal v-model="noTemplateOpen" :is-admin="isAdmin" />
+
+    <!-- Full-screen-feeling download progress overlay -->
+    <div
+      v-if="downloadingEmail"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    >
+      <div class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
+        <AppLoader :label="progressLabel" variant="export" />
+      </div>
+    </div>
+  </AppLayout>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { ErrorMessage, FeatherIcon, FormControl } from 'frappe-ui'
+import AppLayout from '@/layouts/AppLayout.vue'
+import AppLoader from '@/components/AppLoader.vue'
+import UserTemplateCard from '@/components/budgetImportTemplate/UserTemplateCard.vue'
+import ReviewSelectionModal from '@/components/budgetImportTemplate/ReviewSelectionModal.vue'
+import NoTemplateModal from '@/components/budgetImportTemplate/NoTemplateModal.vue'
+import { call } from '@/data/decrypt'
+import { session } from '@/data/session'
+import { setPageTitle } from '@/data/pageTitle'
+import { hasImportTemplateLinked, generateAndDownloadTemplate } from '@/data/budgetImportTemplate'
+
+onMounted(() => {
+  setPageTitle('Budget Import Template')
+  loadData()
+})
+
+const loading = ref(false)
+const error = ref(null)
+const isAdmin = ref(false)
+const rawRows = ref([])
+const adminSearch = ref('')
+
+async function loadData() {
+  loading.value = true
+  error.value = null
+  try {
+    const [admin, rows] = await Promise.all([
+      call('budget_mis.api.budget_import_template.is_import_template_admin'),
+      call('budget_mis.api.filter_options.get_user_mappings'),
+    ])
+    isAdmin.value = Boolean(admin)
+    rawRows.value = rows || []
+  } catch (e) {
+    error.value = e?.messages?.[0] || e?.message || 'Could not load data. Please try again.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Group the flat row list by user (email), same shape the legacy page
+// builds client-side - one card per user, each carrying its own rows.
+const userGroups = computed(() => {
+  const groups = new Map()
+  for (const row of rawRows.value) {
+    if (!groups.has(row.user)) {
+      groups.set(row.user, { email: row.user, user_fullname: row.full_name || '', rows: [] })
+    }
+    groups.get(row.user).rows.push(row)
+  }
+  return Array.from(groups.values())
+})
+
+const visibleGroups = computed(() => {
+  const q = adminSearch.value.trim().toLowerCase()
+  if (!q) return userGroups.value
+  return userGroups.value.filter(
+    (g) => g.email.toLowerCase().includes(q) || (g.user_fullname || '').toLowerCase().includes(q)
+  )
+})
+
+// --- Download flow ---------------------------------------------------
+
+const reviewOpen = ref(false)
+const noTemplateOpen = ref(false)
+const pendingSelection = ref(null) // { user, selectedRows }
+const downloadingEmail = ref('')
+const progressStage = ref('starting')
+const cardRefsByEmail = {}
+
+function setCardRef(email, el) {
+  if (el) cardRefsByEmail[email] = el
+  else delete cardRefsByEmail[email]
+}
+
+const progressLabel = computed(() => ({
+  starting: 'Checking your access...',
+  generating: 'Generating your template...',
+  waiting: 'Still generating, please wait...',
+  ready: 'Preparing file...',
+}[progressStage.value] || 'Generating your template...'))
+
+// "Download all" (no rows ticked) now goes through the same mandatory
+// review step as "Download selected" - previously it skipped straight to
+// startDownload(), so a user who meant to download everything never saw
+// the same "note these down to avoid duplicate imports" checkpoint a
+// partial download already required. The full row list stands in for
+// "selectedRows" here purely for the review dialog's own display; the
+// actual download call below still distinguishes the two (entityData is
+// only set when the user genuinely ticked specific rows).
+async function onDownloadRequest({ user, selectedRows }) {
+  pendingSelection.value = { user, selectedRows, isFullDownload: !selectedRows.length }
+  reviewOpen.value = true
+}
+
+async function onReviewConfirmed() {
+  if (!pendingSelection.value) return
+  const { user, selectedRows } = pendingSelection.value
+  pendingSelection.value = null
+  await startDownload(user, selectedRows)
+}
+
+async function startDownload(user, selectedRows) {
+  const targetEmail = user.email
+
+  const linked = await hasImportTemplateLinked(targetEmail).catch(() => false)
+  if (!linked) {
+    noTemplateOpen.value = true
+    return
+  }
+
+  downloadingEmail.value = targetEmail
+  progressStage.value = 'starting'
+  error.value = null
+  try {
+    await generateAndDownloadTemplate({
+      user: targetEmail,
+      entityData: selectedRows.length ? JSON.stringify(selectedRows) : null,
+      onProgress: (stage) => { progressStage.value = stage },
+    })
+    if (selectedRows.length) {
+      cardRefsByEmail[targetEmail]?.deselectAll?.()
+    }
+  } catch (e) {
+    error.value = e?.message || 'Could not download the template. Please try again.'
+  } finally {
+    downloadingEmail.value = ''
+  }
+}
+</script>

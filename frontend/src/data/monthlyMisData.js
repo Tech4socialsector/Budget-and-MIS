@@ -1,8 +1,7 @@
 // Shared helpers for the Monthly MIS page (src/pages/MonthlyMis.vue),
-// replicating the Desk page at
-// annual_budget/annual_budget_mis/page/monthly_mis/monthly_mis.js
-// (only lines 6230-7601 are live; earlier versions in that file are dead
-// code and were ignored).
+// replicating the legacy Frappe Desk page this was ported from (since
+// removed from the repo - it only ever existed as this page's porting
+// source, never referenced by any live code).
 //
 // All amounts here are in raw rupees, converted to Crores (divide by 1e7)
 // only at the point of rendering via CrCell - these helpers themselves
@@ -85,10 +84,29 @@ function extractConsolidated(e) {
   return r
 }
 
-// data -> { order: [label,...], rows: {label: zero8()}, subFlags: {label: bool}, grand: zero8() }
+// get_monthly_mis_break_up's result ({table_name: [entry, ...], ...}) ->
+// a flat array of entries for ONE table group, the shape buildMap/
+// buildExpRows/buildUnitDetailGrid expect (get_unit_wise_plan's native
+// shape, which only ever covered a single table_name_filter). Pulling from
+// a single named group (rather than concatenating every group in the dict)
+// matters because the dict here carries many unrelated table groups at
+// once (Pie Chart, Unit Wise Plan, Health's own breakdown, etc., pulled in
+// by the combined table_name_filter the page sends for the breakup
+// sections) - flattening all of them together would mix in labels that
+// don't belong to the Operating/Capital/Overall Foundation tables at all.
+// That table's own "CONSOLIDATED TOTAL" entry is dropped rather than kept -
+// buildMap/buildExpRows already skip sequence_id === 9999 and fall back to
+// summing non-sub-item rows themselves.
+export function flattenBreakup(breakupDict, tableName) {
+  const entries = breakupDict?.[tableName]
+  if (!Array.isArray(entries)) return []
+  return entries.filter((e) => e.sequence_id !== 9999 && e.settings_doc !== 'CONSOLIDATED')
+}
+
+// data -> { order: [label,...], rows: {label: zero8()}, subFlags: {label: bool}, hideFlags: {label: bool}, grand: zero8() }
 export function buildMap(data) {
   const sorted = [...(data || [])].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
-  const rows = {}, subFlags = {}, order = []
+  const rows = {}, subFlags = {}, hideFlags = {}, order = []
   let grand = null
   for (const e of sorted) {
     const tbl = (e.table_name || '').toUpperCase()
@@ -97,13 +115,14 @@ export function buildMap(data) {
     if (!lbl) continue
     rows[lbl] = extractRow(e)
     subFlags[lbl] = e.is_this_sub_item === 1
+    hideFlags[lbl] = Boolean(e.hide_number)
     order.push(lbl)
   }
   if (!grand) {
     grand = zero8()
     for (const l of order) if (!subFlags[l]) grand = addZ(grand, rows[l])
   }
-  return { order, rows, subFlags, grand }
+  return { order, rows, subFlags, hideFlags, grand }
 }
 
 // -------------------------------------------------------------------------
@@ -118,23 +137,48 @@ export function buildConsolidatedRows(cm, pm) {
   for (const l of pm.order) if (!allLabels.includes(l)) allLabels.push(l)
   const rows = []
   const cTot = { b: 0, a: 0 }, pTot = { b: 0, a: 0 }
+  const cCov = { b: 0, a: 0 }, pCov = { b: 0, a: 0 }
   for (const lbl of allLabels) {
     const isSub = cm.subFlags[lbl] || pm.subFlags[lbl]
+    const hideNumber = cm.hideFlags[lbl] || pm.hideFlags[lbl] || false
     const cv = cm.rows[lbl] || zero8()
     const pv = pm.rows[lbl] || zero8()
     const cb = cr(cv.total_b), ca = cr(cv.total_a), pb = cr(pv.total_b), pa = cr(pv.total_a)
-    if (!isSub) { cTot.b += cb; cTot.a += ca; pTot.b += pb; pTot.a += pa }
-    rows.push({ label: lbl, isSub, cb, ca, pb, pa })
+    // Same Total/Covid-19/Grand Total split as buildExpTotals above and
+    // the export's write_main_section - Covid-19 is excluded from Total
+    // and carried into its own Grand Total instead of being folded in.
+    // A hideNumber row is excluded from both Total and Grand Total - the
+    // backend now always returns this row's REAL figures (not pre-zeroed,
+    // so the Operating Expenses Breakdown cards built from the same raw
+    // data still show real numbers - see buildUnitDetailGrid, which never
+    // reads hide_number at all), so this table's own totals must exclude
+    // it explicitly or a "hidden" row's real amount would silently leak
+    // back into Total/Grand Total despite its own cells rendering blank.
+    if (!isSub && !hideNumber) {
+      if (normName(lbl).includes('COVID')) {
+        cCov.b += cb; cCov.a += ca; pCov.b += pb; pCov.a += pa
+      } else {
+        cTot.b += cb; cTot.a += ca; pTot.b += pb; pTot.a += pa
+      }
+    }
+    rows.push({ label: lbl, isSub, hideNumber, cb, ca, pb, pa })
   }
-  return { rows, total: { cb: cTot.b, ca: cTot.a, pb: pTot.b, pa: pTot.a } }
+  return {
+    rows,
+    total: { cb: cTot.b, ca: cTot.a, pb: pTot.b, pa: pTot.a },
+    grand: {
+      cb: cTot.b + cCov.b, ca: cTot.a + cCov.a,
+      pb: pTot.b + pCov.b, pa: pTot.a + pCov.a,
+    },
+  }
 }
 
 // -------------------------------------------------------------------------
 // Operating / Capital Expense tables - mirrors extractSection/buildExpRows.
 // Values already Cr (divide by 1e7 at extraction, like the Desk JS does).
 // -------------------------------------------------------------------------
-export const OPEX_NAMES = 'opex'
-export const CAPEX_NAMES = 'capex'
+const OPEX_NAMES = 'opex'
+const CAPEX_NAMES = 'capex'
 
 function extractSection(entry, kind) {
   const r = { ob: 0, cb: 0, vb: 0, tb: 0, oa: 0, ca: 0, va: 0, ta: 0 }
@@ -158,7 +202,7 @@ function zeroExp() { return { ob: 0, cb: 0, vb: 0, tb: 0, oa: 0, ca: 0, va: 0, t
 export function buildExpRows(curData, prevData, kind) {
   function idx(data) {
     const sorted = [...(data || [])].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
-    const map = {}, subFlags = {}
+    const map = {}, subFlags = {}, hideFlags = {}
     for (const e of sorted) {
       const tbl = (e.table_name || '').toUpperCase()
       if (e.sequence_id === 9999 || tbl === 'CONSOLIDATED') continue
@@ -166,8 +210,9 @@ export function buildExpRows(curData, prevData, kind) {
       if (!lbl) continue
       map[lbl] = extractSection(e, kind)
       subFlags[lbl] = e.is_this_sub_item === 1
+      hideFlags[lbl] = Boolean(e.hide_number)
     }
-    return { map, subFlags }
+    return { map, subFlags, hideFlags }
   }
   const cm = idx(curData), pm = idx(prevData)
   const rows = [], seen = {}
@@ -178,7 +223,18 @@ export function buildExpRows(curData, prevData, kind) {
     const lbl = (e.label || '').trim()
     if (!lbl || seen[lbl]) continue
     seen[lbl] = true
-    rows.push({ label: lbl, isSub: cm.subFlags[lbl] || false, cur: cm.map[lbl] || zeroExp(), prev: pm.map[lbl] || zeroExp() })
+    rows.push({
+      label: lbl,
+      isSub: cm.subFlags[lbl] || false,
+      // "Hide number?" on this combination's own Combination of unit
+      // settings row - cur/prev already come back blanked (0) from the
+      // backend (blank_actuals()), but the table components still need
+      // this flag to render the cells fully empty instead of CrCell's
+      // usual "-" placeholder for a genuine zero.
+      hideNumber: cm.hideFlags[lbl] || pm.hideFlags[lbl] || false,
+      cur: cm.map[lbl] || zeroExp(),
+      prev: pm.map[lbl] || zeroExp(),
+    })
   }
   const prevSorted = [...(prevData || [])].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
   for (const e of prevSorted) {
@@ -187,21 +243,49 @@ export function buildExpRows(curData, prevData, kind) {
     const lbl = (e.label || '').trim()
     if (!lbl || seen[lbl]) continue
     seen[lbl] = true
-    rows.push({ label: lbl, isSub: pm.subFlags[lbl] || false, cur: zeroExp(), prev: pm.map[lbl] || zeroExp() })
+    rows.push({
+      label: lbl,
+      isSub: pm.subFlags[lbl] || false,
+      hideNumber: pm.hideFlags[lbl] || false,
+      cur: zeroExp(),
+      prev: pm.map[lbl] || zeroExp(),
+    })
   }
   return rows
 }
 
 export function buildExpTotals(rows) {
   let tCB = 0, tCA = 0, tPB = 0, tPA = 0
+  let cCB = 0, cCA = 0, cPB = 0, cPA = 0
   for (const r of rows) {
     if (r.isSub) continue
+    // A hideNumber row's real figures (the backend no longer pre-zeroes
+    // them - see monthly_mis.py's get_monthly_mis_break_up) must be left
+    // out of both Total and Grand Total here, same as Covid-19 is kept
+    // out of Total below - otherwise a "hidden" row's real amount would
+    // silently reappear in the totals even though its own cells render
+    // blank (ExpenseTable.vue checks r.hideNumber to blank them).
+    if (r.hideNumber) continue
+    // Covid-19 is its own top-level row (same shape as any other unit -
+    // see buildExpRows above), but it's excluded from "Total" and surfaced
+    // separately so the page matches the export's Total/Covid-19/Grand
+    // Total layout (monthly_mis_export.py's write_main_section) instead of
+    // silently folding Covid-19 into "Total" with no Grand Total at all.
+    if (normName(r.label).includes('COVID')) {
+      cCB += r.cur.tb || 0; cCA += r.cur.ta || 0
+      cPB += r.prev.tb || 0; cPA += r.prev.ta || 0
+      continue
+    }
     tCB += r.cur.tb || 0
     tCA += r.cur.ta || 0
     tPB += r.prev.tb || 0
     tPA += r.prev.ta || 0
   }
-  return { tb: tCB, ta: tCA, pb: tPB, pa: tPA }
+  return {
+    tb: tCB, ta: tCA, pb: tPB, pa: tPA,
+    covid: { tb: cCB, ta: cCA, pb: cPB, pa: cPA },
+    grand: { tb: tCB + cCB, ta: tCA + cCA, pb: tPB + cPB, pa: tPA + cPA },
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -222,7 +306,7 @@ export function findEntries(breakupData, key) {
   return []
 }
 
-export function exAct(actuals) {
+function exAct(actuals) {
   let ob = 0, oa = 0, cb = 0, ca = 0
   const sorted = [...(actuals || [])].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0))
   for (const sec of sorted) {
@@ -269,7 +353,17 @@ export function buildBreakupSections(breakupData, keys) {
       if (!suLabel || suLabel === 'CONSOLIDATED TOTAL') continue
       const v = exAct(su.actuals || [])
       secTot = addExAct(secTot, v)
-      rows.push({ label: suLabel, v })
+      // entity carries this row's own actuals tree directly (su itself),
+      // so drill-down can read it straight from the row instead of
+      // re-finding it elsewhere by label - the same label (e.g. a state
+      // name like "Karnataka") can legitimately appear under several
+      // different sections/tables (Education, Health, etc.), each a
+      // genuinely different combination with different actuals, so a
+      // label-only lookup (MonthlyMis.vue's old findByLabel/breakupEntities
+      // flow) could silently resolve to the WRONG section's entity - a
+      // real, confirmed bug where clicking one section's row opened a
+      // drill-down showing a different section's numbers.
+      rows.push({ label: suLabel, v, isSub: su.is_this_sub_item === 1, entity: su })
     }
     grand = addExAct(grand, secTot)
     return { label: sec.label, rows, subtotal: secTot }
@@ -282,11 +376,11 @@ export function buildBreakupSections(breakupData, keys) {
 // the Grants & Donations special-case subtraction under PROGRAM EXPENSES.
 // Values already Cr.
 // -------------------------------------------------------------------------
-export function isGrantsItem(name) {
+function isGrantsItem(name) {
   const n = (name || '').trim().toUpperCase().replace(/\s+/g, ' ')
   return n === 'GRANTS & DONATIONS' || n === 'GRANTS AND DONATIONS' || n === 'GRANTS'
 }
-export function isProgHead(cat) {
+function isProgHead(cat) {
   const c = (cat || '').trim().toUpperCase().replace(/\s+/g, ' ')
   return c === 'PROGRAM EXPENSES' || c === 'PROGRAM  EXPENSES'
 }
@@ -297,7 +391,7 @@ function itemVal(it, field) {
   return parseFloat(it.total_posted_amt ?? it.total_posted_amt_ytd ?? it.actual ?? 0) / 10000000
 }
 
-// Builds prevLookup: { unitLabel: { subHeadName: {b,a,items:[{name,b,a}]}, __opex_total: {b,a} } }
+// Builds prevLookup: { unitLabel: { subHeadName: {b,a,items:[{name,b,a}]}, __opex_total: {b,a}, __covid: {b,a} } }
 function buildPrevLookup(prevData) {
   const prevLookup = {}
   for (const entry of prevData || []) {
@@ -305,6 +399,7 @@ function buildPrevLookup(prevData) {
     if (!lbl) continue
     const pm = {}
     const opexTot = { b: 0, a: 0 }
+    const covid = { b: 0, a: 0 }
     for (const sec of entry.actuals || []) {
       const nm = normName(sec.name)
       if (nm === 'OPERATING EXPENSES' || nm === 'OPERATING  EXPENSES') {
@@ -325,11 +420,14 @@ function buildPrevLookup(prevData) {
           }
         }
       } else if (nm.includes('COVID')) {
-        opexTot.b += parseFloat(sec.ytd || 0) / 10000000
-        opexTot.a += parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        const cb = parseFloat(sec.ytd || 0) / 10000000
+        const ca = parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        opexTot.b += cb; opexTot.a += ca
+        covid.b += cb; covid.a += ca
       }
     }
     pm.__opex_total = opexTot
+    pm.__covid = covid
     prevLookup[lbl] = pm
   }
   return prevLookup
@@ -345,7 +443,14 @@ function getGrants(map, cat) {
 // the ordered list of sub_head/category names; curMap/prevMap map
 // category -> {b,a,items}; secTotCur/secTotPrev are the section-level
 // (Operating Expenses + Covid) totals used for the card's Total row.
-function buildCard(cardTitle, catOrder, curMap, prevMap, isSub, isTotal, secTotCur, secTotPrev) {
+// curCovid/prevCovid are that same section's Covid-19 component on its
+// own (same figures already folded into secTotCur/secTotPrev, carried
+// here separately so a non-zero Covid amount can get its own row - this
+// card previously had no Covid-19 line at all, same gap monthly_mis_export.py's
+// write_unit_card/add_card_table (the Excel/PPTX equivalent of this card)
+// still has, unlike the main Operating/Capital/Overall tables, which
+// already show Covid-19 as its own row).
+function buildCard(cardTitle, catOrder, curMap, prevMap, isSub, isTotal, secTotCur, secTotPrev, curCovid, prevCovid) {
   const rows = []
   let tCB = secTotCur ? secTotCur.b : 0
   let tCA = secTotCur ? secTotCur.a : 0
@@ -382,6 +487,13 @@ function buildCard(cardTitle, catOrder, curMap, prevMap, isSub, isTotal, secTotC
     }
   }
 
+  const covCB = curCovid ? curCovid.b : 0, covCA = curCovid ? curCovid.a : 0
+  const covPB = prevCovid ? prevCovid.b : 0, covPA = prevCovid ? prevCovid.a : 0
+  if (covCB || covCA || covPB || covPA) {
+    if (computeTotal) { compCB += covCB; compCA += covCA; compPB += covPB; compPA += covPA }
+    rows.push({ label: 'Covid-19', cb: covCB, ca: covCA, pb: covPB, pa: covPA })
+  }
+
   if (computeTotal) { tCB = compCB; tCA = compCA; tPB = compPB; tPA = compPA }
 
   return {
@@ -404,6 +516,7 @@ export function buildUnitDetailGrid(curData, prevData) {
   const allCatOrder = [], allCatSeen = {}
   const allCurMap = {}, allPrevMap = {}
   const allCurOpexTot = { b: 0, a: 0 }, allPrevOpexTot = { b: 0, a: 0 }
+  const allCurCovid = { b: 0, a: 0 }, allPrevCovid = { b: 0, a: 0 }
 
   for (const entry of sorted) {
     const tbl = (entry.table_name || '').toUpperCase()
@@ -433,15 +546,19 @@ export function buildUnitDetailGrid(curData, prevData) {
           }
         }
       } else if (nm.includes('COVID')) {
-        allCurOpexTot.b += parseFloat(sec.ytd || 0) / 10000000
-        allCurOpexTot.a += parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        const cb = parseFloat(sec.ytd || 0) / 10000000
+        const ca = parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        allCurOpexTot.b += cb; allCurOpexTot.a += ca
+        allCurCovid.b += cb; allCurCovid.a += ca
       }
     }
     const pm = prevLookup[unit] || {}
     allPrevOpexTot.b += (pm.__opex_total || { b: 0 }).b
     allPrevOpexTot.a += (pm.__opex_total || { a: 0 }).a
+    allPrevCovid.b += (pm.__covid || { b: 0 }).b
+    allPrevCovid.a += (pm.__covid || { a: 0 }).a
     for (const n of Object.keys(pm)) {
-      if (n === '__opex_total') continue
+      if (n === '__opex_total' || n === '__covid') continue
       if (!allCatSeen[n]) { allCatSeen[n] = true; allCatOrder.push(n); allCurMap[n] = { b: 0, a: 0, items: [] } }
       if (!allPrevMap[n]) allPrevMap[n] = { b: 0, a: 0, items: [] }
       allPrevMap[n].b += (pm[n] || { b: 0 }).b
@@ -455,7 +572,7 @@ export function buildUnitDetailGrid(curData, prevData) {
 
   const cards = []
   if (allCatOrder.length) {
-    cards.push(buildCard('Total Foundation', allCatOrder, allCurMap, allPrevMap, false, true, allCurOpexTot, allPrevOpexTot))
+    cards.push(buildCard('Total Foundation', allCatOrder, allCurMap, allPrevMap, false, true, allCurOpexTot, allPrevOpexTot, allCurCovid, allPrevCovid))
   }
 
   for (const entry of sorted) {
@@ -466,6 +583,7 @@ export function buildUnitDetailGrid(curData, prevData) {
 
     const curMap = {}, catOrder = [], catSeen = {}
     const curOpexTot = { b: 0, a: 0 }
+    const curCovid = { b: 0, a: 0 }
     for (const sec of entry.actuals || []) {
       const nm = normName(sec.name)
       if (nm === 'OPERATING EXPENSES' || nm === 'OPERATING  EXPENSES') {
@@ -479,20 +597,76 @@ export function buildUnitDetailGrid(curData, prevData) {
           if (!catSeen[n]) { catSeen[n] = true; catOrder.push(n) }
         }
       } else if (nm.includes('COVID')) {
-        curOpexTot.b += parseFloat(sec.ytd || 0) / 10000000
-        curOpexTot.a += parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        const cb = parseFloat(sec.ytd || 0) / 10000000
+        const ca = parseFloat(sec.total_posted_amt_ytd || 0) / 10000000
+        curOpexTot.b += cb; curOpexTot.a += ca
+        curCovid.b += cb; curCovid.a += ca
       }
     }
     const pm = prevLookup[unit] || {}
     const prevOpexTot = pm.__opex_total || { b: 0, a: 0 }
-    for (const n of Object.keys(pm)) { if (n !== '__opex_total' && !catSeen[n]) { catSeen[n] = true; catOrder.push(n) } }
+    const prevCovid = pm.__covid || { b: 0, a: 0 }
+    for (const n of Object.keys(pm)) { if (n !== '__opex_total' && n !== '__covid' && !catSeen[n]) { catSeen[n] = true; catOrder.push(n) } }
     if (!catOrder.length) continue
 
     const isSub = entry.is_this_sub_item === 1
     const pmClean = {}
-    for (const k of Object.keys(pm)) if (k !== '__opex_total') pmClean[k] = pm[k]
-    cards.push(buildCard(unit, catOrder, curMap, pmClean, isSub, false, curOpexTot, prevOpexTot))
+    for (const k of Object.keys(pm)) if (k !== '__opex_total' && k !== '__covid') pmClean[k] = pm[k]
+    cards.push(buildCard(unit, catOrder, curMap, pmClean, isSub, false, curOpexTot, prevOpexTot, curCovid, prevCovid))
   }
 
   return cards
+}
+
+// -------------------------------------------------------------------------
+// Drill-down tree adapter - converts a get_monthly_mis_drilldown_tree node
+// ({label, actuals, children: [...]}, recursively) into the shape
+// BudgetDrilldownModal.vue already knows how to walk (a `name`, `ytd`/
+// `total_posted_amt_ytd` for its own totals, and either `sub_heads`/`items`
+// for a line-item level or a generic `children` array for a hierarchy
+// level). Every node keeps its own `actuals` tree under `__lineItems` so
+// the modal's "View line items" action can show that node's head/sub-head/
+// item breakdown without navigating away from it.
+// -------------------------------------------------------------------------
+// kind: 'opex' | 'capex' | 'total' - which slice of this node's own heads
+// (CAPITAL EXPENSES / OPERATING EXPENSES / COVID SUPPORT, same real names
+// extractSection() above matches) to sum into the node's own ytd/
+// total_posted_amt_ytd. A GRAND TOTAL head is never present in a
+// get_monthly_mis_drilldown_tree node (unlike get_monthly_mis_break_up's
+// own entities, which append one) - consolidate_actuals (the backend
+// function that builds each tree node's `actuals`) only ever returns the
+// real heads, so summing them directly (rather than looking for a
+// GRAND TOTAL shortcut that will never be found here) is always correct
+// for kind='total'. 'opex' folds COVID SUPPORT in (matching
+// ExpenseTable.vue's own opex-table cell math, which is Opex+Covid), same
+// as extractSection(entry, 'opex')'s ob+vb; 'capex' never includes Covid.
+// Without this split, every drill-down (regardless of which table/column
+// was clicked) summed ALL heads together - a real, confirmed bug where
+// e.g. a Capital Expense table row's drill-down showed its
+// Opex+Capex+Covid combined total instead of just its own Capex figure.
+function actualsGrandTotal(actuals, kind = 'total') {
+  let ob = 0, oa = 0, cb = 0, ca = 0, vb = 0, va = 0
+  for (const h of actuals || []) {
+    const nm = normName(h.name)
+    const b = h.ytd || 0
+    const a = h.total_posted_amt_ytd || 0
+    if (nm === 'OPERATING EXPENSES' || nm === 'OPERATING  EXPENSES') { ob += b; oa += a }
+    else if (nm === 'CAPITAL EXPENSES' || nm === 'CAPITAL  EXPENSES') { cb += b; ca += a }
+    else if (nm.includes('COVID')) { vb += b; va += a }
+  }
+  if (kind === 'opex') return { ytd: ob + vb, total_posted_amt_ytd: oa + va }
+  if (kind === 'capex') return { ytd: cb, total_posted_amt_ytd: ca }
+  return { ytd: ob + cb + vb, total_posted_amt_ytd: oa + ca + va }
+}
+
+export function buildDrilldownNode(node, kind = 'total') {
+  if (!node) return null
+  const { ytd, total_posted_amt_ytd } = actualsGrandTotal(node.actuals, kind)
+  return {
+    name: node.label,
+    ytd,
+    total_posted_amt_ytd,
+    __lineItems: node.actuals || [],
+    children: (node.children || []).map((child) => buildDrilldownNode(child, kind)),
+  }
 }

@@ -1,0 +1,22 @@
+diff --git a/node_modules/frappe-ui/src/components/Select/Select.vue b/node_modules/frappe-ui/src/components/Select/Select.vue
+index e553c98..1a79dab 100644
+--- a/node_modules/frappe-ui/src/components/Select/Select.vue
++++ b/node_modules/frappe-ui/src/components/Select/Select.vue
+@@ -305,14 +305,14 @@ defineSlots<SelectSlots>()
+     <SelectPortal>
+       <SelectContent
+         data-slot="content"
+-        class="z-[100] origin-[var(--reka-select-content-transform-origin)]"
++        class="z-[100] max-h-[var(--reka-select-content-available-height)] origin-[var(--reka-select-content-transform-origin)]"
+       >
+         <div
+           data-slot="content-body"
+           :data-motion="contentMotion"
+-          class="overflow-hidden rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 will-change-[opacity,transform] origin-[var(--reka-select-content-transform-origin)]"
++          class="flex max-h-[inherit] flex-col overflow-hidden rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 will-change-[opacity,transform] origin-[var(--reka-select-content-transform-origin)]"
+         >
+-          <SelectViewport class="flex flex-col p-1">
++          <SelectViewport class="flex flex-col overflow-y-auto p-1">
+             <div
+               v-if="!selectOptions.length"
+               data-slot="empty"
