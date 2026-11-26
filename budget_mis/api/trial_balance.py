@@ -21,10 +21,12 @@ _PERIOD_MONTH_NAMES = {
 # Column order for the Trial Balance Check table, short code -> full
 # head/sub-head name shown as the column header, grouped under the same 2
 # main heads the real Expenses doctype uses: Capital Expenses stands alone
-# (no sub-heads), Operating Expenses has 6 real sub-heads. "Total Opex" sums
-# those 6 sub-head columns, "Grand Total" sums Capital Expenses + that Total
+# (no sub-heads), Operating Expenses has 7 real sub-heads (confirmed against
+# Budget vs Actuals' own drill-down, which shows Medical Expenses as a
+# sub-head of Operating Expenses alongside the other 6). "Total Opex" sums
+# those 7 sub-head columns, "Grand Total" sums Capital Expenses + that Total
 # Opex, both computed per row rather than read from raw data.
-OPEX_SUB_ROWS = ["prog", "prtnr", "ppl", "trv", "std", "oth opex"]
+OPEX_SUB_ROWS = ["prog", "prtnr", "ppl", "trv", "std", "oth opex", "medical"]
 CATEGORY_COLUMNS = ["capex", *OPEX_SUB_ROWS]
 CATEGORY_LABELS = {
     "capex": "Capital Expenses",
@@ -34,6 +36,7 @@ CATEGORY_LABELS = {
     "trv": "Travel Expenses",
     "std": "Student Support Expenses",
     "oth opex": "Other Operating Expenses",
+    "medical": "Medical Expenses",
 }
 
 # head_of_expense / sub_head_of_expense (as stored on the real Expenses
@@ -58,6 +61,7 @@ _SUB_HEAD_TO_CATEGORY = {
 }
 CATEGORY_SUB_HEAD_NAMES = {v: k for k, v in _SUB_HEAD_TO_CATEGORY.items()}
 CATEGORY_SUB_HEAD_NAMES["oth opex"] = "OTHER  OPERATING EXPENSES"
+CATEGORY_SUB_HEAD_NAMES["medical"] = "Medical Expenses"
 
 # Operating Expenses (the table column group) spans 2 real head_of_expense
 # values - OPERATING  EXPENSES (Program/Partner/People/Travel/Student
@@ -67,7 +71,7 @@ CATEGORY_SUB_HEAD_NAMES["oth opex"] = "OTHER  OPERATING EXPENSES"
 # as one of Operating Expenses' own sub-heads rather than a 3rd main head.
 MAIN_HEADS = [
     {"key": "capex", "label": "Capital Expenses", "head_names": ["CAPITAL  EXPENSES"], "columns": ["capex"]},
-    {"key": "opex", "label": "Operating Expenses", "head_names": ["OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES"], "columns": OPEX_SUB_ROWS},
+    {"key": "opex", "label": "Operating Expenses", "head_names": ["OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES", "Medical Expenses"], "columns": OPEX_SUB_ROWS},
 ]
 
 # Trial Balance Check is a System-Manager-only tab inside Monthly MIS -
@@ -589,7 +593,9 @@ def _category_for_expense(expense):
     head = (expense.head_of_expense or "").strip()
     sub_head = (expense.sub_head_of_expense or "").strip()
     category = _HEAD_TO_CATEGORY.get(head) or _SUB_HEAD_TO_CATEGORY.get(sub_head)
-    if not category and head in ("OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES"):
+    if not category and head == "Medical Expenses":
+        category = "medical"
+    elif not category and head in ("OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES"):
         category = "oth opex"
     return category
 
@@ -754,14 +760,18 @@ def _build_unit_drilldown_tree(unit_rows, gl_to_expense):
         seq = expense.sequence_id or 9999
         amount = r.get("amount") or 0
 
-        # "OTHER  OPERATING EXPENSES" is not its own top-level head - same
-        # _MOVE_UNDER_OPERATING rewrite budget_actuals_combined.py's own
-        # _build_expense_structure applies: it folds in as one of
-        # OPERATING  EXPENSES' own sub-heads (matching this table's own
-        # MAIN_HEADS grouping, which already shows both under one "Operating
-        # Expenses" column group) rather than appearing as a 3rd sibling
-        # head alongside Capital/Operating Expenses.
-        if head_name == "OTHER  OPERATING EXPENSES":
+        # "OTHER  OPERATING EXPENSES" and "Medical Expenses" are not their
+        # own top-level heads - same _MOVE_UNDER_OPERATING rewrite
+        # budget_actuals_combined.py's own _build_expense_structure applies
+        # (confirmed live: Budget vs Actuals' own drill-down shows Medical
+        # Expenses as a sub-head of Operating Expenses, alongside Program/
+        # Partner/People/Travel/Student Support/Other Operating). Both fold
+        # in as their own sub-head of OPERATING  EXPENSES rather than
+        # appearing as a 3rd/4th sibling head alongside Capital/Operating
+        # Expenses, matching Budget vs Actuals' exact grouping - this table's
+        # own drill-down tree must read the same as that one for the same
+        # unit's data.
+        if head_name in ("OTHER  OPERATING EXPENSES", "Medical Expenses"):
             sub_head_name = head_name
             head_name = "OPERATING  EXPENSES"
 
