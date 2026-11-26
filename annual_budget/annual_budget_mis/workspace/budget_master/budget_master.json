@@ -1,0 +1,192 @@
+{
+ "app": "annual_budget",
+ "charts": [],
+ "content": "[{\"id\":\"WcAhHuv7zD\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Budget Master</span>\",\"col\":12}},{\"id\":\"yt2p7f_FF_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Financial year list\",\"col\":3}},{\"id\":\"7MR8P9Vyjf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses\",\"col\":3}},{\"id\":\"FjiBKjc0tN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses Line Items\",\"col\":3}},{\"id\":\"bW8gGqSASH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"GL code\",\"col\":3}},{\"id\":\"IJC8Ov83Wi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Unit\",\"col\":3}},{\"id\":\"FuymfUtal7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location Code\",\"col\":3}},{\"id\":\"nwfveurDe2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Center\",\"col\":3}},{\"id\":\"RytaFwqMic\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Months List\",\"col\":3}},{\"id\":\"4oBT5NJyPd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"State\",\"col\":3}},{\"id\":\"I3XEWUFKE-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Name Unit Link\",\"col\":3}},{\"id\":\"clCbxrSnwa\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Location List\",\"col\":3}},{\"id\":\"oiDb17A_JX\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Settings</b></span>\",\"col\":12}},{\"id\":\"7YBjhSApyH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Master Settings\",\"col\":3}},{\"id\":\"TjOHRK3Bg1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Finance user access list \",\"col\":4}},{\"id\":\"cTGrM0z6fX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Import Templates\",\"col\":3}},{\"id\":\"0sh9uTzm1Y\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Table Name\",\"col\":3}},{\"id\":\"buYjgIhfvj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ERP Credentials\",\"col\":3}},{\"id\":\"rrXALwjDTA\",\"type\":\"paragraph\",\"data\":{\"text\":\"Flow settings\",\"col\":12}},{\"id\":\"mVu57ZvA6z\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Overview number cards settings\",\"col\":5}},{\"id\":\"8V5aQjppun\",\"type\":\"header\",\"data\":{\"text\":\"Headcount &amp; Adjustment<span class=\\\"h4\\\"><b></b></span>\",\"col\":12}},{\"id\":\"5qbkPtNVl0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Monthly Adjustment\",\"col\":4}},{\"id\":\"5Na9cj_bek\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Headcount\",\"col\":3}},{\"id\":\"-kaL37t6Z-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Grant Division Details\",\"col\":3}}]",
+ "creation": "2025-09-29 14:49:51.762325",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "setting-gear",
+ "idx": 3,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Budget Master",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-04-21 18:05:13.220063",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "Budget Master",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 2.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Monthly Adjustment",
+   "link_to": "Monthly Adjustment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Finance user access list ",
+   "link_to": "Finance user access",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Table Name",
+   "link_to": "Table Name",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Expenses Line Items",
+   "link_to": "Expenses Line Items",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Import Templates",
+   "link_to": "Import Templates",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Grant Division Details",
+   "link_to": "Grant Division Details",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Headcount",
+   "link_to": "Headcount",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Overview number cards settings",
+   "link_to": "Overview number cards settings",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "ERP Credentials",
+   "link_to": "ERP Credentials",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Location List",
+   "link_to": "Location List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Location Code",
+   "link_to": "Location Code",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Financial year list",
+   "link_to": "Financial Year List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "GL code",
+   "link_to": "GL code",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Months List",
+   "link_to": "Months List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "State",
+   "link_to": "State",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Master Settings",
+   "link_to": "Master Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Company Name Unit Link",
+   "link_to": "Operating Units",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Cost Center",
+   "link_to": "Cost Center",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Expenses",
+   "link_to": "Expenses",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Unit",
+   "link_to": "Unit",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Budget Master",
+ "type": "Workspace"
+}

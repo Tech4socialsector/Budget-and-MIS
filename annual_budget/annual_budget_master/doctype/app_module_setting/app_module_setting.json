@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "autoname": "field:module_name",
+ "creation": "2026-08-30 05:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "module_name",
+  "label",
+  "column_break_icon",
+  "icon",
+  "sort_order",
+  "section_break_doctypes",
+  "doctypes",
+  "section_break_roles",
+  "restrict_by_role",
+  "roles"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "description": "Internal identifier for this module, used as its record name. Not shown in the app.",
+   "fieldname": "module_name",
+   "fieldtype": "Data",
+   "label": "Module Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Display text shown as the sidebar section heading.",
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_icon",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Icon used as a fallback for sidebar items in this module that don't set their own.",
+   "fieldname": "icon",
+   "fieldtype": "Icon",
+   "in_list_view": 1,
+   "label": "Icon"
+  },
+  {
+   "default": "0",
+   "description": "Controls sidebar section order (lower first).",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Order"
+  },
+  {
+   "fieldname": "section_break_doctypes",
+   "fieldtype": "Section Break",
+   "label": "Sidebar DocTypes"
+  },
+  {
+   "description": "DocTypes shown as sidebar items under this module's section.",
+   "fieldname": "doctypes",
+   "fieldtype": "Table",
+   "label": "DocTypes",
+   "options": "App Module DocType Item"
+  },
+  {
+   "fieldname": "section_break_roles",
+   "fieldtype": "Section Break",
+   "label": "Visible To"
+  },
+  {
+   "default": "0",
+   "description": "When off, this module is visible to every logged-in user regardless of role.",
+   "fieldname": "restrict_by_role",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Restrict by Role"
+  },
+  {
+   "depends_on": "eval:doc.restrict_by_role",
+   "description": "Roles that can see this module in the Vue app.",
+   "fieldname": "roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Roles",
+   "options": "App Module Setting Role"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-30 05:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Master",
+ "name": "App Module Setting",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

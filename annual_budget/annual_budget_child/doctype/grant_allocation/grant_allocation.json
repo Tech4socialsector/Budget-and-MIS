@@ -1,0 +1,67 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-04-21 17:52:07.345543",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "operating_unit",
+  "regular_grants",
+  "operating_grants",
+  "strategic_grants",
+  "grant_total"
+ ],
+ "fields": [
+  {
+   "fieldname": "operating_unit",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Operating Unit",
+   "options": "Overview number cards settings"
+  },
+  {
+   "fieldname": "regular_grants",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Regular Grants"
+  },
+  {
+   "fieldname": "operating_grants",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Operating Grants"
+  },
+  {
+   "fieldname": "grant_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Grant Total"
+  },
+  {
+   "fieldname": "strategic_grants",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Strategic Grants"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-22 13:15:09.128117",
+ "modified_by": "Administrator",
+ "module": "Annual Budget Child",
+ "name": "Grant Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

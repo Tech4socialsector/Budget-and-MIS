@@ -1,0 +1,61 @@
+{
+ "app": "annual_budget",
+ "charts": [],
+ "content": "[{\"id\":\"akPmQNW4g0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Budget Dashboard\",\"col\":4}},{\"id\":\"og9RujeBaH\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Budget Summary\",\"col\":3}},{\"id\":\"_M0XN2MTvh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Budget vs Actuals\",\"col\":4}},{\"id\":\"dkdFfCTrN-\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Foundation - Consolidated Budget\",\"col\":5}}]",
+ "creation": "2026-01-16 09:51:33.563610",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "dashboard-list",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Budget Reports",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-03-25 18:02:36.524424",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "Budget Reports",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 3.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Dashboard",
+   "link_to": "consolidate-report",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Foundation - Consolidated Budget",
+   "link_to": "consolidated-budget",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget Summary",
+   "link_to": "budget-phase-sheet",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget vs Actuals",
+   "link_to": "budget-actuals-phase",
+   "type": "Page"
+  }
+ ],
+ "title": "Budget Reports",
+ "type": "Workspace"
+}

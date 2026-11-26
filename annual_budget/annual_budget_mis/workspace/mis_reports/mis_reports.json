@@ -1,0 +1,47 @@
+{
+ "app": "annual_budget",
+ "charts": [],
+ "content": "[{\"id\":\"Uiw2xFUDOw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">MIS Reports</span>\",\"col\":12}},{\"id\":\"s9UJV-Z1B8\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Board PPT  Report\",\"col\":4}},{\"id\":\"fkmPr3JA_o\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Budget vs Actual Phase sheet report\",\"col\":5}}]",
+ "creation": "2026-01-16 09:53:17.078042",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "aperture",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "MIS Reports",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-03-14 18:58:28.184838",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "MIS Reports",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 25.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Budget vs Actual Phase sheet report",
+   "link_to": "phase-sheet",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Board PPT  Report",
+   "link_to": "ppt_ytd",
+   "type": "Page"
+  }
+ ],
+ "title": "MIS Reports",
+ "type": "Workspace"
+}

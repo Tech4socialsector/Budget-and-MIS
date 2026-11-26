@@ -1,0 +1,19 @@
+{
+ "content": null,
+ "creation": "2026-02-02 17:35:15.885413",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-03-25 21:31:41.398152",
+ "modified_by": "Administrator",
+ "module": "Annual Budget MIS",
+ "name": "budget-actuals-phase",
+ "owner": "Administrator",
+ "page_name": "budget-actuals-phase",
+ "roles": [],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 1,
+ "title": "Budget vs Actuals"
+}
