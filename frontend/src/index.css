@@ -272,6 +272,18 @@ div.absolute.inset-x-0.bottom-6:has(> .selection-bar) {
   text-align: right;
   white-space: nowrap;
 }
+/* Trial Balance Check's own sub-head row (Program/Partner/People/Travel/
+   Student Support/Other Operating/Medical Expenses) - same blue as the
+   main-head row above it (.fc-th), per the business's own preference. */
+.fc-th-tb-sub {
+  background-color: #1e5fa8;
+  color: #fff;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-left: 1px solid #1a5493;
+  text-align: right;
+  white-space: nowrap;
+}
 .fc-td {
   /* padding-block + padding-inline-end only (never padding-left/
      padding-inline-start/the `padding` shorthand) - this rule comes after

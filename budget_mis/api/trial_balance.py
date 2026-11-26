@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils.caching import request_cache
 
 from budget_mis.utils import guest_api
 from budget_mis.api.response_crypto import is_direct_http_call
@@ -109,6 +110,7 @@ def get_trial_balance_from_erp(fiscal_year, accounting_period):
 
     rows = result.get("data", [])
     rows = rows + _get_opening_balance_rows(fiscal_year)
+    mis_actuals_by_unit, mis_category_totals_by_unit = _get_mis_totals_by_unit(fiscal_year, accounting_period)
 
     return {
         "status": "success",
@@ -116,8 +118,9 @@ def get_trial_balance_from_erp(fiscal_year, accounting_period):
         "accounting_period": accounting_period,
         "table": build_trial_balance_table(
             rows,
-            mis_actuals_by_unit=_get_mis_actuals_by_unit(fiscal_year, accounting_period),
+            mis_actuals_by_unit=mis_actuals_by_unit,
             adjustments_by_unit=_get_adjustments_by_unit(fiscal_year, accounting_period),
+            mis_category_totals_by_unit=mis_category_totals_by_unit,
         ),
     }
 
@@ -255,7 +258,7 @@ def get_adjustment_breakup(financial_year, month):
 # erp_actuals.py's group_actuals_ytd), shown as this table's own
 # "Adjustment" column. get_monthly_adjustments is called as an internal
 # Python call (is_direct_http_call is False here, same convention as
-# _get_mis_actuals_by_unit's own get_combined_actuals call), so it returns
+# _get_mis_totals_by_unit's own get_combined_actuals call), so it returns
 # every unit's adjustments unscoped rather than being re-scoped to this
 # request's own (non-existent) calling user.
 def _get_adjustments_by_unit(fiscal_year, accounting_period):
@@ -271,33 +274,40 @@ def _get_adjustments_by_unit(fiscal_year, accounting_period):
     return totals
 
 
-# Per-unit YTD actuals total from the SAME engine Monthly MIS's own
+# Per-unit MIS actuals from the SAME engine Monthly MIS's own
 # get_monthly_mis_break_up uses (group_actuals_ytd -> get_combined_actuals
-# per unit, summing each head's total_posted_amt_ytd) - shown as this
-# table's own "MIS" column so a System Manager can see the two figures
-# side by side instead of cross-checking them in two separate tabs. This
-# already includes Monthly Adjustment rows (merged in at the source by
-# erp_actuals._get_actuals_from_erp_month_wise_raw - `combined_rows =
-# erp_rows + frappe_rows`, frappe_rows from get_adjustments_month_wise -
-# before group_actuals_ytd ever sees it), so it is NOT added to
-# adjustments_by_unit's own figure a second time (that would double-count
-# the adjustment - confirmed as a real bug introduced and then reverted in
-# this exact spot). Only the actuals side is used here (financial_year/
-# month are still passed through to get_combined_actuals since it computes
-# budget totals too, but those are simply not read) - a unit with no
-# card-mapped actuals at all for this period is left out, matching Monthly
-# MIS's own behavior.
-def _get_mis_actuals_by_unit(fiscal_year, accounting_period):
+# per unit). Returns (flat_by_unit, categories_by_unit) from ONE pass, since
+# both come from the same per-unit structure and building it twice doubled
+# this step's cost. flat_by_unit already includes Monthly Adjustment rows
+# (merged in at the source by erp_actuals._get_actuals_from_erp_month_wise_raw
+# before group_actuals_ytd ever sees it), so it must NOT be added to
+# adjustments_by_unit again - that double-counts the adjustment.
+#
+# categories_by_unit is the per-CATEGORY_COLUMNS-code breakdown - the "MIS"
+# sub-column for every category column (Capex and each Opex sub-head),
+# shown alongside that category's own "TB" (Trial Balance) sub-column so
+# the two can be compared side by side per category. Reads the exact same
+# get_combined_actuals structure (head -> sub_heads -> items, each
+# carrying its own total_posted_amt_ytd) that structure already groups by
+# head_of_expense/sub_head_of_expense IDENTICALLY to how
+# _build_unit_drilldown_tree/_category_for_expense categorize a Trial
+# Balance GL code (confirmed live: get_combined_actuals already folds
+# "OTHER  OPERATING EXPENSES"/"Medical Expenses" under "OPERATING
+# EXPENSES" as their own sub-heads, the same canonical grouping this file
+# mirrors) - so matching by head/sub-head NAME here can never disagree
+# with how the TB side classifies the same category.
+def _get_mis_totals_by_unit(fiscal_year, accounting_period):
     financial_year = format_financial_year(fiscal_year)
     month = _PERIOD_MONTH_NAMES.get(int(accounting_period))
     if not month:
-        return {}
+        return {}, {}
 
     grouped_actuals_data = group_actuals_ytd(
         fiscal_year=fiscal_year, accounting_period=accounting_period
     ).get("data", [])
 
-    totals = {}
+    flat_by_unit = {}
+    totals_by_unit = {}
     for unit in frappe.get_all("Unit", pluck="name"):
         structure = get_combined_actuals(
             financial_year=financial_year,
@@ -305,8 +315,27 @@ def _get_mis_actuals_by_unit(fiscal_year, accounting_period):
             unit=unit,
             grouped_actuals_data=grouped_actuals_data,
         )
-        totals[unit] = sum(h.get("total_posted_amt_ytd") or 0 for h in structure)
-    return totals
+
+        category_totals = {}
+        for head in structure:
+            head_name = head.get("name")
+            if head_name == "CAPITAL  EXPENSES":
+                category_totals["capex"] = category_totals.get("capex", 0) + (head.get("total_posted_amt_ytd") or 0)
+                continue
+            for sub in head.get("sub_heads") or []:
+                sub_category = _SUB_HEAD_TO_CATEGORY.get(sub.get("name"))
+                if not sub_category:
+                    if sub.get("name") == "OTHER  OPERATING EXPENSES":
+                        sub_category = "oth opex"
+                    elif sub.get("name") == "Medical Expenses":
+                        sub_category = "medical"
+                if not sub_category:
+                    continue
+                category_totals[sub_category] = category_totals.get(sub_category, 0) + (sub.get("total_posted_amt_ytd") or 0)
+
+        totals_by_unit[unit] = category_totals
+        flat_by_unit[unit] = sum(h.get("total_posted_amt_ytd") or 0 for h in structure)
+    return flat_by_unit, totals_by_unit
 
 
 # Opening Balance docs are entered once per financial_year (e.g. "2026-27"),
@@ -425,11 +454,12 @@ def get_trial_balance_raw_from_erp(fiscal_year, accounting_period):
 # (head_of_expense -> sub_head_of_expense -> type_of_expense -> gl_code) via
 # `tree`, built from that unit's own GL lines, so clicking the unit opens
 # the shared BudgetDrilldownModal with no second round trip.
-def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_unit=None):
+def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_unit=None, mis_category_totals_by_unit=None):
     unit_labels = _get_unit_labels()
     gl_to_expense = _get_gl_code_expenses()
     mis_actuals_by_unit = mis_actuals_by_unit or {}
     adjustments_by_unit = adjustments_by_unit or {}
+    mis_category_totals_by_unit = mis_category_totals_by_unit or {}
 
     rows_by_unit = {}
     units_seen = []
@@ -475,13 +505,46 @@ def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_uni
         # a figure still needing a further subtraction).
         totals = {c: dc_totals[c]["debit"] - dc_totals[c]["credit"] for c in CATEGORY_COLUMNS}
 
-        values = {c: round(totals.get(c, 0), 2) or None for c in CATEGORY_COLUMNS}
-        total_opex = round(sum(totals.get(c, 0) for c in OPEX_SUB_ROWS), 2)
-        grand_total = round(totals.get("capex", 0) + total_opex, 2)
-        values["total opex"] = total_opex or None
-        values["grand total"] = grand_total or None
-        # "MIS" is the Actuals figure, same engine Monthly MIS itself uses
-        # (group_actuals_ytd -> get_combined_actuals) - NOT added to
+        # Each category column is now {"tb": <Trial Balance figure, same
+        # debit-credit[-opening] formula as before>, "mis": <that same
+        # category's own actuals-only figure>} rather than one plain
+        # number - lets a System Manager compare Trial Balance against MIS
+        # PER CATEGORY (Capex, Program, Partner, ...), not just once as a
+        # single flat per-unit total. The category's own MIS figure comes
+        # from _get_mis_totals_by_unit, matched by the exact same
+        # CATEGORY_COLUMNS code this file already uses everywhere else, so
+        # "tb" and "mis" for a given column are always directly comparable
+        # (same category, same unit, same period).
+        unit_mis_categories = mis_category_totals_by_unit.get(bu, {})
+        values = {}
+        for c in CATEGORY_COLUMNS:
+            tb_value = round(totals.get(c, 0), 2) or None
+            mis_value = round(unit_mis_categories[c], 2) if c in unit_mis_categories else None
+            values[c] = {"tb": tb_value, "mis": mis_value}
+
+        total_opex_tb = round(sum(totals.get(c, 0) for c in OPEX_SUB_ROWS), 2)
+        total_opex_mis = round(sum((unit_mis_categories.get(c) or 0) for c in OPEX_SUB_ROWS), 2) if unit_mis_categories else None
+        grand_total_tb = round(totals.get("capex", 0) + total_opex_tb, 2)
+        grand_total_mis = (
+            round((unit_mis_categories.get("capex") or 0) + (total_opex_mis or 0), 2)
+            if unit_mis_categories else None
+        )
+        values["total opex"] = {"tb": total_opex_tb or None, "mis": total_opex_mis or None}
+        # "grand total" (the "Total Trial Balance" column group) shows
+        # Total Trial Balance alongside Variance (TB - MIS), not raw MIS -
+        # the one column group where the business wants a direct TB-vs-MIS
+        # comparison figure instead of MIS's own number repeated.
+        grand_total_variance = (
+            round(grand_total_tb - grand_total_mis, 2) if grand_total_mis is not None else None
+        )
+        values["grand total"] = {
+            "tb": grand_total_tb or None,
+            "mis": grand_total_mis or None,
+            "variance": grand_total_variance,
+        }
+        # The table's own overall "MIS" column (unit's full actuals total,
+        # same engine Monthly MIS itself uses: group_actuals_ytd ->
+        # get_combined_actuals) stays a single flat figure - NOT added to
         # adjustments_by_unit a second time here. The raw actuals data this
         # already reads (backfilled by erp_actuals._get_actuals_from_erp_
         # month_wise_raw, confirmed directly: `combined_rows = erp_rows +
@@ -517,16 +580,27 @@ def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_uni
     # consolidated_tree as its own drill-down (so clicking this row behaves
     # exactly like clicking the Total column header, just reached from the
     # row instead).
-    grand_row_values = {c: 0 for c in CATEGORY_COLUMNS}
+    grand_row_tb = {c: 0 for c in CATEGORY_COLUMNS}
+    grand_row_mis = {c: 0 for c in CATEGORY_COLUMNS}
     for row in table_rows:
         for c in CATEGORY_COLUMNS:
-            grand_row_values[c] += row["values"].get(c) or 0
-    grand_row_total_opex = round(sum(grand_row_values[c] for c in OPEX_SUB_ROWS), 2)
-    grand_row_values = {c: round(v, 2) or None for c, v in grand_row_values.items()}
-    grand_row_values["total opex"] = grand_row_total_opex or None
-    grand_row_values["grand total"] = round(
-        (grand_row_values.get("capex") or 0) + grand_row_total_opex, 2
-    ) or None
+            cell = row["values"].get(c) or {}
+            grand_row_tb[c] += cell.get("tb") or 0
+            grand_row_mis[c] += cell.get("mis") or 0
+    grand_row_total_opex_tb = round(sum(grand_row_tb[c] for c in OPEX_SUB_ROWS), 2)
+    grand_row_total_opex_mis = round(sum(grand_row_mis[c] for c in OPEX_SUB_ROWS), 2)
+    grand_row_values = {
+        c: {"tb": round(grand_row_tb[c], 2) or None, "mis": round(grand_row_mis[c], 2) or None}
+        for c in CATEGORY_COLUMNS
+    }
+    grand_row_values["total opex"] = {"tb": grand_row_total_opex_tb or None, "mis": grand_row_total_opex_mis or None}
+    grand_row_grand_total_tb = round((grand_row_tb.get("capex") or 0) + grand_row_total_opex_tb, 2)
+    grand_row_grand_total_mis = round((grand_row_mis.get("capex") or 0) + grand_row_total_opex_mis, 2)
+    grand_row_values["grand total"] = {
+        "tb": grand_row_grand_total_tb or None,
+        "mis": grand_row_grand_total_mis or None,
+        "variance": round(grand_row_grand_total_tb - grand_row_grand_total_mis, 2),
+    }
     grand_row_values["mis"] = round(sum(mis_actuals_by_unit.get(bu, 0) for bu in units_seen), 2) or None
     grand_row_values["adjustment"] = round(sum(adjustments_by_unit.get(bu, 0) for bu in units_seen), 2) or None
     table_rows.append({
@@ -550,7 +624,7 @@ def _column_list():
         for c in CATEGORY_COLUMNS
     ]
     columns.append({"key": "total opex", "label": "Total Operating Expenses"})
-    columns.append({"key": "grand total", "label": "Total Trial Balance"})
+    columns.append({"key": "grand total", "label": "Total"})
     columns.append({"key": "adjustment", "label": "Adjustment"})
     columns.append({"key": "mis", "label": "MIS"})
     return columns
@@ -608,6 +682,7 @@ def _category_for_expense(expense):
 # (fetch_trial_balance_from_erp_raw's own `account` field is always None -
 # PeopleSoft's trial balance query has no separate description field), so
 # this is the only source for one.
+@request_cache
 def _get_gl_code_descriptions():
     rows = frappe.get_all("Expenses Line Items", fields=["name", "type_of_expense"])
     return {r.name: r.type_of_expense for r in rows if r.type_of_expense}
@@ -852,6 +927,7 @@ def _build_unit_drilldown_tree(unit_rows, gl_to_expense):
 # carried through by fetch_trial_balance_from_erp_raw) to a human label,
 # same "code - description" convention _get_unit_labels already uses for
 # Unit.
+@request_cache
 def _get_cost_center_labels():
     rows = frappe.get_all("Cost Center", fields=["cost_center", "cc_descr"])
     return {
@@ -860,6 +936,7 @@ def _get_cost_center_labels():
     }
 
 
+@request_cache
 def _get_location_code_labels():
     rows = frappe.get_all("Location Code", fields=["location_code", "decription"])
     return {

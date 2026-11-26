@@ -87,49 +87,78 @@
     <ErrorMessage v-else-if="statusFailed" :message="statusFailedMessage" />
 
     <template v-else>
-      <div class="flex flex-wrap items-center gap-7 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-900/60">
-        <div><span class="font-semibold text-fc-blue-mid">Status:</span> {{ response?.status }}</div>
-        <div><span class="font-semibold text-fc-blue-mid">Fiscal Year:</span> {{ response?.fiscal_year }}</div>
-        <div><span class="font-semibold text-fc-blue-mid">Accounting Period:</span> {{ response?.accounting_period }}</div>
-      </div>
-
       <div v-if="!tableRows.length" class="rounded-lg border border-gray-200 bg-white p-16 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
         No rows returned.
       </div>
       <div v-else class="fc-scroll-wrapper">
+        <!-- Two separate header layouts, one per Operating Expenses state, so
+        every rowspan always matches the number of header rows that actually
+        exist. Collapsed has 2 header rows (heads, then TB/MIS); expanded has
+        3 (heads, sub-heads, TB/MIS). A single shared header whose sub-head
+        row was removed by v-if left rowspan=3 cells pointing at a row that
+        no longer existed, pushing the TB/MIS cells out past the MIS column.
+        Collapsed: 8 columns. Expanded: 22 columns. -->
         <table class="fc-table w-full min-w-[1200px] text-sm">
-          <thead>
+          <thead v-if="opexOpen" key="thead-expanded">
             <tr class="fc-thead-main">
-              <th rowspan="2" class="fc-th text-left">Unit</th>
-              <th rowspan="2" class="fc-th cursor-pointer select-none text-right" @click="drillIntoHead('capex')">
+              <th rowspan="3" class="fc-th text-left">Unit</th>
+              <th rowspan="2" colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('capex')">
                 {{ capexHead.label }}
               </th>
-              <th
-                v-if="opexOpen"
-                :colspan="opexHead.columns.length"
-                class="fc-th cursor-pointer select-none text-center"
-                @click="drillIntoHead('opex')"
-              >
+              <th :colspan="opexHead.columns.length * 2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('opex')">
                 <span @click.stop="opexOpen = false">{{ opexHead.label }} <span class="text-white/70">▲</span></span>
               </th>
-              <th v-else rowspan="2" class="fc-th cursor-pointer select-none text-right" @click="drillIntoHead('opex')">
-                <span @click.stop="opexOpen = true">{{ opexHead.label }} <span class="text-white/70">▼</span></span>
-              </th>
-              <th v-if="opexOpen" rowspan="2" class="fc-th text-right">{{ columnLabel('total opex') }}</th>
-              <th rowspan="2" class="fc-th cursor-pointer select-none text-right" @click="drillIntoConsolidated">
+              <th rowspan="2" colspan="2" class="fc-th text-center">{{ columnLabel('total opex') }}</th>
+              <th rowspan="2" colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoConsolidated">
                 {{ columnLabel('grand total') }}
               </th>
-              <th rowspan="2" class="fc-th text-right">{{ columnLabel('mis') }}</th>
+              <th rowspan="3" class="fc-th text-right">Variance</th>
             </tr>
-            <tr v-if="opexOpen" class="fc-thead-sub">
+            <tr class="fc-thead-sub">
               <th
                 v-for="key in opexHead.columns"
                 :key="key"
-                class="fc-th-sub cursor-pointer select-none"
+                colspan="2"
+                class="fc-th-tb-sub cursor-pointer select-none text-center"
                 @click="drillIntoSubHead(key)"
               >
                 {{ columnLabel(key) }}
               </th>
+            </tr>
+            <tr class="fc-thead-sub">
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <template v-for="key in opexHead.columns" :key="key">
+                <th class="fc-th-sub-row3 text-right">TB</th>
+                <th class="fc-th-sub-row3 text-right">MIS</th>
+              </template>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+            </tr>
+          </thead>
+          <thead v-else key="thead-collapsed">
+            <tr class="fc-thead-main">
+              <th rowspan="2" class="fc-th text-left">Unit</th>
+              <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('capex')">
+                {{ capexHead.label }}
+              </th>
+              <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('opex')">
+                <span @click.stop="opexOpen = true">{{ opexHead.label }} <span class="text-white/70">▼</span></span>
+              </th>
+              <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoConsolidated">
+                {{ columnLabel('grand total') }}
+              </th>
+              <th rowspan="2" class="fc-th text-right">Variance</th>
+            </tr>
+            <tr class="fc-thead-sub">
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
             </tr>
           </thead>
           <tbody>
@@ -141,16 +170,19 @@
               @click="drillIntoUnit(row)"
             >
               <td class="fc-td text-left font-medium">{{ row.unit }}</td>
-              <td class="fc-td text-right">{{ formatAmount(row.values.capex) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.capex?.tb) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.capex?.mis) }}</td>
               <template v-if="opexOpen">
-                <td v-for="key in opexHead.columns" :key="key" class="fc-td text-right">
-                  {{ formatAmount(row.values[key]) }}
-                </td>
-                <td class="fc-td text-right">{{ formatAmount(row.values['total opex']) }}</td>
+                <template v-for="key in opexHead.columns" :key="key">
+                  <td class="fc-td text-right">{{ formatAmount(row.values[key]?.tb) }}</td>
+                  <td class="fc-td text-right">{{ formatAmount(row.values[key]?.mis) }}</td>
+                </template>
               </template>
-              <td v-else class="fc-td text-right">{{ formatAmount(row.values['total opex']) }}</td>
-              <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']) }}</td>
-              <td class="fc-td text-right">{{ formatAmount(row.values.mis) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values['total opex']?.tb) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values['total opex']?.mis) }}</td>
+              <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']?.tb) }}</td>
+              <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']?.mis) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values['grand total']?.variance) }}</td>
             </tr>
           </tbody>
         </table>
@@ -306,7 +338,7 @@ const unitDrilldownNode = ref(null)
 function drillIntoUnit(row) {
   unitDrilldownNode.value = {
     name: row.unit,
-    ytd: row.values?.['grand total'] || 0,
+    ytd: row.values?.['grand total']?.tb || 0,
     gl_code_table: row.gl_code_table || [],
     cost_center_breakdown: row.cost_center_breakdown || [],
   }
