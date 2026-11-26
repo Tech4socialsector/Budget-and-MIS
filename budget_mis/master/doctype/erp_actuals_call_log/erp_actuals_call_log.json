@@ -21,7 +21,7 @@
  "fields": [
   {
    "default": "Fetch",
-   "description": "Warm-up: the scheduled sync job (budget_mis.api.erp_actuals_sync.refresh_actuals_data) or the one-time backfill (erp_actuals_backfill.run_backfill) refreshing an ERP Actuals Data record on its own normal schedule. Manual Sync: an admin's own \"Sync Now\" button click on one ERP Actuals Data record (erp_actuals_data.js / erp_actuals_backfill.sync_now). Fetch: reserved for any future direct report-triggered fetch - reports currently read ERP Actuals Data only, with no live-ERP fallback, so this value is not produced by anything today.",
+   "description": "Warm-up: the scheduled sync job (budget_mis.api.erp_data_sync.refresh_erp_data) or the one-time backfill (erp_data_backfill.run_backfill) refreshing an ERP Data record on its own normal schedule. Manual Sync: an admin's own \"Sync Now\" button click on one ERP Data record (erp_data.js / erp_data_backfill.sync_now). Fetch: reserved for any future direct report-triggered fetch - reports currently read ERP Data only, with no live-ERP fallback, so this value is not produced by anything today.",
    "fieldname": "call_type",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -48,7 +48,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Every current caller (erp_actuals_backfill.refresh_period) always logs \"Miss (fetched)\" - a real PeopleSoft HTTP call ran every time, since this doctype's own refresh is never served from a cache. Hit/Skipped remain as options only for compatibility with older log entries written before this doctype-based architecture (when a Redis-cached live fetch and a login warm-up job could produce them) - nothing produces them today.",
+   "description": "Every current caller (erp_data_backfill.refresh_period) always logs \"Miss (fetched)\" - a real PeopleSoft HTTP call ran every time, since this doctype's own refresh is never served from a cache. Hit/Skipped remain as options only for compatibility with older log entries written before this doctype-based architecture (when a Redis-cached live fetch and a login warm-up job could produce them) - nothing produces them today.",
    "fieldname": "cache_result",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -77,7 +77,7 @@
    "fieldtype": "Section Break"
   },
   {
-   "description": "The function this call came through, e.g. erp_actuals_backfill.refresh_period.",
+   "description": "The function this call came through, e.g. erp_data_backfill.refresh_period.",
    "fieldname": "source",
    "fieldtype": "Data",
    "label": "Source"

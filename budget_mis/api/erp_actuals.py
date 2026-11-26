@@ -208,6 +208,13 @@ def fetch_trial_balance_from_erp_raw(fiscal_year, accounting_period):
                 "gl_code": r.get("account"),
                 "account": None,
                 "amount": float(r.get("posted_total_amt") or 0),
+                # Cost Center/Location Code ERP codes (deptid/operating_unit
+                # in PeopleSoft's own raw field names) - carried through so
+                # trial_balance.py's own drill-down can group by cost
+                # center+location within a unit, the same way every other
+                # actuals row elsewhere in this app already does.
+                "deptid": r.get("deptid"),
+                "operating_unit": r.get("operating_unit"),
             })
 
         return {

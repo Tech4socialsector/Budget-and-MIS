@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestExpensesTest(IntegrationTestCase):
+class IntegrationTestOpeningBalance(IntegrationTestCase):
 	"""
-	Integration tests for ExpensesTest.
+	Integration tests for OpeningBalance.
 	Use this class for testing interactions between multiple components.
 	"""
 

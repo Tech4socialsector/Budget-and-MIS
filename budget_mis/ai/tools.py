@@ -579,10 +579,11 @@ MONTHLY_MIS_SECTIONS = {
 
 def get_monthly_mis_summary(financial_year=None, month=None, section=None, table_name_filter=None):
 	"""The authoritative Monthly MIS Operating/Capital Expense break-up - the
-	same computation and the same shared server-side ERP actuals cache
-	(budget_mis.api.erp_actuals, TTL from ERP Credentials.
-	actuals_cache_duration_minutes) the Monthly MIS page itself reads, not a
-	re-derivation from raw doctype records. Returns current and previous
+	same computation the Monthly MIS page itself reads, ultimately sourced
+	from the persisted 'ERP Data' doctype (data_type="Actuals", kept fresh
+	by the scheduled budget_mis.api.erp_data_sync.refresh_erp_data job, NOT
+	a live PeopleSoft call), not a re-derivation from raw doctype records.
+	Returns current and previous
 	financial-year figures for the given month, broken down per table/
 	section with each row's Operating/Capital/Total Expense budget, actuals,
 	and % of budget - the same shape the Monthly MIS page's own breakup
@@ -604,12 +605,12 @@ def get_monthly_mis_summary(financial_year=None, month=None, section=None, table
 	Monthly MIS page already shows any logged-in user: no line-item detail,
 	no PII, no ERP credentials.
 
-	The tool's OWN summarized response (not just the underlying ERP fetch)
-	is cached server-side, shared across users and separate from the raw
-	ERP cache, so repeated/similar assistant questions about the same
-	financial_year+month+table_name_filter don't redo the aggregation work
-	- same TTL as the ERP actuals cache, since it's only ever as fresh as
-	that underlying data anyway.
+	The tool's OWN summarized response (not just the underlying ERP Data
+	read) is cached server-side, shared across users, so repeated/similar
+	assistant questions about the same financial_year+month+table_name_filter
+	don't redo the aggregation work - it is only ever as fresh as the
+	underlying ERP Data record anyway, which the sync job (not this tool's
+	own cache) is what actually keeps current.
 	"""
 	from budget_mis.api.helper import get_actuals_cache_duration_seconds
 	from budget_mis.api.monthly_mis import get_monthly_mis_break_up

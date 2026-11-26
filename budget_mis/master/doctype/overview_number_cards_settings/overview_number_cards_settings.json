@@ -7,6 +7,7 @@
  "field_order": [
   "number_card_title",
   "type",
+  "ignore_location_code_in_reconciliation",
   "column_break_gsnh",
   "description_for_this_settings",
   "section_break_tngy",
@@ -31,6 +32,14 @@
    "label": "Type",
    "options": "Define by Cost Centre and Location Code\nDefine by Card Mapping",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.type == \"Define by Cost Centre and Location Code\"",
+   "description": "When checked, Combination Reconciliation compares this card's own mapping against ERP actuals on Unit + Cost Center only, ignoring Location Code entirely - for special cases (e.g. Enablers) where this card is only ever mapped by Unit and Cost Center, with no meaningful Location Code of its own.",
+   "fieldname": "ignore_location_code_in_reconciliation",
+   "fieldtype": "Check",
+   "label": "Ignore Location Code In Reconciliation"
   },
   {
    "depends_on": "eval:doc.type == \"Define by Card Mapping\"",

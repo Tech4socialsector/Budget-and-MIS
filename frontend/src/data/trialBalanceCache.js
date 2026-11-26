@@ -4,11 +4,12 @@
 // TrialBalanceCheckTab.vue is destroyed and recreated every time the user
 // switches away from and back to its tab (MonthlyMis.vue renders it behind
 // a v-if, not a <KeepAlive>), so a component-local "already loaded this
-// filter combo" guard would be wiped on every switch, re-triggering the
-// same slow (1-3 minute) live PeopleSoft call for data the server's own
-// Redis cache (ERP Credentials.actuals_cache_duration_minutes,
-// api/helper.py) already has ready to serve instantly. A plain JS module
-// is what actually survives that remount.
+// filter combo" guard would be wiped on every switch, re-triggering a
+// fetch for data the server already has ready to serve instantly (the
+// endpoint reads from the persisted ERP Data store (data_type="Trial
+// Balance"), kept fresh by the same scheduled sync job as actuals - see
+// erp_data_sync.refresh_erp_data - rather than live-fetching PeopleSoft on
+// request). A plain JS module is what actually survives that remount.
 const TTL_MS = 15 * 60 * 1000
 
 const cache = new Map()

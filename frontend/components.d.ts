@@ -56,6 +56,7 @@ declare module 'vue' {
     SummaryInrTab: typeof import('./src/components/foundationConsolidated/SummaryInrTab.vue')['default']
     TopNavbar: typeof import('./src/components/TopNavbar.vue')['default']
     TrialBalanceCheckTab: typeof import('./src/components/monthlyMis/TrialBalanceCheckTab.vue')['default']
+    TrialBalanceDrilldownModal: typeof import('./src/components/monthlyMis/TrialBalanceDrilldownModal.vue')['default']
     UnitDetailGrid: typeof import('./src/components/monthlyMis/UnitDetailGrid.vue')['default']
     UserTemplateCard: typeof import('./src/components/budgetImportTemplate/UserTemplateCard.vue')['default']
   }

@@ -1008,7 +1008,7 @@
    },
    {
     "is_active": 1,
-    "point": "Monthly Adjustment: manually recorded correction entries (e.g. inter-entity transfers) applied on top of the raw ERP actuals feed, per financial year and month. The record itself has NO total field at all - a real total requires summing every matching record's child-table adjustment amounts with sign applied (Add/Minus), across potentially many records. Never attempt this manually - get_actuals_summary already merges these corrections into its total. Only use search_records/get_record here to inspect individual adjustment entries, never to compute a spend total.",
+    "point": "Monthly Adjustment: manually recorded correction entries (e.g. inter-entity transfers) applied on top of the raw ERP actuals feed, per financial year and month. The record itself has NO total field at all - a real total requires summing every matching record's child-table adjustment amounts with sign applied (Add/Minus), across potentially many records. IMPORTANT: neither get_actuals_summary nor get_monthly_mis_summary currently merges these corrections into its total - both read straight from the stored ERP Data (Actuals) figures, with no adjustment applied. If asked whether a spend/actuals figure already includes Monthly Adjustment corrections, say plainly that it does not; never attempt to add them in yourself by summing child-table amounts, since that is exactly the kind of manual recomputation this guide elsewhere warns against. Only use search_records/get_record here to inspect individual adjustment entries.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 3,
@@ -1110,7 +1110,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from the 'ERP Actuals Data' doctype (via budget_mis.api.erp_actuals_data.get_actuals_data), NOT a live PeopleSoft call and NOT a Redis cache - one record per (fiscal_year, accounting_period) ever, holding that period's full actuals history. There is no live-ERP fallback on this read path at all: if a period has never been fetched into this doctype, the tool gets a clear failure, not a slow live fetch.",
+    "point": "get_actuals_summary and get_monthly_mis_summary both ultimately read from the 'ERP Data' doctype (via budget_mis.api.erp_data.get_actuals_data, which reads the record whose data_type is 'Actuals'), NOT a live PeopleSoft call and NOT a Redis cache - one record per (fiscal_year, accounting_period, data_type) ever, holding that period's full actuals history. There is no live-ERP fallback on this read path at all: if a period has never been fetched into this doctype, the tool gets a clear failure, not a slow live fetch.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 2,
@@ -1118,7 +1118,7 @@
    },
    {
     "is_active": 1,
-    "point": "This doctype is kept up to date by a single scheduled background job (budget_mis.api.erp_actuals_sync.refresh_actuals_data, interval configurable via 'ERP Credentials'.actuals_sync_interval_minutes) that re-fetches a fixed, ordered set of periods from PeopleSoft - the current year's current month and every month so far, plus the full previous financial year (for year-over-year comparisons). If a user asks how fresh actuals data is, say it is refreshed on that schedule in the background, not fetched fresh on every question.",
+    "point": "This doctype is kept up to date by a single scheduled background job (budget_mis.api.erp_data_sync.refresh_erp_data, interval configurable via 'ERP Credentials'.actuals_sync_interval_minutes) that re-fetches a fixed, ordered set of periods from PeopleSoft - the current year's current month and every month so far, plus the full previous financial year (for year-over-year comparisons) - for both the Actuals and Trial Balance data_types. If a user asks how fresh actuals data is, say it is refreshed on that schedule in the background, not fetched fresh on every question.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 3,
@@ -1134,7 +1134,7 @@
    },
    {
     "is_active": 1,
-    "point": "An admin can also force an immediate re-fetch of one specific period at any time via the 'ERP Actuals Data' record's own 'Sync Now' button in Desk (System Manager only) - this calls budget_mis.api.erp_actuals_backfill.sync_now for that one record's (fiscal_year, accounting_period) and can take up to about two minutes (the real PeopleSoft call itself). If a user reports that a report shows stale or missing actuals for a specific month, suggest this as the fix rather than assuming you (the assistant) can trigger it - you have no tool that does this.",
+    "point": "An admin can also force an immediate re-fetch of one specific period at any time via the 'ERP Data' record's own 'Sync Now' button in Desk (System Manager only) - this calls budget_mis.api.erp_data_backfill.sync_now for that one record's (fiscal_year, accounting_period, data_type) and can take up to about two minutes (the real PeopleSoft call itself). If a user reports that a report shows stale or missing actuals for a specific month, suggest this as the fix rather than assuming you (the assistant) can trigger it - you have no tool that does this.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 5,
@@ -1142,7 +1142,7 @@
    },
    {
     "is_active": 1,
-    "point": "get_monthly_mis_summary additionally keeps its own short-lived cached copy of its already-formatted response, separate from the ERP Actuals Data doctype itself - so a second, similarly-phrased Monthly MIS question can return instantly without re-deriving the section breakdown from scratch.",
+    "point": "get_monthly_mis_summary additionally keeps its own short-lived cached copy of its already-formatted response, separate from the ERP Data doctype itself - so a second, similarly-phrased Monthly MIS question can return instantly without re-deriving the section breakdown from scratch.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 6,
@@ -1150,7 +1150,7 @@
    },
    {
     "is_active": 1,
-    "point": "None of this assistant's tools make a live PeopleSoft network call while you are waiting for a reply - actuals always come from the ERP Actuals Data doctype (a plain, fast DB read). The only thing that can make an actuals answer slow is a genuinely new/complex Monthly MIS breakdown needing to be computed from already-local data, never a wait on an external ERP system.",
+    "point": "None of this assistant's tools make a live PeopleSoft network call while you are waiting for a reply - actuals always come from the ERP Data doctype (a plain, fast DB read). The only thing that can make an actuals answer slow is a genuinely new/complex Monthly MIS breakdown needing to be computed from already-local data, never a wait on an external ERP system.",
     "proposed_by": null,
     "proposed_reason": null,
     "sort_order": 7,

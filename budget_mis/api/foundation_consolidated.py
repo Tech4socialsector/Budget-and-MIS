@@ -7,7 +7,7 @@ from budget_mis.api.grouped_actuals import group_actuals_ytd
 from budget_mis.api.number_card_settings import get_combination_table_settings_1
 from budget_mis.api.budget_actuals_combined import get_combined_actuals
 from budget_mis.api.budget_summary import get_budget_summary
-from budget_mis.api.erp_actuals_data import get_actuals_data
+from budget_mis.api.erp_data import get_actuals_data
 
 # Reuses already-fixed primitives (group_actuals_ytd's own cache,
 # get_combined_actuals' expense-structure cache, number_card_settings'
@@ -421,7 +421,7 @@ def get_headcount_with_plan_data(financial_year=None, month=None, table_name_fil
         }
 
 
-# Builds the head/sub-head/item actuals tree with EVERY individual month (1-12) and quarter total populated, not just a single YTD figure - built directly from raw month-wise rows (erp_actuals_data.get_actuals_data, GL-code-mapped to Expenses inline here) rather than reusing group_actuals_ytd/group_actuals_month_wise from erp_actuals.py, since those collapse the period dimension away before this function would get a chance to split it back out by month.
+# Builds the head/sub-head/item actuals tree with EVERY individual month (1-12) and quarter total populated, not just a single YTD figure - built directly from raw month-wise rows (erp_data.get_actuals_data, GL-code-mapped to Expenses inline here) rather than reusing group_actuals_ytd/group_actuals_month_wise from erp_actuals.py, since those collapse the period dimension away before this function would get a chance to split it back out by month.
 @guest_api
 def get_actuals_quarter_and_month_breakup(fiscal_year, accounting_period, _grouped_actuals_data=None):
     try:
@@ -511,8 +511,8 @@ def get_actuals_quarter_and_month_breakup(fiscal_year, accounting_period, _group
         if _grouped_actuals_data is not None:
             erp_data = _grouped_actuals_data
         else:
-            # Reads straight from the ERP Actuals Data doctype - no live-ERP
-            # fallback. A period with no stored record yet (not backfilled,
+            # Reads straight from the ERP Data doctype (data_type="Actuals")
+            # - no live-ERP fallback. A period with no stored record yet (not backfilled,
             # or a brand-new period the sync job hasn't reached) must
             # surface as a real error here, NOT silently fall through to an
             # empty erp_data list (the previous behavior) - that would make

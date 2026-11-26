@@ -4,7 +4,7 @@ import frappe
 
 from budget_mis.utils import guest_api, get_allowed_units
 from budget_mis.api.response_crypto import is_direct_http_call
-from budget_mis.api.erp_actuals_data import get_actuals_data
+from budget_mis.api.erp_data import get_actuals_data
 
 
 # Every function below is cached and shared across EVERY caller regardless
@@ -38,9 +38,9 @@ def _scope_rows_to_allowed_units(rows, fn):
 
 # Drops PeopleSoft's opening-balance period "0" and sums duplicate (unit, account, dept, operating_unit, period) rows into one.
 #
-# Reads from the ERP Actuals Data doctype (budget_mis.api.erp_actuals_data.
-# get_actuals_data) - populated by the one-time backfill and kept current
-# by the scheduled erp_actuals_sync.refresh_actuals_data job - instead of
+# Reads from the ERP Data doctype (budget_mis.api.erp_data.get_actuals_data,
+# data_type="Actuals") - populated by the one-time backfill and kept
+# current by the scheduled erp_data_sync.refresh_erp_data job - instead of
 # the old live PeopleSoft fetch/Redis cache (get_actuals_from_erp_month_wise).
 # There is NO live-ERP fallback here: a period with no stored record yet
 # (not backfilled, or a brand-new period the sync job hasn't reached) comes
@@ -97,7 +97,7 @@ def group_actuals_by_dimension(fiscal_year, accounting_period):
 def group_actuals_by_gl_mapping(fiscal_year, accounting_period):
     erp_response = group_actuals_by_dimension(fiscal_year, accounting_period)
 
-    # A real failure (most commonly now: no ERP Actuals Data record for
+    # A real failure (most commonly now: no ERP Data record for
     # this period at all, since that path has no live-ERP fallback to fall
     # back on) must propagate as a failure here too - checking status
     # explicitly rather than inferring "failed" from an empty data list,

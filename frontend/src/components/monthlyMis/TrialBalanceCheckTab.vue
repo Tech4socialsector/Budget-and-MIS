@@ -9,11 +9,13 @@
   (api/trial_balance.py) - this app's own documented rule that a frontend
   restriction alone is never a real permission check.
 
-  Same patient-loading-state pattern as ErpActuals.vue's own manual Fetch
-  (the underlying call hits a live PeopleSoft endpoint that can take 1-3
-  minutes), but auto-fetches on the shared Financial Year/Month (props)
-  changing instead of a manual button - see the watch() near the bottom of
-  this file's own script. Renders a unit-wise main-head/sub-head
+  Same patient-loading-state pattern as ErpActuals.vue's own manual Fetch,
+  but auto-fetches on the shared Financial Year/Month (props) changing
+  instead of a manual button - see the watch() near the bottom of this
+  file's own script. The underlying call now reads from the persisted ERP
+  Trial Balance Data store (kept fresh by the same scheduled sync job as
+  actuals) rather than live-fetching PeopleSoft on request, so it's a fast
+  DB read, not a 1-3 minute ERP round trip. Renders a unit-wise main-head/sub-head
   bifurcation: one ROW per Unit (10
   rows, plus a trailing "TOTAL" row summing every unit - every GL line for
   that unit summed into its category), with a 2-tier header matching the
@@ -24,13 +26,18 @@
   exactly like BudgetSummaryTable.vue's quarter-column toggle (rowspan<->
   colspan driven by a single "is opex expanded" boolean, no per-head Set
   needed since there's only the one expandable group here). Clicking
-  anywhere on a unit's row (or the trailing TOTAL row) opens the shared
-  BudgetDrilldownModal (same component every other report's drill-down
-  uses) on that row's own 4-level tree (head_of_expense ->
-  sub_head_of_expense -> type_of_expense -> gl_code, matching
-  budget_actuals_combined.py's own _build_expense_structure shape exactly)
-  - built entirely server-side, no extra round trip on click. Column
-  headers are ALSO drillable, consolidated across every unit (a column
+  anywhere on a unit's row (or the trailing TOTAL row) opens
+  TrialBalanceDrilldownModal (a dedicated modal, NOT the shared
+  BudgetDrilldownModal other reports use - Credit/Debit/Opening Balance are
+  Trial Balance-specific concepts no other report's data carries) with two
+  tabs: "GL Codes" (row.gl_code_table - flat gl_code/description/debit/
+  credit/opening_balance, one row per GL code actually seen, mapped or
+  not) and "Cost Center / Location" (row.cost_center_breakdown - clicking
+  one of its rows drills one level deeper into that cost-center+location's
+  own GL Codes tab, inside the same modal). Both built entirely
+  server-side, no extra round trip on click. Column headers in the TABLE
+  itself are still drillable via the shared BudgetDrilldownModal,
+  consolidated across every unit (a column
   spans all 10 rows): a main-head column (Capital/Operating Expenses) opens
   one level below itself (Sub Heads -> Items -> GL), a sub-head column
   (Program Expenses etc., shown only when Operating Expenses is expanded)
@@ -112,6 +119,7 @@
               <th rowspan="2" class="fc-th cursor-pointer select-none text-right" @click="drillIntoConsolidated">
                 {{ columnLabel('grand total') }}
               </th>
+              <th rowspan="2" class="fc-th text-right">{{ columnLabel('mis') }}</th>
             </tr>
             <tr v-if="opexOpen" class="fc-thead-sub">
               <th
@@ -130,7 +138,7 @@
               :key="i"
               class="cursor-pointer"
               :class="row.is_total ? 'fc-row-grand' : ''"
-              @click="drillInto(row)"
+              @click="drillIntoUnit(row)"
             >
               <td class="fc-td text-left font-medium">{{ row.unit }}</td>
               <td class="fc-td text-right">{{ formatAmount(row.values.capex) }}</td>
@@ -142,12 +150,56 @@
               </template>
               <td v-else class="fc-td text-right">{{ formatAmount(row.values['total opex']) }}</td>
               <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.mis) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
+      <!-- Column-header drill-downs (main head/sub-head/Total, consolidated
+      across every unit) still use the shared BudgetDrilldownModal and its
+      Head/Sub-head/Item/GL tree - only a UNIT ROW click now opens the new,
+      Trial Balance-specific modal instead (see drillIntoUnit). -->
       <BudgetDrilldownModal v-model="drilldownOpen" :node="drilldownNode" total-mode="ytd" />
+
+      <TrialBalanceDrilldownModal v-model="unitDrilldownOpen" :node="unitDrilldownNode" />
+
+      <div class="mt-4">
+        <div class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Adjustment</div>
+        <ErrorMessage v-if="adjustmentError" :message="adjustmentError" />
+        <div v-else-if="!adjustmentTableRows.length" class="rounded-lg border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          No adjustment rows for this period.
+        </div>
+        <div v-else class="fc-scroll-wrapper">
+          <table class="fc-table w-full min-w-[1000px] text-sm">
+            <thead>
+              <tr class="fc-thead-main">
+                <th class="fc-th text-left">Category</th>
+                <th v-for="col in adjustmentColumns" :key="col.key" class="fc-th text-right">
+                  {{ col.label }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, i) in adjustmentTableRows"
+                :key="i"
+                :class="row.is_total ? 'fc-row-grand' : ''"
+              >
+                <td class="fc-td text-left font-medium">{{ row.label }}</td>
+                <td
+                  v-for="col in adjustmentColumns"
+                  :key="col.key"
+                  class="fc-td text-right"
+                  :class="col.key === 'total' ? 'font-semibold' : ''"
+                >
+                  {{ formatAmount(row.values[col.key]) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -157,6 +209,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
+import TrialBalanceDrilldownModal from './TrialBalanceDrilldownModal.vue'
 import { call } from '@/data/decrypt'
 import { getCachedTrialBalance, setCachedTrialBalance } from '@/data/trialBalanceCache'
 
@@ -237,14 +290,27 @@ const opexOpen = ref(true)
 const drilldownOpen = ref(false)
 const drilldownNode = ref(null)
 
-function drillInto(row) {
-  openDrilldown(row.unit, row.tree)
-}
-
 function openDrilldown(name, subHeads) {
   if (!subHeads?.length) return
   drilldownNode.value = { name, sub_heads: subHeads }
   drilldownOpen.value = true
+}
+
+// Unit row click: opens the Trial Balance-specific modal (GL Codes /
+// Cost Center · Location tabs) instead of the shared BudgetDrilldownModal's
+// Head/Sub-head/Item tree - row.gl_code_table/row.cost_center_breakdown
+// are both built server-side by budget_mis.api.trial_balance
+// (_build_gl_code_table/_build_cost_center_breakdown).
+const unitDrilldownOpen = ref(false)
+const unitDrilldownNode = ref(null)
+function drillIntoUnit(row) {
+  unitDrilldownNode.value = {
+    name: row.unit,
+    ytd: row.values?.['grand total'] || 0,
+    gl_code_table: row.gl_code_table || [],
+    cost_center_breakdown: row.cost_center_breakdown || [],
+  }
+  unitDrilldownOpen.value = true
 }
 
 // Column-header drill-downs - consolidated across every unit (a column
@@ -336,6 +402,44 @@ async function fetchData() {
     }
   }
 }
+
+// Adjustment Breakup - a second, independent table shown below the main
+// Trial Balance Check table: one row per Unit, one column per Adjustment
+// Method (budget_mis.api.trial_balance.get_adjustment_breakup), YTD up to
+// the same Financial Year/Month as the main table. Fetched alongside the
+// main table rather than merged into its own response, since it's a
+// different shape (no head/sub-head/GL drill-down) and a different source
+// (Monthly Adjustment docs, not ERP Data) - no shared loading/caching
+// complexity needed here since this is already a fast plain DB read, not a
+// live PeopleSoft round trip.
+const adjustmentResponse = ref(null)
+const adjustmentError = ref(null)
+const adjustmentColumns = computed(() => adjustmentResponse.value?.columns || [])
+const adjustmentTableRows = computed(() => adjustmentResponse.value?.rows || [])
+
+async function fetchAdjustmentBreakup() {
+  const fy = props.financialYear
+  const month = props.month
+  if (!fy || !month) return
+
+  const accountingPeriod = MONTH_TO_PERIOD[month]
+  adjustmentError.value = null
+  try {
+    const message = await call('budget_mis.api.trial_balance.get_adjustment_breakup', {
+      financial_year: fy,
+      month: accountingPeriod,
+    })
+    adjustmentResponse.value = message?.status === 'success' ? message : null
+    if (message?.status !== 'success') {
+      adjustmentError.value = message?.error || 'Request failed.'
+    }
+  } catch (e) {
+    adjustmentResponse.value = null
+    adjustmentError.value = e?.messages?.[0] || e?.message || 'Request failed. Check the Error Log for details.'
+  }
+}
+
+watch(() => [props.financialYear, props.month], () => fetchAdjustmentBreakup(), { immediate: true })
 
 const statusFailed = computed(() => hasFetched.value && response.value && response.value.status !== 'success')
 const statusFailedMessage = computed(() => {

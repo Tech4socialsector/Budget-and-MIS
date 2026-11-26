@@ -9,7 +9,7 @@ class ERPActualsCallLog(Document):
 	pass
 
 
-# Single entry point every caller (erp_actuals_backfill.refresh_period, used
+# Single entry point every caller (erp_data_backfill.refresh_period, used
 # by the scheduled sync job, the one-time backfill, and the "Sync Now" button's
 # sync_now) goes through to record a call - a plain frappe.get_doc(...).insert()
 # wrapped in its own try/except so a logging failure (e.g. a DB hiccup) can

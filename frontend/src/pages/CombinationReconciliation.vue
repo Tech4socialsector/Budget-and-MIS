@@ -4,13 +4,19 @@
   Location Code" Overview number cards settings card, and highlights any
   (unit, cost_center, location_code) combination that comes back from the
   ERP but isn't mapped on any card - those actuals can never surface in any
-  report in this app until they're mapped.
+  report in this app until they're mapped. A card can set its own "Ignore
+  Location Code In Reconciliation" field (e.g. Enablers, which is only ever
+  mapped by Unit + Cost Center) so it only needs a (unit, cost_center) match
+  to count a combination as mapped, regardless of location code - decided
+  per card on the backend now, with no page-level filter for it.
 
-  Same manual-Fetch, patient-loading-state convention as ErpActuals.vue
-  (this also triggers a live PeopleSoft call, so auto-firing on every
-  filter tweak would be actively harmful) - and the same Financial Year/
-  Month default-picking convention as MonthlyMis.vue (current FY, previous
-  completed month), since "what's unmapped right now" is best answered
+  Manual-trigger (Check button), same as before, but no longer a live
+  PeopleSoft call - find_unmapped_combinations now reads the persisted ERP
+  Data store (data_type="Actuals", kept fresh by the existing scheduled
+  sync job) instead, so this is a fast DB read with no patient-loading-
+  state/elapsed-timer UI needed. Same Financial Year/Month default-picking
+  convention as MonthlyMis.vue (current FY, previous completed month)
+  still applies, since "what's unmapped right now" is best answered
   against the most recently closed month by default.
 -->
 <template>
@@ -47,12 +53,6 @@
           sits in the same wide grid row (sm and up) - on a 1-column mobile
           stack it would otherwise waste a full line of vertical space for
           nothing, so it's hidden below sm instead. -->
-          <label class="mb-1 hidden text-xs font-medium text-transparent select-none sm:block">Filter</label>
-          <div class="flex h-8 items-center">
-            <Switch v-model="filters.enablersIgnoreLocation" label="Only for Enablers, ignore location code" />
-          </div>
-        </div>
-        <div>
           <label class="mb-1 hidden text-xs font-medium text-transparent select-none sm:block">Action</label>
           <Button variant="solid" theme="gray" :loading="loading" @click="runCheck">
             <template #prefix><FeatherIcon name="play" class="h-4 w-4" /></template>
@@ -63,10 +63,6 @@
 
       <div v-if="loading" class="flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white p-10 dark:border-gray-800 dark:bg-gray-900">
         <AppLoader label="Checking ERP actuals against card mappings..." />
-        <div class="text-xs text-gray-500 dark:text-gray-400">Elapsed: {{ elapsedLabel }}</div>
-        <div v-if="elapsedSeconds > 60" class="max-w-md text-center text-xs text-amber-600 dark:text-amber-400">
-          This is still working - live PeopleSoft queries can take up to 3 minutes. Please stay on this page.
-        </div>
       </div>
 
       <ErrorMessage v-else-if="error" :message="error" />
@@ -80,7 +76,7 @@
         <div v-if="!rows.length" class="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">
           <FeatherIcon name="check-circle" class="h-5 w-5 flex-shrink-0" />
           <div>
-            Every ERP combination for {{ lastQuery.financialYear }} ({{ lastQuery.month }}, YTD){{ lastQuery.enablersIgnoreLocation ? ' (Enablers only)' : '' }} is mapped to a number card. Reports across the app should reflect this data correctly.
+            Every ERP combination for {{ lastQuery.financialYear }} ({{ lastQuery.month }}, YTD) is mapped to a number card. Reports across the app should reflect this data correctly.
           </div>
         </div>
 
@@ -89,9 +85,9 @@
           <div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             <FeatherIcon name="alert-triangle" class="mt-0.5 h-5 w-5 flex-shrink-0" />
             <div>
-              <div class="font-semibold">{{ rows.length }} unmapped combination{{ rows.length === 1 ? '' : 's' }} found{{ lastQuery.enablersIgnoreLocation ? ' (Enablers only)' : '' }}</div>
+              <div class="font-semibold">{{ rows.length }} unmapped combination{{ rows.length === 1 ? '' : 's' }} found</div>
               <div class="mt-1">
-                These unit / cost center{{ lastQuery.enablersIgnoreLocation ? '' : ' / location code' }} combinations are coming in the ERP Actuals response but are not mapped on any Overview Number Card. Map them first - only then will you get correct reports across the app.
+                These unit / cost center / location code combinations are coming in the ERP Actuals response but are not mapped on any Overview Number Card (a card flagged "Ignore Location Code In Reconciliation" only needs its Unit + Cost Center to match, e.g. Enablers). Map them first - only then will you get correct reports across the app.
               </div>
             </div>
           </div>
@@ -107,8 +103,8 @@
                   <th class="fc-th text-left">Unit</th>
                   <th class="fc-th text-left">Cost Center (ERP)</th>
                   <th class="fc-th text-left">Cost Center Description</th>
-                  <th v-if="!lastQuery.enablersIgnoreLocation" class="fc-th text-left">Location Code (ERP)</th>
-                  <th v-if="!lastQuery.enablersIgnoreLocation" class="fc-th text-left">Location Code Description</th>
+                  <th class="fc-th text-left">Location Code (ERP)</th>
+                  <th class="fc-th text-left">Location Code Description</th>
                   <th class="fc-th text-right">Posted Total Amount</th>
                 </tr>
               </thead>
@@ -117,8 +113,8 @@
                   <td class="fc-td text-left font-medium">{{ row.unit }}</td>
                   <td class="fc-td text-left">{{ row.cost_center_erp }}</td>
                   <td class="fc-td text-left">{{ row.cost_center_description }}</td>
-                  <td v-if="!lastQuery.enablersIgnoreLocation" class="fc-td text-left">{{ row.location_code_erp }}</td>
-                  <td v-if="!lastQuery.enablersIgnoreLocation" class="fc-td text-left">{{ row.location_code_description }}</td>
+                  <td class="fc-td text-left">{{ row.location_code_erp }}</td>
+                  <td class="fc-td text-left">{{ row.location_code_description }}</td>
                   <td class="fc-td text-right">{{ formatTotal(row.posted_total_amt) }}</td>
                 </tr>
               </tbody>
@@ -132,7 +128,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { MultiSelect, Select, Button, FeatherIcon, ErrorMessage, Switch } from 'frappe-ui'
+import { MultiSelect, Select, Button, FeatherIcon, ErrorMessage } from 'frappe-ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppLoader from '@/components/AppLoader.vue'
 import { setPageTitle } from '@/data/pageTitle'
@@ -152,12 +148,7 @@ const MONTH_TO_PERIOD = {
 const MONTHS = Object.keys(MONTH_TO_PERIOD)
 const monthOptions = MONTHS.map((m) => ({ label: m, value: m }))
 
-// Default off: checks the full (unit, cost center, location code) triple
-// against every card app-wide. Toggled on: restricts to Enablers-tagged
-// cards and drops location code from the comparison - a coupled pair, not
-// two independent filters, since checking Enablers' location codes isn't
-// meaningful on their own (per the user's own framing of this toggle).
-const filters = reactive({ financialYear: '', month: '', enablersIgnoreLocation: false })
+const filters = reactive({ financialYear: '', month: '' })
 const financialYearOptions = ref([])
 const financialYearSelection = computed({
   get: () => (filters.financialYear ? [filters.financialYear] : []),
@@ -191,32 +182,15 @@ async function loadFinancialYears() {
 }
 
 // -------------------------------------------------------------------------
-// Check (manual trigger - hits a live PeopleSoft endpoint, can take 1-3 min)
+// Check (manual trigger - a fast DB read against the persisted ERP Data
+// store, not a live PeopleSoft call)
 // -------------------------------------------------------------------------
 const loading = ref(false)
 const error = ref(null)
 const hasChecked = ref(false)
 const rows = ref([])
-const lastQuery = reactive({ financialYear: '', month: '', enablersIgnoreLocation: false })
-const elapsedSeconds = ref(0)
-let elapsedTimer = null
+const lastQuery = reactive({ financialYear: '', month: '' })
 let requestToken = 0
-
-const elapsedLabel = computed(() => {
-  const s = elapsedSeconds.value
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return m > 0 ? `${m}m ${r}s` : `${r}s`
-})
-
-function startElapsedTimer() {
-  elapsedSeconds.value = 0
-  stopElapsedTimer()
-  elapsedTimer = setInterval(() => { elapsedSeconds.value += 1 }, 1000)
-}
-function stopElapsedTimer() {
-  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null }
-}
 
 const totalAmount = computed(() => rows.value.reduce((sum, r) => sum + (r.posted_total_amt || 0), 0))
 
@@ -235,14 +209,11 @@ async function runCheck() {
   const token = ++requestToken
   loading.value = true
   error.value = null
-  startElapsedTimer()
 
   try {
     const message = await call('budget_mis.api.combination_reconciliation.find_unmapped_combinations', {
       fiscal_year: fiscalYear,
       accounting_period: accountingPeriod,
-      enablers_only: filters.enablersIgnoreLocation ? 1 : 0,
-      ignore_location_code: filters.enablersIgnoreLocation ? 1 : 0,
     })
     if (token !== requestToken) return
 
@@ -256,7 +227,6 @@ async function runCheck() {
     rows.value = message.data || []
     lastQuery.financialYear = fy
     lastQuery.month = month
-    lastQuery.enablersIgnoreLocation = filters.enablersIgnoreLocation
     hasChecked.value = true
   } catch (e) {
     if (token !== requestToken) return
@@ -264,7 +234,6 @@ async function runCheck() {
   } finally {
     if (token === requestToken) {
       loading.value = false
-      stopElapsedTimer()
     }
   }
 }

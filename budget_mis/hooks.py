@@ -220,7 +220,7 @@ scheduler_events = {
 		# period actually past its interval - never concurrent (PeopleSoft
 		# can't handle it), so overlapping ticks can't pile up fetches.
 		"*/5 * * * *": [
-			"budget_mis.api.erp_actuals_sync.refresh_actuals_data"
+			"budget_mis.api.erp_data_sync.refresh_erp_data"
 		],
 	},
 }
@@ -306,7 +306,7 @@ scheduler_events = {
 # export_python_type_annotations = True
 
 # ERP Actuals Call Log logs every real PeopleSoft fetch the backfill/sync
-# jobs make (erp_actuals_backfill.py's refresh_period) - high volume over
+# jobs make (erp_data_backfill.py's refresh_period) - high volume over
 # time (one row per real fetch, not per report call - see that doctype's
 # own log_call()), so it's auto-purged by Frappe's own scheduled cleanup
 # like any other log table rather than growing unbounded.

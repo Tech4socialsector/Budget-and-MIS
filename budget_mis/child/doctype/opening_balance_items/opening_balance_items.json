@@ -1,0 +1,89 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "OBI-.####",
+ "creation": "2026-11-23 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "unit",
+  "column_break_hyto",
+  "gl_code",
+  "type_of_expenses",
+  "opening_balance_type",
+  "opening_balance_amount",
+  "accounting_period"
+ ],
+ "fields": [
+  {
+   "fieldname": "unit",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Unit",
+   "options": "Unit",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_hyto",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gl_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "GL Code",
+   "options": "Expenses Line Items",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "gl_code.type_of_expense",
+   "fieldname": "type_of_expenses",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Type of expenses",
+   "read_only": 1
+  },
+  {
+   "columns": 3,
+   "default": "Minus",
+   "fieldname": "opening_balance_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Opening Balance Type",
+   "options": "\nAdd\nMinus",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "opening_balance_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Opening Balance Amount",
+   "non_negative": 1,
+   "options": "IINR",
+   "reqd": 1
+  },
+  {
+   "fieldname": "accounting_period",
+   "fieldtype": "Int",
+   "label": "Accounting Period"
+  }
+ ],
+ "grid_page_length": 100,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Child",
+ "name": "Opening Balance Items",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 100,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
