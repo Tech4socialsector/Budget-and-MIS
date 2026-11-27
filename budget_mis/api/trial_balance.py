@@ -166,46 +166,17 @@ def get_adjustment_breakup(financial_year, month):
 
     month = int(month)
 
-    docs = frappe.get_all(
-        "Monthly Adjustment",
-        filters={"financial_year": financial_year},
-        fields=["name", "month"],
-    )
-
-    month_map = {
-        "April": 1, "May": 2, "June": 3, "July": 4,
-        "August": 5, "September": 6, "October": 7,
-        "November": 8, "December": 9,
-        "January": 10, "February": 11, "March": 12,
-    }
-
-    gl_to_expense = _get_gl_code_expenses()
-
     totals = {c: {} for c in CATEGORY_COLUMNS}  # category -> {method: amount}
-    for doc in docs:
-        if isinstance(doc.month, int):
-            period = doc.month
-        elif str(doc.month).isdigit():
-            period = int(doc.month)
-        else:
-            period = month_map.get(doc.month)
-
-        if not period or period > month:
-            continue
-
-        full_doc = frappe.get_doc("Monthly Adjustment", doc.name)
-        for row in full_doc.adjustment_line_items:
-            expense = gl_to_expense.get(str(row.gl_code or "").strip())
-            category = _category_for_expense(expense) if expense else None
-            if category not in CATEGORY_COLUMNS:
-                continue
-
-            amount = row.adjustment_amount or 0
-            if row.adjustment_type == "Minus":
-                amount = -amount
-
-            method = row.adjustment_method or ""
-            totals[category][method] = totals[category].get(method, 0) + amount
+    # Same line items grouped by unit instead of category, for the "by unit"
+    # table - same YTD and category filtering, so both tables share one
+    # Grand Total.
+    unit_totals = {}  # unit -> {method: amount}
+    for _month_name, row, category, amount in _iter_ytd_adjustment_lines(financial_year, month):
+        method = row.adjustment_method or ""
+        totals[category][method] = totals[category].get(method, 0) + amount
+        if row.unit:
+            unit_methods = unit_totals.setdefault(row.unit, {})
+            unit_methods[method] = unit_methods.get(method, 0) + amount
 
     table_rows = []
     total_opex_values = {m: 0 for m in ADJUSTMENT_METHODS}
@@ -243,12 +214,146 @@ def get_adjustment_breakup(financial_year, month):
         "is_total": True,
     })
 
+    unit_labels = _get_unit_labels()
+    unit_rows = []
+    unit_grand = {m: 0 for m in ADJUSTMENT_METHODS}
+    for unit in sorted(unit_totals):
+        method_totals = unit_totals[unit]
+        values = {m: round(method_totals.get(m, 0), 2) or None for m in ADJUSTMENT_METHODS}
+        values["total"] = round(sum(method_totals.values()), 2) or None
+        for m in ADJUSTMENT_METHODS:
+            unit_grand[m] += method_totals.get(m, 0)
+        unit_rows.append({"unit": unit, "label": unit_labels.get(unit, unit), "values": values})
+
+    unit_grand_values = {m: round(v, 2) or None for m, v in unit_grand.items()}
+    unit_grand_values["total"] = round(sum(unit_grand.values()), 2) or None
+    unit_rows.append({"unit": "TOTAL", "label": "Grand Total", "values": unit_grand_values, "is_total": True})
+
     return {
         "status": "success",
         "financial_year": financial_year,
         "month": month,
         "columns": [{"key": m, "label": m} for m in ADJUSTMENT_METHODS] + [{"key": "total", "label": "Total"}],
         "rows": table_rows,
+        "unit_rows": unit_rows,
+    }
+
+
+_ADJUSTMENT_MONTHS = {
+    "April": 1, "May": 2, "June": 3, "July": 4,
+    "August": 5, "September": 6, "October": 7,
+    "November": 8, "December": 9,
+    "January": 10, "February": 11, "March": 12,
+}
+
+
+# Every Monthly Adjustment line item from April up to `month` (accounting
+# period) of `financial_year`, keeping only lines whose GL code maps to one
+# of this table's categories. Yields (month name, line item, category,
+# signed amount). Shared by the Adjustment tables and their drill-down so
+# all of them count exactly the same lines.
+def _iter_ytd_adjustment_lines(financial_year, month):
+    gl_to_expense = _get_gl_code_expenses()
+    docs = frappe.get_all(
+        "Monthly Adjustment",
+        filters={"financial_year": financial_year},
+        fields=["name", "month"],
+    )
+    for doc in docs:
+        if isinstance(doc.month, int):
+            period = doc.month
+        elif str(doc.month).isdigit():
+            period = int(doc.month)
+        else:
+            period = _ADJUSTMENT_MONTHS.get(doc.month)
+
+        if not period or period > month:
+            continue
+
+        full_doc = frappe.get_doc("Monthly Adjustment", doc.name)
+        for row in full_doc.adjustment_line_items:
+            expense = gl_to_expense.get(str(row.gl_code or "").strip())
+            category = _category_for_expense(expense) if expense else None
+            if category not in CATEGORY_COLUMNS:
+                continue
+
+            amount = row.adjustment_amount or 0
+            if row.adjustment_type == "Minus":
+                amount = -amount
+            yield doc.month, row, category, amount
+
+
+# Drill-down for one cell of the "Adjustment by Unit" table: the YTD
+# adjustment lines behind that unit (or every unit, for the Grand Total
+# row) and that method (or every method, for the Total column), summed per
+# cost center + location + GL code.
+@guest_api
+def get_adjustment_unit_drilldown(financial_year, month, unit=None, method=None):
+    if is_direct_http_call(get_adjustment_unit_drilldown) and "System Manager" not in frappe.get_roles():
+        frappe.throw("Not permitted", frappe.PermissionError)
+
+    month = int(month)
+    if unit in ("", "TOTAL"):
+        unit = None
+    if method in ("", "total"):
+        method = None
+
+    cc_labels = _get_cost_center_labels()
+    loc_labels = _get_location_code_labels()
+    gl_descriptions = _get_gl_code_descriptions()
+
+    grouped = {}
+    for month_name, row, category, amount in _iter_ytd_adjustment_lines(financial_year, month):
+        if unit and row.unit != unit:
+            continue
+        if method and (row.adjustment_method or "") != method:
+            continue
+
+        cc = str(row.cost_center_erp or "").strip()
+        loc = str(row.location_code_erp or "").strip()
+        gl = str(row.gl_code or "").strip()
+        key = (row.unit, cc, loc, gl, row.adjustment_method or "")
+        entry = grouped.get(key)
+        if entry is None:
+            entry = grouped[key] = {
+                "unit": row.unit,
+                "cost_center": cc,
+                "cost_center_description": row.cost_center_description
+                    or cc_labels.get(cc, cc).split(" - ", 1)[-1],
+                "location_code": loc,
+                "location_description": row.location_code_description
+                    or loc_labels.get(loc, loc).split(" - ", 1)[-1],
+                "gl_code": gl,
+                "gl_description": row.type_of_expenses or gl_descriptions.get(gl) or "",
+                "category": CATEGORY_LABELS[category],
+                "method": row.adjustment_method or "",
+                "month_amounts": {},
+                "amount": 0,
+            }
+        entry["amount"] += amount
+        entry["month_amounts"][month_name] = entry["month_amounts"].get(month_name, 0) + amount
+
+    rows = sorted(grouped.values(), key=lambda r: -abs(r["amount"]))
+    for r in rows:
+        r["amount"] = round(r["amount"], 2)
+        # Second level of the drill-down: this line's amount month by month,
+        # in financial-year order (April first).
+        month_amounts = r.pop("month_amounts")
+        r["month_rows"] = [
+            {"month": m, "amount": round(month_amounts[m], 2)}
+            for m in sorted(month_amounts, key=lambda m: _ADJUSTMENT_MONTHS.get(m, 99))
+        ]
+        r["months"] = [m["month"] for m in r["month_rows"]]
+
+    return {
+        "status": "success",
+        "financial_year": financial_year,
+        "month": month,
+        "unit": unit,
+        "unit_label": _get_unit_labels().get(unit, unit) if unit else "All Units",
+        "method": method,
+        "rows": rows,
+        "total": round(sum(r["amount"] for r in rows), 2),
     }
 
 

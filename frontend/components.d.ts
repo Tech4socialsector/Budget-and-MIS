@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AdjustmentDrilldownModal: typeof import('./src/components/monthlyMis/AdjustmentDrilldownModal.vue')['default']
     AiAssistant: typeof import('./src/components/AiAssistant.vue')['default']
     AppCommandPalette: typeof import('./src/components/AppCommandPalette.vue')['default']
     AppLoader: typeof import('./src/components/AppLoader.vue')['default']

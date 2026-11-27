@@ -98,7 +98,7 @@
         row was removed by v-if left rowspan=3 cells pointing at a row that
         no longer existed, pushing the TB/MIS cells out past the MIS column.
         Collapsed: 8 columns. Expanded: 22 columns. -->
-        <table class="fc-table w-full min-w-[1200px] text-sm">
+        <table class="fc-table tb-check-table w-full min-w-[1200px] text-sm">
           <thead v-if="opexOpen" key="thead-expanded">
             <tr class="fc-thead-main">
               <th rowspan="3" class="fc-th text-left">Unit</th>
@@ -232,16 +232,65 @@
           </table>
         </div>
       </div>
+
+      <div v-if="!adjustmentError && adjustmentUnitRows.length" class="mt-4">
+        <div class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Adjustment by Unit</div>
+        <div class="fc-scroll-wrapper">
+          <table class="fc-table w-full min-w-[1000px] text-sm">
+            <thead>
+              <tr class="fc-thead-main">
+                <th class="fc-th text-left">Unit</th>
+                <th v-for="col in adjustmentColumns" :key="col.key" class="fc-th text-right">
+                  {{ col.label }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, i) in adjustmentUnitRows"
+                :key="i"
+                :class="row.is_total ? 'fc-row-grand' : ''"
+              >
+                <td class="fc-td text-left font-medium">{{ row.label }}</td>
+                <td
+                  v-for="col in adjustmentColumns"
+                  :key="col.key"
+                  class="fc-td text-right"
+                  :class="[
+                    col.key === 'total' ? 'font-semibold' : '',
+                    row.values[col.key] ? 'cursor-pointer hover:underline' : '',
+                  ]"
+                  :title="row.values[col.key] ? 'Click to see the adjustment lines' : ''"
+                  @click="row.values[col.key] && openAdjustmentDrilldown(row, col.key)"
+                >
+                  {{ formatAmount(row.values[col.key]) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <AdjustmentDrilldownModal
+        v-if="adjustmentDrilldown"
+        v-model="adjustmentDrilldownOpen"
+        :financial-year="financialYear"
+        :month="month"
+        :accounting-period="MONTH_TO_PERIOD[month]"
+        :unit="adjustmentDrilldown.unit"
+        :unit-label="adjustmentDrilldown.label"
+        :method="adjustmentDrilldown.method"
+      />
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 import TrialBalanceDrilldownModal from './TrialBalanceDrilldownModal.vue'
+const AdjustmentDrilldownModal = defineAsyncComponent(() => import('./AdjustmentDrilldownModal.vue'))
 import { call } from '@/data/decrypt'
 import { getCachedTrialBalance, setCachedTrialBalance } from '@/data/trialBalanceCache'
 
@@ -448,6 +497,15 @@ const adjustmentResponse = ref(null)
 const adjustmentError = ref(null)
 const adjustmentColumns = computed(() => adjustmentResponse.value?.columns || [])
 const adjustmentTableRows = computed(() => adjustmentResponse.value?.rows || [])
+const adjustmentUnitRows = computed(() => adjustmentResponse.value?.unit_rows || [])
+
+// Clicking a cell of the "Adjustment by Unit" table opens the lines behind it.
+const adjustmentDrilldown = ref(null)
+const adjustmentDrilldownOpen = ref(false)
+function openAdjustmentDrilldown(row, methodKey) {
+  adjustmentDrilldown.value = { unit: row.unit, label: row.label, method: methodKey }
+  adjustmentDrilldownOpen.value = true
+}
 
 async function fetchAdjustmentBreakup() {
   const fy = props.financialYear

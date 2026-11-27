@@ -106,10 +106,12 @@
 
             <div v-if="displayedRows.length > 1" class="mt-4">
               <div class="flex h-2.5 w-full overflow-hidden rounded-full">
-                <AppTooltip v-for="(row, i) in displayedRows" :key="'seg-' + i" :text="`${row.gl_code || row.name}: ${sharePct(row)}%`">
+                <AppTooltip v-for="(row, i) in displayedRows" :key="'seg-' + i"
+                    class="first:rounded-l-full last:rounded-r-full overflow-hidden"
+                    :style="{ width: sharePct(row) + '%', minWidth: sharePct(row) > 0 ? '2px' : 0 }" :text="`${row.gl_code || row.name}: ${sharePct(row)}%`">
                   <span
-                    class="block h-full first:rounded-l-full last:rounded-r-full"
-                    :style="{ width: sharePct(row) + '%', backgroundColor: accentColor(i), minWidth: sharePct(row) > 0 ? '2px' : 0 }"
+                    class="block h-full w-full"
+                    :style="{ backgroundColor: accentColor(i) }"
                   />
                 </AppTooltip>
               </div>

@@ -521,3 +521,18 @@ tr:not(.fc-row-sub) + .fc-row-sub .fc-td {
     box-shadow: none !important;
   }
 }
+
+/* Trial Balance Check: grid lines between the main-head and sub-head
+   header cells, in the same border colours every other table's header
+   uses (.fc-th / .fc-th-sub-row3). */
+.tb-check-table thead .fc-th,
+.tb-check-table thead .fc-th-tb-sub {
+  border: 1px solid #1a5493;
+}
+.tb-check-table thead .fc-th-sub-row3 {
+  border-left: 1px solid #c46620;
+  border-top: 1px solid #1a5493;
+}
+.tb-check-table thead .fc-th-tb-sub {
+  text-align: center;
+}
