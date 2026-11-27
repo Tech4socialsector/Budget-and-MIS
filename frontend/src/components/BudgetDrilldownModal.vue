@@ -27,12 +27,15 @@
                 <h2 class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ current?.name }}</h2>
               </div>
             </div>
-            <button
-              class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              @click="show = false"
-            >
-              <FeatherIcon name="x" class="h-4 w-4" />
-            </button>
+            <div class="flex flex-shrink-0 items-center gap-2">
+              <DrilldownExportButton v-if="children.length" :get-payload="exportPayload" />
+              <button
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                @click="show = false"
+              >
+                <FeatherIcon name="x" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <!-- Breadcrumb trail: every level clicked into so far, clickable to
@@ -110,23 +113,28 @@
             visual read of concentration before the table even loads focus. -->
             <div v-if="children.length > 1" class="mt-4">
               <div class="flex h-2.5 w-full overflow-hidden rounded-full">
-                <AppTooltip v-for="(child, i) in children" :key="'seg-' + child.name + i" :text="`${child.name}: ${sharePct(child)}%`">
-                  <span
-                    class="block h-full first:rounded-l-full last:rounded-r-full"
-                    :style="{ width: sharePct(child) + '%', backgroundColor: accentColor(i), minWidth: sharePct(child) > 0 ? '2px' : 0 }"
-                  />
+                <AppTooltip
+                  v-for="(child, i) in children"
+                  :key="'seg-' + child.name + i"
+                  class="first:rounded-l-full last:rounded-r-full overflow-hidden"
+                  :style="{ width: sharePct(child) + '%', minWidth: sharePct(child) > 0 ? '2px' : 0 }"
+                  :text="`${child.name}: ${sharePct(child)}%`"
+                >
+                  <span class="block h-full w-full" :style="{ backgroundColor: accentColor(i) }" />
                 </AppTooltip>
               </div>
             </div>
           </div>
 
           <template v-if="children.length">
-            <div class="mb-2 flex items-center justify-between">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                 <FeatherIcon :name="childIcon" class="h-3.5 w-3.5" />
                 {{ childLabel }}
+                <span v-if="search" class="font-normal normal-case text-gray-500 dark:text-gray-400">· {{ displayedChildren.length }} of {{ children.length }}</span>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <DrilldownSearch v-model="search" />
                 <!-- Available on every hierarchy level (card/sub-item/state/
                 cost-center+location) - shows THIS node's own consolidated
                 head/sub-head/item breakdown without navigating to a child. -->
@@ -217,6 +225,11 @@
                       </span>
                     </td>
                   </tr>
+                  <tr v-if="!displayedChildren.length">
+                    <td :colspan="2 + (isGlLevel ? 1 : 0) + (showActuals ? 3 : 1)" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No matches for "{{ search }}"
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -249,7 +262,10 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, FeatherIcon, Switch } from 'frappe-ui'
 import AppTooltip from '@/components/AppTooltip.vue'
+import DrilldownExportButton from '@/components/DrilldownExportButton.vue'
+import DrilldownSearch from '@/components/DrilldownSearch.vue'
 import { call } from '@/data/decrypt'
+import { exportColor, matchesSearch } from '@/data/drilldownExport'
 import { accentColor, formatCr, formatINR, rowTotal } from '@/data/budgetTotals'
 import { nodeActual, nodeBudget, treeTotal, utilizationColor, utilizationPct as utilPct } from '@/data/dashboardData'
 
@@ -400,9 +416,17 @@ function childColorIndex(child) {
   return children.value.indexOf(child)
 }
 
+// Search box above the table: filters this level's rows across every
+// column shown (name, type of expense, amounts). Cleared on level change.
+const search = ref('')
+watch(current, () => { search.value = '' })
+
 const displayedChildren = computed(() => {
-  if (!sortByAmount.value) return children.value
-  return [...children.value].sort((a, b) => total(b) - total(a))
+  const rows = search.value
+    ? children.value.filter((c) => matchesSearch(search.value, c.name, c.typeOfExpense, total(c), props.showActuals ? actualTotal(c) : null))
+    : children.value
+  if (!sortByAmount.value) return rows
+  return [...rows].sort((a, b) => total(b) - total(a))
 })
 
 const currentTotal = computed(() => children.value.reduce((sum, c) => sum + total(c), 0) || total(current.value))
@@ -496,5 +520,56 @@ function jumpTo(index) {
 
 function drillBack() {
   if (history.value.length > 1) history.value = history.value.slice(0, -1)
+}
+
+// Excel / PDF export of the level currently on screen - same columns,
+// order (incl. sort by amount) and number format as the table above.
+function exportPayload() {
+  const node = current.value
+  const variance = total(node) - actualTotal(node)
+  const summary = props.showActuals
+    ? [
+        { label: 'Budget', value: total(node), kind: 'amount' },
+        { label: 'Actual', value: actualTotal(node), kind: 'amount' },
+        { label: 'Variance', value: `${formatAmount(Math.abs(variance))} ${variance >= 0 ? 'under' : 'over'}` },
+        { label: 'Utilization', value: utilizationPct(node), kind: 'percent' },
+      ]
+    : [
+        { label: 'Total', value: total(node), kind: 'amount' },
+        { label: childLabel.value, value: children.value.length },
+      ]
+  const columns = [
+    { label: childLabel.value, kind: 'text' },
+    ...(isGlLevel.value ? [{ label: 'Type of Expense', kind: 'text' }] : []),
+    { label: 'Share', kind: 'percent', align: 'right', bar: true },
+    { label: props.showActuals ? 'Budget' : 'Total', kind: 'amount', align: 'right' },
+    ...(props.showActuals
+      ? [
+          { label: 'Actual', kind: 'amount', align: 'right' },
+          { label: 'Util %', kind: 'percent', align: 'right' },
+        ]
+      : []),
+  ]
+  const rows = displayedChildren.value.map((child) => ({
+    color: exportColor(childColorIndex(child)),
+    cells: [
+      child.name,
+      ...(isGlLevel.value ? [child.typeOfExpense || '—'] : []),
+      sharePct(child),
+      total(child),
+      ...(props.showActuals ? [actualTotal(child), utilizationPct(child)] : []),
+    ],
+  }))
+  return {
+    filename: `Drilldown_${history.value.map((n) => n.name).join('_')}`,
+    eyebrow: 'Drill Down',
+    title: node?.name,
+    breadcrumb: history.value.map((n) => n.name),
+    summary,
+    section: childLabel.value,
+    amount_mode: showFullNumbers.value ? 'full' : 'cr',
+    columns,
+    rows,
+  }
 }
 </script>

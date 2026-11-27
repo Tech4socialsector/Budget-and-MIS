@@ -28,7 +28,10 @@ _PERIOD_MONTH_NAMES = {
 # those 7 sub-head columns, "Grand Total" sums Capital Expenses + that Total
 # Opex, both computed per row rather than read from raw data.
 OPEX_SUB_ROWS = ["prog", "prtnr", "ppl", "trv", "std", "oth opex", "medical"]
-CATEGORY_COLUMNS = ["capex", *OPEX_SUB_ROWS]
+# COVID SUPPORT is its own head (like Capital Expenses), shown as its own
+# column after Total Operating Expenses and counted in the Total column -
+# same as Monthly MIS's Grand Total, which includes its Covid-19 row.
+CATEGORY_COLUMNS = ["capex", *OPEX_SUB_ROWS, "covid"]
 CATEGORY_LABELS = {
     "capex": "Capital Expenses",
     "prog": "Program Expenses",
@@ -38,6 +41,7 @@ CATEGORY_LABELS = {
     "std": "Student Support Expenses",
     "oth opex": "Other Operating Expenses",
     "medical": "Medical Expenses",
+    "covid": "Covid-19",
 }
 
 # head_of_expense / sub_head_of_expense (as stored on the real Expenses
@@ -52,7 +56,7 @@ CATEGORY_LABELS = {
 # MAIN_HEADS/_column_list expose them too - letting a column-header
 # drill-down look its matching node up by real name instead of the
 # frontend needing its own separate copy of this mapping.
-_HEAD_TO_CATEGORY = {"CAPITAL  EXPENSES": "capex"}
+_HEAD_TO_CATEGORY = {"CAPITAL  EXPENSES": "capex", "COVID SUPPORT": "covid"}
 _SUB_HEAD_TO_CATEGORY = {
     "PROGRAM  EXPENSES": "prog",
     "PARTNER  EXPENSES": "prtnr",
@@ -73,6 +77,7 @@ CATEGORY_SUB_HEAD_NAMES["medical"] = "Medical Expenses"
 MAIN_HEADS = [
     {"key": "capex", "label": "Capital Expenses", "head_names": ["CAPITAL  EXPENSES"], "columns": ["capex"]},
     {"key": "opex", "label": "Operating Expenses", "head_names": ["OPERATING  EXPENSES", "OTHER  OPERATING EXPENSES", "Medical Expenses"], "columns": OPEX_SUB_ROWS},
+    {"key": "covid", "label": "Covid-19", "head_names": ["COVID SUPPORT"], "columns": ["covid"]},
 ]
 
 # Trial Balance Check is a System-Manager-only tab inside Monthly MIS -
@@ -181,7 +186,7 @@ def get_adjustment_breakup(financial_year, month):
     table_rows = []
     total_opex_values = {m: 0 for m in ADJUSTMENT_METHODS}
     grand_total_values = {m: 0 for m in ADJUSTMENT_METHODS}
-    for category in CATEGORY_COLUMNS:
+    def category_row(category):
         method_totals = totals[category]
         values = {m: round(method_totals.get(m, 0), 2) or None for m in ADJUSTMENT_METHODS}
         values["total"] = round(sum(method_totals.values()), 2) or None
@@ -191,11 +196,14 @@ def get_adjustment_breakup(financial_year, month):
             if category in OPEX_SUB_ROWS:
                 total_opex_values[m] += method_totals.get(m, 0)
 
-        table_rows.append({
+        return {
             "category": category,
             "label": CATEGORY_LABELS[category],
             "values": values,
-        })
+        }
+
+    for category in ["capex", *OPEX_SUB_ROWS]:
+        table_rows.append(category_row(category))
 
     total_opex_row_values = {m: round(v, 2) or None for m, v in total_opex_values.items()}
     total_opex_row_values["total"] = round(sum(total_opex_values.values()), 2) or None
@@ -204,6 +212,7 @@ def get_adjustment_breakup(financial_year, month):
         "label": "Total Operating Expenses",
         "values": total_opex_row_values,
     })
+    table_rows.append(category_row("covid"))
 
     grand_total_row_values = {m: round(v, 2) or None for m, v in grand_total_values.items()}
     grand_total_row_values["total"] = round(sum(grand_total_values.values()), 2) or None
@@ -424,8 +433,10 @@ def _get_mis_totals_by_unit(fiscal_year, accounting_period):
         category_totals = {}
         for head in structure:
             head_name = head.get("name")
-            if head_name == "CAPITAL  EXPENSES":
-                category_totals["capex"] = category_totals.get("capex", 0) + (head.get("total_posted_amt_ytd") or 0)
+            head_category = _HEAD_TO_CATEGORY.get(head_name)
+            if head_category:
+                # Capital Expenses / COVID SUPPORT: whole head is one column
+                category_totals[head_category] = category_totals.get(head_category, 0) + (head.get("total_posted_amt_ytd") or 0)
                 continue
             for sub in head.get("sub_heads") or []:
                 sub_category = _SUB_HEAD_TO_CATEGORY.get(sub.get("name"))
@@ -629,9 +640,12 @@ def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_uni
 
         total_opex_tb = round(sum(totals.get(c, 0) for c in OPEX_SUB_ROWS), 2)
         total_opex_mis = round(sum((unit_mis_categories.get(c) or 0) for c in OPEX_SUB_ROWS), 2) if unit_mis_categories else None
-        grand_total_tb = round(totals.get("capex", 0) + total_opex_tb, 2)
+        grand_total_tb = round(totals.get("capex", 0) + total_opex_tb + totals.get("covid", 0), 2)
         grand_total_mis = (
-            round((unit_mis_categories.get("capex") or 0) + (total_opex_mis or 0), 2)
+            round(
+                (unit_mis_categories.get("capex") or 0) + (total_opex_mis or 0) + (unit_mis_categories.get("covid") or 0),
+                2,
+            )
             if unit_mis_categories else None
         )
         values["total opex"] = {"tb": total_opex_tb or None, "mis": total_opex_mis or None}
@@ -646,6 +660,14 @@ def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_uni
             "tb": grand_total_tb or None,
             "mis": grand_total_mis or None,
             "variance": grand_total_variance,
+        }
+        # Variance split into Capex (Capex TB - Capex MIS), Opex (Total Opex
+        # TB - Total Opex MIS) and Total (Capex + Opex) - the three
+        # sub-columns under "Variance".
+        values["variance"] = {
+            "capex": round(totals.get("capex", 0) - (unit_mis_categories.get("capex") or 0), 2) if unit_mis_categories else None,
+            "opex": round(total_opex_tb - (total_opex_mis or 0), 2) if unit_mis_categories else None,
+            "total": grand_total_variance,
         }
         # The table's own overall "MIS" column (unit's full actuals total,
         # same engine Monthly MIS itself uses: group_actuals_ytd ->
@@ -699,12 +721,17 @@ def build_trial_balance_table(rows, mis_actuals_by_unit=None, adjustments_by_uni
         for c in CATEGORY_COLUMNS
     }
     grand_row_values["total opex"] = {"tb": grand_row_total_opex_tb or None, "mis": grand_row_total_opex_mis or None}
-    grand_row_grand_total_tb = round((grand_row_tb.get("capex") or 0) + grand_row_total_opex_tb, 2)
-    grand_row_grand_total_mis = round((grand_row_mis.get("capex") or 0) + grand_row_total_opex_mis, 2)
+    grand_row_grand_total_tb = round((grand_row_tb.get("capex") or 0) + grand_row_total_opex_tb + (grand_row_tb.get("covid") or 0), 2)
+    grand_row_grand_total_mis = round((grand_row_mis.get("capex") or 0) + grand_row_total_opex_mis + (grand_row_mis.get("covid") or 0), 2)
     grand_row_values["grand total"] = {
         "tb": grand_row_grand_total_tb or None,
         "mis": grand_row_grand_total_mis or None,
         "variance": round(grand_row_grand_total_tb - grand_row_grand_total_mis, 2),
+    }
+    grand_row_values["variance"] = {
+        "capex": round((grand_row_tb.get("capex") or 0) - (grand_row_mis.get("capex") or 0), 2),
+        "opex": round(grand_row_total_opex_tb - grand_row_total_opex_mis, 2),
+        "total": grand_row_values["grand total"]["variance"],
     }
     grand_row_values["mis"] = round(sum(mis_actuals_by_unit.get(bu, 0) for bu in units_seen), 2) or None
     grand_row_values["adjustment"] = round(sum(adjustments_by_unit.get(bu, 0) for bu in units_seen), 2) or None
@@ -797,12 +824,10 @@ def _get_gl_code_descriptions():
 # first tab) - one ROW per GL code actually seen in `scoped_rows` (a
 # unit's own rows, or one cost-center+location node's own subset), columns
 # gl_code/description/debit/credit/opening_balance/net, plus a `total`
-# summed across every row shown. Restricted to the same Capex/Opex-mapped
-# GL codes the main table's own category columns count (via
+# summed across every row shown. Restricted to the same Capex/Opex/Covid-
+# mapped GL codes the main table's own category columns count (via
 # _category_for_expense/CATEGORY_COLUMNS - excludes an unmapped/
-# balance-sheet GL code, AND excludes a GL code mapped to "Medical
-# Expenses"/"COVID SUPPORT", neither of which the main table's Grand Total
-# counts either), so this tab's own `total.net` always sums back to the
+# balance-sheet GL code), so this tab's own `total.net` always sums back to the
 # main table's "Total Trial Balance" figure for the same unit/cost-center-
 # location slice - same guarantee _build_cost_center_breakdown's own `ytd`
 # now has. (This tab was briefly left deliberately unfiltered - showing
@@ -1097,16 +1122,12 @@ def _build_cost_center_breakdown(unit_rows, gl_to_expense):
         # own category totals - together these could make the "Unspecified"
         # node's own total wildly disagree with (even flip the sign of) the
         # unit's real "Total Trial Balance" figure. Restricted to only the
-        # 2 head names CATEGORY_COLUMNS itself covers (CAPITAL  EXPENSES,
-        # OPERATING  EXPENSES - which OTHER  OPERATING EXPENSES already
-        # folds into) - _build_unit_drilldown_tree's own tree ALSO includes
-        # "Medical Expenses"/"COVID SUPPORT" as their own separate heads,
-        # neither of which CATEGORY_COLUMNS/the main table's own Grand Total
-        # ever counts, so summing every head here (not just these 2) still
-        # disagreed with the main table by exactly those 2 heads' own
-        # totals.
+        # head names CATEGORY_COLUMNS itself covers (CAPITAL  EXPENSES,
+        # OPERATING  EXPENSES - which OTHER  OPERATING EXPENSES and Medical
+        # Expenses already fold into - and COVID SUPPORT, now its own
+        # column), so this always sums back to the main table's Total.
         total_ytd = round(
-            sum(head["ytd"] for head in line_items if head["name"] in ("CAPITAL  EXPENSES", "OPERATING  EXPENSES")),
+            sum(head["ytd"] for head in line_items if head["name"] in ("CAPITAL  EXPENSES", "OPERATING  EXPENSES", "COVID SUPPORT")),
             2,
         )
         cc_label = cc_labels.get(cc, cc)

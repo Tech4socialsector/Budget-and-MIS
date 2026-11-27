@@ -56,12 +56,15 @@
                 <h2 class="truncate text-lg font-semibold text-gray-900 dark:text-gray-100">{{ current?.name }}</h2>
               </div>
             </div>
-            <button
-              class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              @click="show = false"
-            >
-              <FeatherIcon name="x" class="h-4 w-4" />
-            </button>
+            <div class="flex flex-shrink-0 items-center gap-2">
+              <DrilldownExportButton v-if="activeRows.length" :get-payload="exportPayload" />
+              <button
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                @click="show = false"
+              >
+                <FeatherIcon name="x" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div v-if="history.length > 1" class="mt-3 flex flex-wrap items-center gap-1 text-xs">
@@ -124,11 +127,14 @@
               No GL codes for this slice.
             </div>
             <template v-else>
-              <div class="mb-2 flex items-center justify-between">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                   <FeatherIcon name="hash" class="h-3.5 w-3.5" />
                   GL Codes
+                  <span v-if="search" class="font-normal normal-case text-gray-500 dark:text-gray-400">· {{ displayedRows.length }} of {{ activeRows.length }}</span>
                 </div>
+                <div class="flex flex-wrap items-center gap-2">
+                <DrilldownSearch v-model="search" />
                 <button
                   class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                   @click="sortByAmount = !sortByAmount"
@@ -136,6 +142,7 @@
                   <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
                   {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
                 </button>
+                </div>
               </div>
               <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
                 <table class="w-full min-w-[720px] border-collapse text-sm">
@@ -185,16 +192,19 @@
                         {{ formatAmount(row.net) }}
                       </td>
                     </tr>
+                    <tr v-if="!displayedRows.length">
+                      <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No matches for "{{ search }}"</td>
+                    </tr>
                   </tbody>
-                  <tfoot v-if="glTotal">
+                  <tfoot v-if="glFooter">
                     <tr class="fc-row-grand">
                       <td class="px-4 py-2.5 font-semibold">TOTAL</td>
                       <td class="border-l border-white/20 px-4 py-2.5"></td>
                       <td class="border-l border-white/20 px-4 py-2.5"></td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glTotal.debit) }}</td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glTotal.credit) }}</td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glTotal.opening_balance) }}</td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glTotal.net) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glFooter.debit) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glFooter.credit) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glFooter.opening_balance) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(glFooter.net) }}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -208,11 +218,14 @@
               No Cost Center / Location breakdown for this slice.
             </div>
             <template v-else>
-              <div class="mb-2 flex items-center justify-between">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                   <FeatherIcon name="map-pin" class="h-3.5 w-3.5" />
                   Cost Center · Location
+                  <span v-if="search" class="font-normal normal-case text-gray-500 dark:text-gray-400">· {{ displayedRows.length }} of {{ activeRows.length }}</span>
                 </div>
+                <div class="flex flex-wrap items-center gap-2">
+                <DrilldownSearch v-model="search" />
                 <button
                   class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                   @click="sortByAmount = !sortByAmount"
@@ -220,6 +233,7 @@
                   <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
                   {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
                 </button>
+                </div>
               </div>
               <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
                 <table class="w-full min-w-[480px] border-collapse text-sm">
@@ -254,12 +268,15 @@
                       </td>
                       <td class="border-l border-gray-100 px-4 py-2.5 text-right font-medium text-gray-900 dark:border-gray-800 dark:text-gray-100">{{ formatAmount(row.ytd) }}</td>
                     </tr>
+                    <tr v-if="!displayedRows.length">
+                      <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No matches for "{{ search }}"</td>
+                    </tr>
                   </tbody>
                   <tfoot>
                     <tr class="fc-row-grand">
                       <td class="px-4 py-2.5 font-semibold">TOTAL</td>
                       <td class="border-l border-white/20 px-4 py-2.5"></td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(costCenterTotal) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(costCenterFooter) }}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -276,7 +293,10 @@
 import { computed, ref, watch } from 'vue'
 import { Dialog, FeatherIcon, Switch, TabButtons } from 'frappe-ui'
 import AppTooltip from '@/components/AppTooltip.vue'
+import DrilldownExportButton from '@/components/DrilldownExportButton.vue'
+import DrilldownSearch from '@/components/DrilldownSearch.vue'
 import { accentColor, formatCr, formatINR } from '@/data/budgetTotals'
+import { exportColor, matchesSearch } from '@/data/drilldownExport'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -342,10 +362,32 @@ function rowAmount(row) {
 }
 
 const activeRows = computed(() => (activeTab.value === 'cc' ? costCenterRows.value : glRows.value))
+// Search box above each tab's table: filters its rows across every column
+// (GL code, description, debit/credit/opening/net - or cost center /
+// location name and total). Cleared when the level or tab changes.
+const search = ref('')
+watch([current, activeTab], () => { search.value = '' })
+
 const displayedRows = computed(() => {
-  if (!sortByAmount.value) return activeRows.value
-  return [...activeRows.value].sort((a, b) => Math.abs(rowAmount(b)) - Math.abs(rowAmount(a)))
+  const rows = search.value
+    ? activeRows.value.filter((r) =>
+        matchesSearch(search.value, r.gl_code, r.description, r.name, r.debit, r.credit, r.opening_balance, r.net, r.ytd),
+      )
+    : activeRows.value
+  if (!sortByAmount.value) return rows
+  return [...rows].sort((a, b) => Math.abs(rowAmount(b)) - Math.abs(rowAmount(a)))
 })
+
+// TOTAL rows follow the search: the server's own totals when unfiltered,
+// otherwise the sum of just the matching rows.
+const glFooter = computed(() => {
+  if (!search.value) return glTotal.value
+  const sum = (k) => displayedRows.value.reduce((acc, r) => acc + (r[k] || 0), 0)
+  return { debit: sum('debit'), credit: sum('credit'), opening_balance: sum('opening_balance'), net: sum('net') }
+})
+const costCenterFooter = computed(() =>
+  search.value ? displayedRows.value.reduce((sum, r) => sum + (r.ytd || 0), 0) : costCenterTotal.value,
+)
 
 const totalAbs = computed(() => activeRows.value.reduce((sum, r) => sum + Math.abs(rowAmount(r)), 0))
 function sharePct(row) {
@@ -365,5 +407,54 @@ function jumpTo(index) {
 
 function drillBack() {
   if (history.value.length > 1) history.value = history.value.slice(0, -1)
+}
+
+// Excel / PDF export of the tab currently on screen - same columns, order
+// (incl. sort by amount), TOTAL row and number format as the table above.
+function exportPayload() {
+  const isCc = activeTab.value === 'cc'
+  const label = isCc ? 'Cost Center · Location' : 'GL Codes'
+  const columns = isCc
+    ? [
+        { label, kind: 'text' },
+        { label: 'Share', kind: 'percent', align: 'right', bar: true },
+        { label: 'Total', kind: 'amount', align: 'right' },
+      ]
+    : [
+        { label: 'GL Code', kind: 'text' },
+        { label: 'Description', kind: 'text' },
+        { label: 'Share', kind: 'percent', align: 'right', bar: true },
+        { label: 'Debit', kind: 'amount', align: 'right' },
+        { label: 'Credit', kind: 'amount', align: 'right' },
+        { label: 'Opening Balance', kind: 'amount', align: 'right' },
+        { label: 'Net', kind: 'amount', align: 'right' },
+      ]
+  const rows = displayedRows.value.map((row, i) => ({
+    color: exportColor(i),
+    cells: isCc
+      ? [row.name, sharePct(row), row.ytd]
+      : [row.gl_code, row.description || '—', sharePct(row), row.debit, row.credit, row.opening_balance, row.net],
+  }))
+  let footer = null
+  if (isCc) footer = ['TOTAL', '', costCenterFooter.value]
+  else if (glFooter.value) {
+    const t = glFooter.value
+    footer = ['TOTAL', '', '', t.debit, t.credit, t.opening_balance, t.net]
+  }
+  return {
+    filename: `TB_Drilldown_${history.value.map((n) => n.name).join('_')}_${isCc ? 'CostCenter_Location' : 'GL_Codes'}`,
+    eyebrow: 'Trial Balance Drill Down',
+    title: current.value?.name,
+    breadcrumb: history.value.map((n) => n.name),
+    summary: [
+      { label: 'Total', value: current.value?.ytd, kind: 'amount' },
+      { label, value: displayedRows.value.length },
+    ],
+    section: label,
+    amount_mode: showFullNumbers.value ? 'full' : 'cr',
+    columns,
+    rows,
+    footer,
+  }
 }
 </script>

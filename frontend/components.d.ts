@@ -27,6 +27,8 @@ declare module 'vue' {
     ColumnPicker: typeof import('./src/components/ColumnPicker.vue')['default']
     ConsolidatedTable: typeof import('./src/components/monthlyMis/ConsolidatedTable.vue')['default']
     CrCell: typeof import('./src/components/foundationConsolidated/CrCell.vue')['default']
+    DrilldownExportButton: typeof import('./src/components/DrilldownExportButton.vue')['default']
+    DrilldownSearch: typeof import('./src/components/DrilldownSearch.vue')['default']
     DynamicField: typeof import('./src/components/DynamicField.vue')['default']
     ExpenseTable: typeof import('./src/components/monthlyMis/ExpenseTable.vue')['default']
     ExpenseTreeTab: typeof import('./src/components/foundationConsolidated/ExpenseTreeTab.vue')['default']

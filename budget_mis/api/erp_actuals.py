@@ -691,7 +691,12 @@ def export_actuals_excel(fiscal_year, accounting_period, rows=None, method_key=N
     AMOUNT_COLUMNS = {"posted_total_amt"}
     AMOUNT_FORMAT = "#,##0.00;[Red]-#,##0.00"
 
-    for row in rows:
+    # Track the row number ourselves - openpyxl's ws.max_row rescans every
+    # cell on each access, so reading it once per data row made this loop
+    # O(n^2): a 30k+ row export took several minutes and was killed by the
+    # web worker timeout before any file came back.
+    amount_col_idxs = [idx for idx, col in enumerate(columns, start=1) if col in AMOUNT_COLUMNS]
+    for row_idx, row in enumerate(rows, start=2):
         values = []
         for col in columns:
             value = row.get(col)
@@ -701,10 +706,8 @@ def export_actuals_excel(fiscal_year, accounting_period, rows=None, method_key=N
                 value = frappe.utils.flt(value)
             values.append(value)
         ws.append(values)
-        if AMOUNT_COLUMNS:
-            for col_idx, col in enumerate(columns, start=1):
-                if col in AMOUNT_COLUMNS:
-                    ws.cell(row=ws.max_row, column=col_idx).number_format = AMOUNT_FORMAT
+        for col_idx in amount_col_idxs:
+            ws.cell(row=row_idx, column=col_idx).number_format = AMOUNT_FORMAT
 
     if "posted_total_amt" in columns:
         total = sum(frappe.utils.flt(row.get("posted_total_amt")) for row in rows)

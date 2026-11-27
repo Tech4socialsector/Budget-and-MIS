@@ -70,8 +70,11 @@
           filter row. Export lives in this row too now, right-aligned via
           the wrapping flex, even though it's a one-off action rather than
           a filter - keeping every control in one row saves vertical space. -->
-          <div v-if="activeTab === 'monthly-mis'" class="flex items-end gap-4">
-            <Button variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
+          <!-- The Cr/full-number switch is shared by both tabs (Trial Balance
+          Check injects the same misShowFullNumbers ref); Refresh is Monthly
+          MIS only. -->
+          <div class="flex items-end gap-4">
+            <Button v-if="activeTab === 'monthly-mis'" variant="subtle" theme="gray" :loading="loading" @click="loadAll(true)">
               <template #prefix>
                 <FeatherIcon name="refresh-cw" class="h-4 w-4" />
               </template>

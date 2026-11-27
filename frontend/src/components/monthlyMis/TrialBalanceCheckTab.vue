@@ -97,7 +97,7 @@
         3 (heads, sub-heads, TB/MIS). A single shared header whose sub-head
         row was removed by v-if left rowspan=3 cells pointing at a row that
         no longer existed, pushing the TB/MIS cells out past the MIS column.
-        Collapsed: 8 columns. Expanded: 22 columns. -->
+        Collapsed: 12 columns. Expanded: 26 columns. -->
         <table class="fc-table tb-check-table w-full min-w-[1200px] text-sm">
           <thead v-if="opexOpen" key="thead-expanded">
             <tr class="fc-thead-main">
@@ -109,10 +109,13 @@
                 <span @click.stop="opexOpen = false">{{ opexHead.label }} <span class="text-white/70">▲</span></span>
               </th>
               <th rowspan="2" colspan="2" class="fc-th text-center">{{ columnLabel('total opex') }}</th>
+              <th rowspan="2" colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('covid')">
+                {{ covidHead.label }}
+              </th>
               <th rowspan="2" colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoConsolidated">
                 {{ columnLabel('grand total') }}
               </th>
-              <th rowspan="3" class="fc-th text-right">Variance</th>
+              <th rowspan="2" colspan="3" class="fc-th text-center">Variance</th>
             </tr>
             <tr class="fc-thead-sub">
               <th
@@ -136,6 +139,11 @@
               <th class="fc-th-sub-row3 text-right">MIS</th>
               <th class="fc-th-sub-row3 text-right">TB</th>
               <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">Capex</th>
+              <th class="fc-th-sub-row3 text-right">Opex</th>
+              <th class="fc-th-sub-row3 text-right">Total</th>
             </tr>
           </thead>
           <thead v-else key="thead-collapsed">
@@ -147,10 +155,13 @@
               <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('opex')">
                 <span @click.stop="opexOpen = true">{{ opexHead.label }} <span class="text-white/70">▼</span></span>
               </th>
+              <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoHead('covid')">
+                {{ covidHead.label }}
+              </th>
               <th colspan="2" class="fc-th cursor-pointer select-none text-center" @click="drillIntoConsolidated">
                 {{ columnLabel('grand total') }}
               </th>
-              <th rowspan="2" class="fc-th text-right">Variance</th>
+              <th colspan="3" class="fc-th text-center">Variance</th>
             </tr>
             <tr class="fc-thead-sub">
               <th class="fc-th-sub-row3 text-right">TB</th>
@@ -159,6 +170,11 @@
               <th class="fc-th-sub-row3 text-right">MIS</th>
               <th class="fc-th-sub-row3 text-right">TB</th>
               <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">TB</th>
+              <th class="fc-th-sub-row3 text-right">MIS</th>
+              <th class="fc-th-sub-row3 text-right">Capex</th>
+              <th class="fc-th-sub-row3 text-right">Opex</th>
+              <th class="fc-th-sub-row3 text-right">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -180,9 +196,13 @@
               </template>
               <td class="fc-td text-right">{{ formatAmount(row.values['total opex']?.tb) }}</td>
               <td class="fc-td text-right">{{ formatAmount(row.values['total opex']?.mis) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.covid?.tb) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.covid?.mis) }}</td>
               <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']?.tb) }}</td>
               <td class="fc-td text-right font-semibold">{{ formatAmount(row.values['grand total']?.mis) }}</td>
-              <td class="fc-td text-right">{{ formatAmount(row.values['grand total']?.variance) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.variance?.capex) }}</td>
+              <td class="fc-td text-right">{{ formatAmount(row.values.variance?.opex) }}</td>
+              <td class="fc-td text-right font-semibold">{{ formatAmount(row.values.variance?.total) }}</td>
             </tr>
           </tbody>
         </table>
@@ -285,13 +305,14 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { ErrorMessage } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import BudgetDrilldownModal from '@/components/BudgetDrilldownModal.vue'
 import TrialBalanceDrilldownModal from './TrialBalanceDrilldownModal.vue'
 const AdjustmentDrilldownModal = defineAsyncComponent(() => import('./AdjustmentDrilldownModal.vue'))
 import { call } from '@/data/decrypt'
+import { formatCrDash } from '@/data/foundationConsolidatedData'
 import { getCachedTrialBalance, setCachedTrialBalance } from '@/data/trialBalanceCache'
 
 const props = defineProps({
@@ -345,6 +366,7 @@ const mainHeads = computed(() => table.value?.main_heads || [])
 const consolidatedTree = computed(() => table.value?.consolidated_tree || [])
 const capexHead = computed(() => mainHeads.value.find((h) => h.key === 'capex') || { label: 'Capital Expenses', head_names: [], columns: ['capex'] })
 const opexHead = computed(() => mainHeads.value.find((h) => h.key === 'opex') || { label: 'Operating Expenses', head_names: [], columns: [] })
+const covidHead = computed(() => mainHeads.value.find((h) => h.key === 'covid') || { label: 'Covid-19', head_names: ['COVID SUPPORT'], columns: ['covid'] })
 
 function columnLabel(key) {
   return columns.value.find((c) => c.key === key)?.label || key
@@ -357,9 +379,9 @@ function setTable(t) {
 // Operating Expenses' 6 sub-heads collapse/expand as one group (unlike
 // BudgetSummaryTable.vue's per-quarter Set, there's only this one
 // expandable group here, so a single boolean is enough) - same
-// rowspan<->colspan header toggle pattern. Defaults open (sub-heads shown
-// immediately) rather than collapsed, per the business's own preference.
-const opexOpen = ref(true)
+// rowspan<->colspan header toggle pattern. Defaults collapsed when the tab
+// loads (Operating Expenses as one TB/MIS pair); click its header to expand.
+const opexOpen = ref(false)
 
 // Drill-down: clicking a unit's row opens its own 4-level tree
 // (head_of_expense -> sub_head_of_expense -> type_of_expense -> gl_code,
@@ -404,7 +426,7 @@ function drillIntoUnit(row) {
 // items); the "Total" column shows the untouched full Head -> Sub Head ->
 // Item -> GL tree, same depth as a unit row's own drill-down.
 function drillIntoHead(headKey) {
-  const head = headKey === 'capex' ? capexHead.value : opexHead.value
+  const head = { capex: capexHead.value, opex: opexHead.value, covid: covidHead.value }[headKey]
   const matchingHeadNodes = consolidatedTree.value.filter((h) => head.head_names?.includes(h.name))
   const subHeads = matchingHeadNodes.flatMap((h) => h.sub_heads || [])
   openDrilldown(head.label, subHeads)
@@ -428,8 +450,19 @@ function drillIntoConsolidated() {
 
 // Plain Western-style comma grouping (3,743,250,000), not en-IN lakh/crore
 // grouping - matches the reference table the business shared.
+// Cr / full-number toggle: the same "Show full numbers" switch Monthly MIS
+// uses (provided by MonthlyMis.vue), so both tabs always show the same
+// format. Cr mode matches Monthly MIS's own tables (crores, 2 decimals).
+const showFullNumbers = inject('misShowFullNumbers', ref(false))
+
 function formatAmount(v) {
   if (v === null || v === undefined || v === 0) return '-'
+  if (!showFullNumbers.value) {
+    // A real but tiny amount (under 0.005 Cr) would round to "-0"/"0" -
+    // show 0.00 so it still reads as non-zero, unlike a true zero's "-".
+    if (Math.abs(v) < 50000) return '0.00'
+    return formatCrDash(v)
+  }
   return Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
 

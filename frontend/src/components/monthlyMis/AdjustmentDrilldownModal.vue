@@ -39,12 +39,15 @@
                 </div>
               </div>
             </div>
-            <button
-              class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              @click="show = false"
-            >
-              <FeatherIcon name="x" class="h-4 w-4" />
-            </button>
+            <div class="flex flex-shrink-0 items-center gap-2">
+              <DrilldownExportButton v-if="data && currentRows.length" :get-payload="exportPayload" />
+              <button
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                @click="show = false"
+              >
+                <FeatherIcon name="x" class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div v-if="selectedLine" class="mt-3 flex flex-wrap items-center gap-1 text-xs">
@@ -102,9 +105,13 @@
 
             <!-- Second level: the clicked line, month by month -->
             <template v-if="selectedLine">
-              <div class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
-                <FeatherIcon name="calendar" class="h-3.5 w-3.5" />
-                Month wise
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
+                  <FeatherIcon name="calendar" class="h-3.5 w-3.5" />
+                  Month wise
+                  <span v-if="search" class="font-normal normal-case text-gray-500 dark:text-gray-400">· {{ currentRows.length }} of {{ selectedLine.month_rows?.length || 0 }}</span>
+                </div>
+                <DrilldownSearch v-model="search" />
               </div>
               <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
                 <table class="w-full min-w-[480px] border-collapse text-sm">
@@ -137,12 +144,15 @@
                       </td>
                       <td class="border-l border-gray-100 px-4 py-2.5 text-right font-medium text-gray-900 dark:border-gray-800 dark:text-gray-100">{{ formatAmount(row.amount) }}</td>
                     </tr>
+                    <tr v-if="!currentRows.length">
+                      <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No matches for "{{ search }}"</td>
+                    </tr>
                   </tbody>
                   <tfoot>
                     <tr class="fc-row-grand">
                       <td class="px-4 py-2.5 font-semibold">TOTAL</td>
                       <td class="border-l border-white/20 px-4 py-2.5"></td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(selectedLine.amount) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(footerTotal) }}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -154,11 +164,14 @@
               No adjustment lines.
             </div>
             <template v-else>
-              <div class="mb-2 flex items-center justify-between">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-gray-300">
                   <FeatherIcon name="layers" class="h-3.5 w-3.5" />
                   Breakdown
+                  <span v-if="search" class="font-normal normal-case text-gray-500 dark:text-gray-400">· {{ displayedRows.length }} of {{ rows.length }}</span>
                 </div>
+                <div class="flex flex-wrap items-center gap-2">
+                <DrilldownSearch v-model="search" />
                 <button
                   class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                   @click="sortByAmount = !sortByAmount"
@@ -166,6 +179,7 @@
                   <FeatherIcon name="bar-chart-2" class="h-3.5 w-3.5" />
                   {{ sortByAmount ? 'Sorted by amount' : 'Sort by amount' }}
                 </button>
+                </div>
               </div>
               <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
                 <table class="w-full min-w-[960px] border-collapse text-sm">
@@ -222,12 +236,15 @@
                       </td>
                       <td class="border-l border-gray-100 px-4 py-2.5 dark:border-gray-800 text-right font-medium text-gray-900 dark:text-gray-100">{{ formatAmount(row.amount) }}</td>
                     </tr>
+                    <tr v-if="!displayedRows.length">
+                      <td :colspan="footerBlankCols + 2" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No matches for "{{ search }}"</td>
+                    </tr>
                   </tbody>
                   <tfoot>
                     <tr class="fc-row-grand">
                       <td class="px-4 py-2.5 font-semibold">TOTAL</td>
                       <td v-for="n in footerBlankCols" :key="n" class="border-l border-white/20 px-4 py-2.5"></td>
-                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(data.total) }}</td>
+                      <td class="border-l border-white/20 px-4 py-2.5 text-right font-semibold">{{ formatAmount(footerTotal) }}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -245,8 +262,11 @@ import { computed, ref, watch } from 'vue'
 import { Dialog, ErrorMessage, FeatherIcon, Switch } from 'frappe-ui'
 import AppLoader from '@/components/AppLoader.vue'
 import AppTooltip from '@/components/AppTooltip.vue'
+import DrilldownExportButton from '@/components/DrilldownExportButton.vue'
+import DrilldownSearch from '@/components/DrilldownSearch.vue'
 import { accentColor, formatCr, formatINR } from '@/data/budgetTotals'
 import { call } from '@/data/decrypt'
+import { exportColor, matchesSearch } from '@/data/drilldownExport'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -287,14 +307,35 @@ function formatAmount(v) {
   return showFullNumbers.value ? formatINR(v) : formatCr(v)
 }
 
+// Search box above the table: filters the open level's rows across every
+// column (codes, descriptions, unit, method, months, amount). Cleared when
+// moving between the breakdown and a line's month-wise view.
+const search = ref('')
+
 const displayedRows = computed(() => {
-  const list = [...rows.value]
+  const list = rows.value.filter((r) =>
+    matchesSearch(
+      search.value, r.cost_center, r.cost_center_description, r.location_code, r.location_description,
+      r.gl_code, r.gl_description, r.category, r.unit, r.method, r.months, r.amount,
+    ),
+  )
   if (sortByAmount.value) return list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
   return list.sort((a, b) => `${a.cost_center}${a.location_code}${a.gl_code}`.localeCompare(`${b.cost_center}${b.location_code}${b.gl_code}`))
 })
 // Second level: one breakdown line opened month by month
 const selectedLine = ref(null)
-const currentRows = computed(() => (selectedLine.value ? selectedLine.value.month_rows || [] : displayedRows.value))
+watch(selectedLine, () => { search.value = '' })
+const currentRows = computed(() =>
+  selectedLine.value
+    ? (selectedLine.value.month_rows || []).filter((r) => matchesSearch(search.value, r.month, monthYear(r.month), r.amount))
+    : displayedRows.value,
+)
+// TOTAL row follows the search: the full total when unfiltered, otherwise
+// the sum of just the matching rows.
+const footerTotal = computed(() => {
+  if (!search.value) return selectedLine.value ? selectedLine.value.amount : data.value?.total
+  return currentRows.value.reduce((sum, r) => sum + (r.amount || 0), 0)
+})
 const currentTotal = computed(() => (selectedLine.value ? selectedLine.value.amount : data.value?.total))
 
 // "2026-27": April-December fall in 2026, January-March in 2027
@@ -312,6 +353,7 @@ function sharePct(row) {
 
 async function load() {
   selectedLine.value = null
+  search.value = ''
   data.value = null
   error.value = null
   loading.value = true
@@ -338,4 +380,75 @@ watch(
   },
   { immediate: true },
 )
+
+// Excel / PDF export of the level currently on screen (breakdown lines, or
+// one line month wise) - same columns, order and number format as the table.
+function exportPayload() {
+  const unitTitle = data.value?.unit_label || props.unitLabel
+  const amountMode = showFullNumbers.value ? 'full' : 'cr'
+  const line = selectedLine.value
+  if (line) {
+    return {
+      filename: `Adjustment_Drilldown_${line.cost_center}_${line.location_code}_${line.gl_code}_Month_wise`,
+      eyebrow: 'Adjustment Drill Down',
+      title: `${line.cost_center} ${line.cost_center_description || ''} · ${line.location_code} ${line.location_description || ''}`,
+      subtitle: `GL ${line.gl_code} ${line.gl_description || ''} · ${line.method} · Month wise`,
+      breadcrumb: [unitTitle, `${line.cost_center} · ${line.location_code} · ${line.gl_code}`],
+      summary: [
+        { label: 'Total Adjustment', value: line.amount, kind: 'amount' },
+        { label: 'Months', value: currentRows.value.length },
+      ],
+      section: 'Month wise',
+      amount_mode: amountMode,
+      columns: [
+        { label: 'Month', kind: 'text' },
+        { label: 'Share', kind: 'percent', align: 'right', bar: true },
+        { label: 'Adjustment', kind: 'amount', align: 'right' },
+      ],
+      rows: currentRows.value.map((row, i) => ({
+        color: exportColor(i),
+        cells: [`${row.month} ${monthYear(row.month)}`, sharePct(row), row.amount],
+      })),
+      footer: ['TOTAL', '', footerTotal.value],
+    }
+  }
+  const columns = [
+    { label: 'Cost Center', kind: 'text' },
+    { label: 'Location', kind: 'text' },
+    { label: 'GL Code', kind: 'text' },
+    ...(showUnit.value ? [{ label: 'Unit', kind: 'text' }] : []),
+    ...(showMethod.value ? [{ label: 'Method', kind: 'text' }] : []),
+    { label: 'Months', kind: 'text' },
+    { label: 'Share', kind: 'percent', align: 'right', bar: true },
+    { label: 'Adjustment', kind: 'amount', align: 'right' },
+  ]
+  const rows = displayedRows.value.map((row, i) => ({
+    color: exportColor(i),
+    cells: [
+      { main: row.cost_center || '—', sub: row.cost_center_description },
+      { main: row.location_code || '—', sub: row.location_description },
+      { main: row.gl_code || '—', sub: [row.gl_description, row.category].filter(Boolean).join(' · ') },
+      ...(showUnit.value ? [row.unit] : []),
+      ...(showMethod.value ? [row.method] : []),
+      (row.months || []).join(', '),
+      sharePct(row),
+      row.amount,
+    ],
+  }))
+  return {
+    filename: `Adjustment_Drilldown_${props.unit}_${props.method}_${props.month}_${props.financialYear}`,
+    eyebrow: 'Adjustment Drill Down',
+    title: unitTitle,
+    subtitle: `${methodLabel.value} · YTD ${props.month} ${props.financialYear}`,
+    summary: [
+      { label: 'Total Adjustment', value: data.value?.total, kind: 'amount' },
+      { label: 'Lines', value: rows.length },
+    ],
+    section: 'Breakdown',
+    amount_mode: amountMode,
+    columns,
+    rows,
+    footer: ['TOTAL', ...Array(footerBlankCols.value).fill(''), footerTotal.value],
+  }
+}
 </script>
